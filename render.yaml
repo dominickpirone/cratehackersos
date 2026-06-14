@@ -3,7 +3,7 @@
 # fill in the secret values (the ones marked sync:false) in the dashboard.
 services:
   - type: web
-    name: crate-hackers-email-console
+    name: cratehackersos
     runtime: node
     plan: starter            # Starter ($7/mo) is required for a persistent disk
     region: oregon

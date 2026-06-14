@@ -27,7 +27,7 @@ do for you from here; **(you)** need your accounts.
    Application type **Web application**.
 4. Under **Authorized redirect URIs**, add your Render URL + `/auth/callback`.
    You'll get the Render URL in step 3 — come back and paste it here. It looks
-   like: `https://crate-hackers-email-console.onrender.com/auth/callback`
+   like: `https://cratehackersos.onrender.com/auth/callback`
 5. Copy the **Client ID** and **Client secret** — you'll paste them into Render.
 
 > Note: "Internal" consent + our server-side check on the email domain are two
@@ -45,7 +45,7 @@ do for you from here; **(you)** need your accounts.
    plus the Google **Client ID** / **Client secret** from step 2. `SESSION_SECRET`
    is auto-generated. Reference list of keys is in `.env.example`.
 4. Deploy. When it's live, copy the service URL (e.g.
-   `https://crate-hackers-email-console.onrender.com`) and:
+   `https://cratehackersos.onrender.com`) and:
    - paste `<that URL>/auth/callback` into the Google redirect URIs (step 2.4),
    - the deploy log prints the exact redirect URI it expects — they must match.
 
