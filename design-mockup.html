@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crate Hackers — Email Console (design mockup)</title>
+<!--
+  DESIGN MOCKUP — self-contained, no backend.
+  This is a redesign canvas for the Crate Hackers Email Console. It renders fully
+  with realistic sample data so you can iterate on the look in Claude.ai.
+  Restyle anything. The real app is 3 files (index.html / styles.css / app.js);
+  the developer will port your visual changes back and re-wire the data.
+-->
+<style>
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel2: #1e222b;
+  --line: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #8b93a3;
+  --accent: #ff5a3c;
+  --accent2: #2dd4bf;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+h1, h2, h3 { margin: 0 0 .4em; font-weight: 650; }
+h2 { font-size: 18px; }
+h3 { font-size: 14px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+a { color: var(--accent2); }
+code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+small, .small { font-size: 12px; }
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.row.two { display: grid; grid-template-columns: 1fr 1fr; }
+header { display: flex; align-items: center; gap: 24px; padding: 12px 22px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 { font-size: 16px; margin: 0; }
+.brand .sub { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.logo { font-size: 22px; }
+nav#tabs { display: flex; gap: 4px; margin-left: 8px; }
+.tab { background: none; border: none; color: var(--muted); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 550; }
+.tab:hover { color: var(--text); background: var(--panel2); }
+.tab.active { color: var(--text); background: var(--panel2); box-shadow: inset 0 -2px 0 var(--accent); }
+.conn { margin-left: auto; font-size: 12px; color: var(--muted); }
+.conn .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+.conn.ok .dot { background: var(--ok); }
+.conn.bad .dot { background: var(--err); }
+main { padding: 22px; max-width: 1200px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; animation: fade .15s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+label { display: block; margin-bottom: 14px; font-size: 13px; color: var(--muted); font-weight: 550; }
+label.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+input, select, textarea { width: 100%; margin-top: 5px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: inherit; }
+input[type=date] { width: auto; }
+label.inline input { margin-top: 0; }
+textarea { resize: vertical; min-height: 90px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.5; }
+select[multiple] { padding: 4px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent2); }
+button { cursor: pointer; font: inherit; font-weight: 600; border-radius: 8px; padding: 9px 16px; border: 1px solid transparent; }
+button.primary { background: var(--accent); color: #fff; }
+button.primary:hover { filter: brightness(1.08); }
+button.secondary { background: var(--panel2); color: var(--text); border-color: var(--line); }
+button.secondary:hover { border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--accent2); border: 1px dashed var(--line); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.compose-grid { display: grid; grid-template-columns: 1fr 320px; gap: 22px; }
+.editor-head { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+.seg { display: inline-flex; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg-btn { background: none; border: none; color: var(--muted); padding: 5px 12px; border-radius: 0; }
+.seg-btn.active { background: var(--accent); color: #fff; }
+.editor { min-height: 360px; }
+details summary { cursor: pointer; color: var(--muted); margin-top: 8px; font-size: 12px; }
+.preview-out { margin-top: 10px; font-size: 13px; line-height: 1.7; }
+.preview-out .big { font-size: 26px; font-weight: 700; color: var(--accent2); }
+.send-card { border-color: var(--accent); }
+.progress { margin-top: 12px; }
+.bar { height: 8px; background: var(--panel2); border-radius: 6px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent2); transition: width .3s; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.seg-list { margin-bottom: 16px; }
+.seg-item { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
+.seg-item .name { font-weight: 600; }
+.seg-item .count { color: var(--accent2); font-variant-numeric: tabular-nums; }
+.seg-item button { padding: 4px 10px; font-size: 12px; }
+.suppress-box { min-height: 260px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 16px 0 24px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.kpi .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+.kpi.accent .v { color: var(--accent2); }
+.sales-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 24px; }
+.sales-box .big { font-size: 30px; font-weight: 700; color: var(--ok); }
+.sales-box .src { padding: 7px 0; border-top: 1px solid var(--panel2); font-size: 14px; }
+.sales-box .src.err { color: var(--err); }
+.card h4 { margin: 14px 0 6px; font-size: 13px; }
+.card h4:first-of-type { margin-top: 4px; }
+.kartra-guide { border-color: var(--accent2); }
+.kartra-guide .steps { margin: 8px 0 6px; padding-left: 20px; font-size: 13px; line-height: 1.7; color: var(--text); }
+.kartra-guide .steps li { margin-bottom: 3px; }
+.camp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.camp-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; }
+.camp-table td { padding: 9px 10px; border-bottom: 1px solid var(--panel2); }
+.camp-table tr:hover td { background: var(--panel); }
+.camp-table .num { font-variant-numeric: tabular-nums; }
+.rate { color: var(--accent2); }
+.settings-form { max-width: 640px; }
+@media (max-width: 900px) { .compose-grid, .two-col { grid-template-columns: 1fr; } nav#tabs { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">📡</span>
+    <div><h1>Email Console</h1><span class="sub">Crate Hackers</span></div>
+  </div>
+  <nav id="tabs">
+    <button class="tab active" data-tab="compose">Compose &amp; Send</button>
+    <button class="tab" data-tab="audiences">Audiences</button>
+    <button class="tab" data-tab="analytics">Analytics</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+  <div class="conn ok"><span class="dot"></span>Postmark connected · dom@welcome.cratehackers.com</div>
+</header>
+
+<main>
+  <!-- COMPOSE -->
+  <section id="compose" class="panel active">
+    <div class="compose-grid">
+      <div>
+        <label>Subject line
+          <input type="text" value="You're in FREE — register your seat for Tuesday" />
+        </label>
+        <label>Audience
+          <select multiple size="4">
+            <option selected>members (6,339)</option>
+            <option>active-members (4,820)</option>
+            <option>cancellations (612)</option>
+            <option>non-members (1,910)</option>
+          </select>
+          <small>Click to select one or more lists. Suppression list is always excluded.</small>
+        </label>
+        <div class="editor-head">
+          <span>Email body</span>
+          <div class="seg"><button class="seg-btn active">HTML</button><button class="seg-btn">Preview</button></div>
+        </div>
+        <textarea class="editor">&lt;p&gt;Hey {{first_name}},&lt;/p&gt;
+
+&lt;p&gt;ChatGPT 5 came out and everybody lost their minds...&lt;/p&gt;
+
+&lt;p&gt;You're a member — &lt;strong&gt;you're in FREE.&lt;/strong&gt; Register to save your seat:&lt;/p&gt;
+
+&lt;a href="..."&gt;Register FREE →&lt;/a&gt;</textarea>
+        <details><summary>Plain-text version (optional — auto-generated if blank)</summary>
+          <textarea placeholder="Plain-text fallback."></textarea>
+        </details>
+      </div>
+      <aside>
+        <div class="card">
+          <h3>Recipients</h3>
+          <button class="ghost">Preview recipients</button>
+          <div class="preview-out">
+            <div><span class="big">6,287</span> recipients</div>
+            <div class="muted">13 batches · 52 suppressed · 0 duplicates removed · 0 invalid</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Send a test</h3>
+          <input type="email" value="dom@cratehackers.com" />
+          <button class="secondary">Send test to me</button>
+        </div>
+        <div class="card send-card">
+          <h3>Send for real</h3>
+          <p class="muted small">Sends to everyone in the selected audience, in batches of 500.</p>
+          <button class="primary">Send to audience →</button>
+          <div class="progress">
+            <div class="bar"><div style="width:64%"></div></div>
+            <div class="small muted" style="margin-top:6px">4,000 / 6,287 processed · 3,981 sent · 19 failed</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- AUDIENCES -->
+  <section id="audiences" class="panel">
+    <div class="two-col">
+      <div>
+        <h2>Segments</h2>
+        <p class="muted small">Each segment is a list of recipients. Export from Kartra as CSV and upload here. Name them however you think — e.g. <code>members</code>, <code>non-members</code>, <code>cancellations</code>.</p>
+        <div class="card kartra-guide">
+          <h3>Import your members from Kartra</h3>
+          <p class="muted small">Your active/canceled membership lives in Kartra (Stripe &amp; PayPal only process payments), and Kartra's API can't list contacts in bulk — so export a CSV and upload it below.</p>
+          <ol class="steps">
+            <li>In Kartra: <strong>Contacts → All contacts</strong></li>
+            <li>Use <strong>Advanced filters</strong> to pick a group — e.g. your <em>active member</em> tag</li>
+            <li>Tick select-all, then click <strong>Export to CSV</strong></li>
+            <li>Upload below — name it <code>members</code>, <code>cancellations</code>, etc.</li>
+          </ol>
+        </div>
+        <div class="seg-list">
+          <div class="seg-item"><span class="name">members</span><span><span class="count">6,339</span> &nbsp; <button class="secondary">Delete</button></span></div>
+          <div class="seg-item"><span class="name">active-members</span><span><span class="count">4,820</span> &nbsp; <button class="secondary">Delete</button></span></div>
+          <div class="seg-item"><span class="name">cancellations</span><span><span class="count">612</span> &nbsp; <button class="secondary">Delete</button></span></div>
+        </div>
+        <div class="card">
+          <h3>Add / replace a segment</h3>
+          <label>Segment name <input type="text" placeholder="e.g. cancellations" /></label>
+          <label>CSV file <input type="file" /></label>
+          <button class="primary">Upload segment</button>
+        </div>
+      </div>
+      <div>
+        <h2>Suppression list</h2>
+        <p class="muted small">These addresses are <strong>always excluded</strong> from every send (bounces, spam complaints, opt-outs).</p>
+        <textarea class="suppress-box">bounced@example.com
+complained@example.com
+unsub@example.com</textarea>
+        <div class="row"><button class="primary">Save suppression list</button><span class="small muted">52 addresses</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="analytics" class="panel">
+    <div class="row between">
+      <h2>Analytics</h2>
+      <div class="row">
+        <label class="inline">From <input type="date" value="2026-05-08" /></label>
+        <label class="inline">To <input type="date" value="2026-06-07" /></label>
+        <button class="secondary">Refresh</button>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">12,400</div><div class="l">Emails sent</div></div>
+      <div class="kpi accent"><div class="v">41.2%</div><div class="l">Open rate</div></div>
+      <div class="kpi accent"><div class="v">6.8%</div><div class="l">Click rate</div></div>
+      <div class="kpi"><div class="v">16.5%</div><div class="l">Click-to-open</div></div>
+      <div class="kpi"><div class="v">38</div><div class="l">Bounces</div></div>
+      <div class="kpi"><div class="v">4</div><div class="l">Spam reports</div></div>
+    </div>
+    <h3>Sales</h3>
+    <div class="sales-box">
+      <div class="big">USD 137,979.08</div>
+      <div class="muted small" style="margin-bottom:10px">total for selected period</div>
+      <div class="src"><b>Stripe</b> USD 137,979.08 <span class="muted">net · 4,087 charges · USD 9,146.33 refunded</span></div>
+      <div class="src"><b>PayPal</b> USD 21,430.00 <span class="muted">· 318 transactions</span></div>
+    </div>
+    <h3>Campaign history</h3>
+    <table class="camp-table">
+      <thead><tr><th>Date</th><th>Subject</th><th>Audience</th><th>Recipients</th><th>Sent</th><th>Opens</th><th>Clicks</th></tr></thead>
+      <tbody>
+        <tr><td>2026-06-05</td><td>You're in FREE — register your seat</td><td class="muted">members</td><td class="num">6,287</td><td class="num">6,268</td><td class="num">2,584 <span class="rate">41.2%</span></td><td class="num">427 <span class="rate">6.8%</span></td></tr>
+        <tr><td>2026-05-28</td><td>Last call: AI Secrets challenge</td><td class="muted">active-members</td><td class="num">4,790</td><td class="num">4,781</td><td class="num">2,209 <span class="rate">46.2%</span></td><td class="num">512 <span class="rate">10.7%</span></td></tr>
+        <tr><td>2026-05-19</td><td>We miss you — come back offer</td><td class="muted">cancellations</td><td class="num">612</td><td class="num">609</td><td class="num">198 <span class="rate">32.5%</span></td><td class="num">41 <span class="rate">6.7%</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="panel">
+    <div class="settings-form">
+      <h2>Settings</h2>
+      <div class="card">
+        <h3>Postmark</h3>
+        <label>Server API token (Broadcast server) <input type="password" placeholder="•••••• (saved — leave blank to keep)" /></label>
+        <div class="row two">
+          <label>From email <input type="email" value="dom@welcome.cratehackers.com" /></label>
+          <label>From name <input type="text" value="Dominick — Crate Hackers" /></label>
+        </div>
+        <div class="row two">
+          <label>Message stream <input type="text" value="broadcast" /></label>
+          <label>Reply-to (optional) <input type="email" /></label>
+        </div>
+        <label>Default test address <input type="email" value="dom@cratehackers.com" /></label>
+        <div class="row"><button class="primary">Save settings</button><button class="secondary">Test connection</button><span class="small" style="color:var(--ok)">✓ Connected to "Crate Hackers Marketing Broadcasts"</span></div>
+      </div>
+      <div class="card">
+        <h3>Sales connections</h3>
+        <p class="muted small">Kartra processes payments through Stripe &amp; PayPal, so connecting those gives you the real revenue.</p>
+        <h4>Stripe</h4>
+        <label>Secret key <input type="password" placeholder="•••••• (saved — leave blank to keep)" /></label>
+        <h4>PayPal</h4>
+        <div class="row two">
+          <label>Client ID <input type="text" placeholder="•••••• (saved)" /></label>
+          <label>Secret <input type="password" placeholder="•••••• (saved)" /></label>
+        </div>
+        <label>Environment <select><option>Live</option><option>Sandbox</option></select></label>
+        <h4>Kartra <span class="muted small">(beta)</span></h4>
+        <div class="row two">
+          <label>App ID <input type="text" placeholder="•••••• (saved)" /></label>
+          <label>API key <input type="password" placeholder="•••••• (saved)" /></label>
+        </div>
+        <label>API password <input type="password" placeholder="•••••• (saved)" /></label>
+        <div class="row"><button class="primary">Save sales connections</button><button class="secondary">Test connections</button><span class="small muted">stripe: ✓ · paypal: ✓ live · kartra: ✗</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// Tab switching only — no backend. (The real app's app.js handles all data.)
+document.querySelectorAll('.tab').forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  };
+});
+// Let the HTML/Preview toggle and other seg buttons feel alive in the mockup.
+document.querySelectorAll('.seg-btn').forEach((b) => b.onclick = () => {
+  b.parentElement.querySelectorAll('.seg-btn').forEach((x) => x.classList.remove('active'));
+  b.classList.add('active');
+});
+</script>
+</body>
+</html>

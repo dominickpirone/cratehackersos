@@ -1,0 +1,78 @@
+# Render Blueprint — deploys the Email Console with a persistent disk.
+# In Render: New + → Blueprint → pick this repo. It reads this file, then you
+# fill in the secret values (the ones marked sync:false) in the dashboard.
+services:
+  - type: web
+    name: crate-hackers-email-console
+    runtime: node
+    plan: starter            # Starter ($7/mo) is required for a persistent disk
+    region: oregon
+    branch: main
+    buildCommand: ""         # zero dependencies — nothing to build
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /data       # the app's data/ folder lives here, survives deploys
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: CONFIG_PATH
+        value: /data/config.local.json
+      - key: ALLOWED_DOMAIN
+        value: cratehackers.com
+      # Note: Render auto-injects RENDER_EXTERNAL_URL (full https URL); auth.js
+      # uses it to build the OAuth redirect URI, so no OAUTH_BASE_URL is needed.
+      # ── Secrets — set these in the Render dashboard (never in git) ──
+      - key: SESSION_SECRET          # random 32+ char string; Render can generate one
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: POSTMARK_SERVER_TOKEN
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SECRET
+        sync: false
+      - key: PAYPAL_ENV
+        sync: false
+      - key: KARTRA_APP_ID
+        sync: false
+      - key: KARTRA_API_KEY
+        sync: false
+      - key: KARTRA_API_PASSWORD
+        sync: false
+      - key: MAILGUN_API_KEY
+        sync: false
+      - key: MAILGUN_DOMAIN
+        sync: false
+      - key: MAILGUN_FROM_EMAIL
+        sync: false
+      - key: MAILGUN_FROM_NAME
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBERS
+        sync: false
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
+      - key: QUO_API_KEY
+        sync: false
+      - key: QUO_FROM_NUMBER
+        sync: false
+      - key: TEST_EMAIL
+        sync: false
+      - key: TEST_PHONE
+        sync: false

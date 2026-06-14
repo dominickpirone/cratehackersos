@@ -1,0 +1,12 @@
+{
+  "name": "crate-hackers-email-console",
+  "version": "1.0.0",
+  "description": "Paste-and-send email console for Crate Hackers, built on Postmark.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "postmarkToken": "PASTE-YOUR-BROADCAST-SERVER-TOKEN-HERE",
+  "fromEmail": "dom@cratehackers.com",
+  "fromName": "Dominick — Crate Hackers",
+  "stream": "broadcast",
+  "replyTo": "",
+  "testEmail": "dom@cratehackers.com",
+  "stripeKey": "",
+  "paypalClientId": "",
+  "paypalSecret": "",
+  "paypalEnv": "live",
+  "kartraAppId": "",
+  "kartraApiKey": "",
+  "kartraApiPassword": ""
+}

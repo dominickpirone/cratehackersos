@@ -1,0 +1,16 @@
+# ── Secrets & local settings — NEVER commit ──────────────────────────────
+config.local.json
+.env
+.env.local
+.env.*.local
+
+# ── Customer data / PII / send history ───────────────────────────────────
+# Audiences, phone↔email map, campaign history, jobs, drafts, suppression.
+# This lives on the server's persistent disk in the cloud — never in git.
+data/
+
+# ── Editor / OS / backup cruft ───────────────────────────────────────────
+node_modules/
+.DS_Store
+*.bak
+*.log
