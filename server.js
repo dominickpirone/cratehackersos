@@ -1409,6 +1409,12 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// Ensure all data subdirs exist (a fresh disk — e.g. a new cloud volume —
+// starts empty, and some write paths don't mkdir on their own).
+for (const d of [DATA, SEGMENTS, SMS_SEGMENTS, RECIPIENTS, JOBS_DIR, DRAFTS, SCHEDULED]) {
+  try { fs.mkdirSync(d, { recursive: true }); } catch {}
+}
+
 server.listen(PORT, () => {
   console.log(`\n  Crate Hackers Email Console`);
   console.log(`  → http://localhost:${PORT}\n`);
