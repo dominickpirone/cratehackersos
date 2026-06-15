@@ -33,7 +33,7 @@
   document.cookie='l11_variant='+v+';path=/;max-age=2592000;samesite=lax';
   window.dataLayer=window.dataLayer||[];
   window.dataLayer.push({event:'l11_variant_assigned',variant:v}); // <- log/forward here (GA, webhook, etc.)
-  location.replace('sales-'+v+'.html');
+  location.replace('sales-'+v+'.html'+location.search); // carry gclid/fbclid/utm_* through to the tracked sales page
 })();
 </script>
 </body>
