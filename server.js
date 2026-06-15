@@ -106,32 +106,75 @@ function parseCSV(content) {
   return rows;
 }
 
-function extractRecipients(csvText) {
-  const rows = parseCSV(csvText);
-  if (!rows.length) return { recipients: [], invalid: 0, dupes: 0 };
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  let emailCol = header.findIndex((h) =>
-    ["email", "email_address", "email address", "e-mail", "emailaddress", "lead email"].includes(h));
-  if (emailCol === -1) emailCol = header.findIndex((h) => h.includes("email")); // Kartra/other variants
-  let nameCol = header.findIndex((h) =>
-    ["first_name", "firstname", "first name", "name", "lead first name", "full name"].includes(h));
-  if (nameCol === -1) nameCol = header.findIndex((h) => h.includes("first") && h.includes("name"));
-  // If no header row detected, assume col0=email, col1=name
-  let start = 1;
-  if (emailCol === -1) {
-    if (EMAIL_RE.test((rows[0][0] || "").trim())) { emailCol = 0; nameCol = 1; start = 0; }
-    else return { recipients: [], invalid: 0, dupes: 0, error: "No email column found" };
+// ---------- flexible column detection (Skool, Kartra, Zoom, Stripe, generic) ----------
+// Exact header names take priority; then substring; then we sniff by content.
+const EMAIL_EXACT = ["email", "email address", "email_address", "e-mail", "e mail", "emailaddress",
+  "work email", "personal email", "user email", "member email", "primary email", "contact email",
+  "login email", "buyer email", "lead email", "your email", "email id"];
+const EMAIL_SUBSTR = ["email", "e-mail"];
+const PHONE_EXACT = ["phone", "phone number", "phone_number", "mobile", "mobile phone", "mobile number",
+  "cell", "cell phone", "number", "sms", "sms number", "buyer_phone", "buyer phone", "contact number",
+  "whatsapp", "telephone", "tel", "msisdn"];
+const PHONE_SUBSTR = ["phone", "mobile", "cell", "whatsapp"];
+const FIRST_NAME_EXACT = ["first_name", "first name", "firstname", "first", "given name", "given_name", "fname"];
+const FULL_NAME_EXACT = ["name", "full name", "full_name", "fullname", "member name", "member",
+  "contact name", "customer name", "attendee", "attendee name", "display name", "billing name"];
+
+// Locate the header row (skipping any preamble/junk rows that exports like Zoom
+// add on top) and the column to use. Falls back to sniffing the column by content
+// when there's no usable header. Returns { headerRow, col, headerCells } or null.
+function detectColumn(rows, exactList, substrWords, validator) {
+  const scan = Math.min(rows.length, 30);
+  const norm = (i) => rows[i].map((c) => (c || "").trim().toLowerCase());
+  for (let i = 0; i < scan; i++) { // pass 1: exact header
+    const cells = norm(i);
+    const col = cells.findIndex((h) => exactList.includes(h));
+    if (col !== -1) return { headerRow: i, col, headerCells: cells };
   }
+  for (let i = 0; i < scan; i++) { // pass 2: substring header (guard against long sentence cells)
+    const cells = norm(i);
+    const col = cells.findIndex((h) => h && h.length <= 40 && substrWords.some((w) => h.includes(w)));
+    if (col !== -1) return { headerRow: i, col, headerCells: cells };
+  }
+  // pass 3: by content — the column with the most cells that validate
+  const maxCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  let bestCol = -1, bestCount = 0;
+  for (let c = 0; c < maxCols; c++) {
+    let n = 0;
+    for (const r of rows) if (validator((r[c] || "").trim())) n++;
+    if (n > bestCount) { bestCount = n; bestCol = c; }
+  }
+  return bestCount >= 1 ? { headerRow: -1, col: bestCol, headerCells: null } : null;
+}
+
+function detectNameCol(headerCells) {
+  if (!headerCells) return -1;
+  let c = headerCells.findIndex((h) => FIRST_NAME_EXACT.includes(h) || (h.includes("first") && h.includes("name")));
+  if (c !== -1) return c;
+  c = headerCells.findIndex((h) => FULL_NAME_EXACT.includes(h));
+  if (c !== -1) return c;
+  // any "*name*" column that isn't last/username/filename/company/etc
+  return headerCells.findIndex((h) => /name/.test(h) && !/(last|sur|family|user|file|company|event|topic|screen|nick)/.test(h));
+}
+
+const firstNameOf = (v) => (v || "").trim().split(/\s+/)[0] || "";
+
+function extractRecipients(csvText) {
+  const rows = parseCSV((csvText || "").replace(/^﻿/, ""));
+  if (!rows.length) return { recipients: [], invalid: 0, dupes: 0 };
+  const found = detectColumn(rows, EMAIL_EXACT, EMAIL_SUBSTR, (v) => EMAIL_RE.test(v.toLowerCase()));
+  if (!found) return { recipients: [], invalid: 0, dupes: 0, error: "No email column found" };
+  const nameCol = detectNameCol(found.headerCells);
+  const start = found.headerRow >= 0 ? found.headerRow + 1 : 0;
   const seen = new Set();
   const recipients = [];
   let invalid = 0, dupes = 0;
   for (const r of rows.slice(start)) {
-    const email = (r[emailCol] || "").trim().toLowerCase();
+    const email = (r[found.col] || "").trim().toLowerCase();
     if (!EMAIL_RE.test(email)) { invalid++; continue; }
     if (seen.has(email)) { dupes++; continue; }
     seen.add(email);
-    const name = nameCol >= 0 ? (r[nameCol] || "").trim().split(" ")[0] : "";
-    recipients.push({ email, name });
+    recipients.push({ email, name: nameCol >= 0 ? firstNameOf(r[nameCol]) : "" });
   }
   return { recipients, invalid, dupes };
 }
@@ -634,25 +677,19 @@ async function quoListNumbers(cfg) {
 
 // ---------- SMS audience segments (phone,first_name) ----------
 function extractPhones(csvText) {
-  const rows = parseCSV(csvText);
+  const rows = parseCSV((csvText || "").replace(/^﻿/, ""));
   if (!rows.length) return { recipients: [], invalid: 0, dupes: 0 };
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  let phoneCol = header.findIndex((h) => ["phone", "phone_number", "mobile", "cell", "number", "sms", "buyer_phone"].includes(h));
-  if (phoneCol === -1) phoneCol = header.findIndex((h) => h.includes("phone") || h.includes("mobile"));
-  let nameCol = header.findIndex((h) => ["first_name", "firstname", "first name", "name"].includes(h));
-  if (nameCol === -1) nameCol = header.findIndex((h) => h.includes("first") && h.includes("name"));
-  let start = 1;
-  if (phoneCol === -1) {
-    if (normalizePhone(rows[0][0])) { phoneCol = 0; nameCol = 1; start = 0; }
-    else return { recipients: [], invalid: 0, dupes: 0, error: "No phone column found" };
-  }
+  const found = detectColumn(rows, PHONE_EXACT, PHONE_SUBSTR, (v) => !!normalizePhone(v));
+  if (!found) return { recipients: [], invalid: 0, dupes: 0, error: "No phone column found" };
+  const nameCol = detectNameCol(found.headerCells);
+  const start = found.headerRow >= 0 ? found.headerRow + 1 : 0;
   const seen = new Set(); const recipients = []; let invalid = 0, dupes = 0;
   for (const r of rows.slice(start)) {
-    const phone = normalizePhone(r[phoneCol]);
+    const phone = normalizePhone(r[found.col]);
     if (!phone) { invalid++; continue; }
     if (seen.has(phone)) { dupes++; continue; }
     seen.add(phone);
-    recipients.push({ phone, name: nameCol >= 0 ? (r[nameCol] || "").trim().split(" ")[0] : "" });
+    recipients.push({ phone, name: nameCol >= 0 ? firstNameOf(r[nameCol]) : "" });
   }
   return { recipients, invalid, dupes };
 }
