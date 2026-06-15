@@ -217,19 +217,32 @@ async function loadSegments() {
   $("#suppressBox").value = sup.list.join("\n");
 }
 
-$("#segUpload").onclick = () => {
-  const name = $("#segName").value.trim();
-  const file = $("#segFile").files[0];
-  if (!name || !file) return toast("Name and CSV file required.", "err");
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const r = await post("/api/segments", { name, csv: reader.result });
-    if (r.error) return toast(r.error, "err");
-    toast(`Segment "${r.name}" saved — ${fmt(r.count)} recipients.`, "ok");
-    $("#segName").value = ""; $("#segFile").value = "";
-    loadSegments(); loadAudienceOptions();
-  };
-  reader.readAsText(file);
+// read a File as text → Promise (lets us upload several files in sequence)
+const readTextFile = (file) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result);
+  r.onerror = () => rej(new Error("read failed"));
+  r.readAsText(file);
+});
+// segment name from filename (server slugifies it) — used when bulk-uploading
+const nameFromFile = (f) => f.name.replace(/\.[^.]+$/, "");
+
+$("#segUpload").onclick = async () => {
+  const files = [...$("#segFile").files];
+  if (!files.length) return toast("Choose one or more CSV files.", "err");
+  const typed = $("#segName").value.trim();
+  let ok = 0, fail = 0, total = 0;
+  for (const file of files) {
+    const name = files.length === 1 && typed ? typed : nameFromFile(file);
+    try {
+      const r = await post("/api/segments", { name, csv: await readTextFile(file) });
+      if (r.error) { fail++; toast(`${file.name}: ${r.error}`, "err"); }
+      else { ok++; total += r.count || 0; }
+    } catch { fail++; toast(`${file.name}: couldn't read file`, "err"); }
+  }
+  if (ok) toast(`${ok} segment${ok > 1 ? "s" : ""} saved — ${fmt(total)} recipients${fail ? `, ${fail} failed` : ""}.`, fail ? "err" : "ok");
+  $("#segName").value = ""; $("#segFile").value = "";
+  loadSegments(); loadAudienceOptions();
 };
 
 $("#suppressSave").onclick = async () => {
@@ -604,17 +617,21 @@ function smsPoll(jobId, total) {
     if (j.done) { clearInterval(t); clearJob(); $("#smsSendBtn").disabled = false; toast(`Done — ${fmt(j.sent)} texts sent, ${fmt(j.failed)} failed.`, j.failed ? "" : "ok"); }
   }, 800);
 }
-if ($("#smsSegUpload")) $("#smsSegUpload").onclick = () => {
-  const name = $("#smsSegName").value.trim(); const file = $("#smsSegFile").files[0];
-  if (!name || !file) return toast("Name and CSV file required.", "err");
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const r = await post("/api/sms/segments", { name, csv: reader.result });
-    if (r.error) return toast(r.error, "err");
-    toast(`Phone list "${r.name}" saved — ${fmt(r.count)} numbers.`, "ok");
-    $("#smsSegName").value = ""; $("#smsSegFile").value = ""; loadSms();
-  };
-  reader.readAsText(file);
+if ($("#smsSegUpload")) $("#smsSegUpload").onclick = async () => {
+  const files = [...$("#smsSegFile").files];
+  if (!files.length) return toast("Choose one or more CSV files.", "err");
+  const typed = $("#smsSegName").value.trim();
+  let ok = 0, fail = 0, total = 0;
+  for (const file of files) {
+    const name = files.length === 1 && typed ? typed : nameFromFile(file);
+    try {
+      const r = await post("/api/sms/segments", { name, csv: await readTextFile(file) });
+      if (r.error) { fail++; toast(`${file.name}: ${r.error}`, "err"); }
+      else { ok++; total += r.count || 0; }
+    } catch { fail++; toast(`${file.name}: couldn't read file`, "err"); }
+  }
+  if (ok) toast(`${ok} phone list${ok > 1 ? "s" : ""} saved — ${fmt(total)} numbers${fail ? `, ${fail} failed` : ""}.`, fail ? "err" : "ok");
+  $("#smsSegName").value = ""; $("#smsSegFile").value = ""; loadSms();
 };
 
 // ---------- scheduling ----------

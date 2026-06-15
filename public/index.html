@@ -189,9 +189,9 @@
 
             <div class="card">
               <h3>Add / replace a segment</h3>
-              <div class="field"><span class="lab">Segment name</span><input id="segName" type="text" placeholder="e.g. cancellations" /></div>
-              <div class="field"><span class="lab">CSV file</span><input id="segFile" type="file" accept=".csv,text/csv" /></div>
-              <button id="segUpload" class="btn btn-primary">Upload segment</button>
+              <div class="field"><span class="lab">Segment name <span class="muted small">— optional when uploading several; each file auto-names from its filename</span></span><input id="segName" type="text" placeholder="e.g. cancellations" /></div>
+              <div class="field"><span class="lab">CSV file(s) <span class="muted small">— pick one, or select many to bulk-import</span></span><input id="segFile" type="file" accept=".csv,text/csv" multiple /></div>
+              <button id="segUpload" class="btn btn-primary">Upload segment(s)</button>
               <span id="segMsg" class="inline-msg"></span>
             </div>
           </div>
@@ -276,10 +276,10 @@
               <p class="muted small">Upload a CSV with a <code>phone</code> column (optional <code>first_name</code>) to save a reusable SMS list.</p>
               <div id="smsSegList" class="seg-list"></div>
               <div class="field-row">
-                <div class="field"><span class="lab">List name</span><input id="smsSegName" type="text" placeholder="e.g. active-members" /></div>
-                <div class="field"><span class="lab">CSV file</span><input id="smsSegFile" type="file" accept=".csv,text/csv" /></div>
+                <div class="field"><span class="lab">List name <span class="muted small">— optional when uploading several</span></span><input id="smsSegName" type="text" placeholder="e.g. active-members" /></div>
+                <div class="field"><span class="lab">CSV file(s) <span class="muted small">— pick one or many</span></span><input id="smsSegFile" type="file" accept=".csv,text/csv" multiple /></div>
               </div>
-              <button id="smsSegUpload" class="btn btn-secondary">Upload phone list</button>
+              <button id="smsSegUpload" class="btn btn-secondary">Upload phone list(s)</button>
               <span id="smsSegMsg" class="inline-msg"></span>
             </div>
           </div>
