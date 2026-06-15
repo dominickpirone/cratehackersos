@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level 11 — Crank your DJ business to 11</title>
+<meta name="robots" content="noindex">
+<noscript><meta http-equiv="refresh" content="0; url=sales-a.html"></noscript>
+<style>
+  html,body{margin:0;height:100%;background:#050507;color:#C7C8CE;font-family:'Inter',Arial,sans-serif;}
+  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+  img{height:120px;width:auto;}
+  .dots{display:flex;gap:8px;}
+  .dots i{width:9px;height:9px;border-radius:50%;background:#FF7722;display:block;animation:b 1s ease-in-out infinite;}
+  .dots i:nth-child(2){animation-delay:.16s}.dots i:nth-child(3){animation-delay:.32s}
+  @keyframes b{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-5px)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/31078171_1781192261PK8Level11-logo-white.png" alt="Level 11">
+  <div class="dots"><i></i><i></i><i></i></div>
+  <noscript><a href="sales-a.html" style="color:#FF7722">Enter →</a></noscript>
+</div>
+<script>
+(function(){
+  var VARIANTS=['a','b','c'];
+  var qs=new URLSearchParams(location.search);
+  var forced=qs.get('v');                       // ?v=a forces a variant (handy for testing/ads)
+  var v=(forced&&VARIANTS.indexOf(forced)>-1)?forced:localStorage.getItem('l11_variant');
+  if(VARIANTS.indexOf(v)===-1){ v=VARIANTS[Math.floor(Math.random()*VARIANTS.length)]; } // sticky random split
+  localStorage.setItem('l11_variant',v);
+  document.cookie='l11_variant='+v+';path=/;max-age=2592000;samesite=lax';
+  window.dataLayer=window.dataLayer||[];
+  window.dataLayer.push({event:'l11_variant_assigned',variant:v}); // <- log/forward here (GA, webhook, etc.)
+  location.replace('sales-'+v+'.html');
+})();
+</script>
+</body>
+</html>
