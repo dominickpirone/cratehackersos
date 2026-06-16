@@ -32,6 +32,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "sms") loadSms();
     if (btn.dataset.tab === "outreach") loadOutreach();
     if (btn.dataset.tab === "analytics") loadAnalytics();
+    if (btn.dataset.tab === "funnel") loadFunnel();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
   };
@@ -767,7 +768,14 @@ async function loadOutreach() {
 function renderOutreach() {
   const tb = $("#outreachTable tbody");
   const filter = $("#outreachFilter").value;
-  const rows = filter ? OUTREACH_ROWS.filter((x) => x.status === filter) : OUTREACH_ROWS;
+  const rows = (filter ? OUTREACH_ROWS.filter((x) => x.status === filter) : OUTREACH_ROWS.slice());
+  const sort = ($("#outreachSort") && $("#outreachSort").value) || "ltv-desc";
+  const ltv = (x) => Number(x.ltv) || 0;
+  rows.sort((a, b) =>
+    sort === "ltv-asc" ? ltv(a) - ltv(b) :
+    sort === "name" ? (a.name || "").localeCompare(b.name || "") :
+    sort === "status" ? (a.status || "").localeCompare(b.status || "") :
+    ltv(b) - ltv(a));
   const total = OUTREACH_ROWS.length;
   const worked = OUTREACH_ROWS.filter((x) => x.status !== "todo").length;
   $("#outreachStats").textContent = total ? `${fmt(worked)} of ${fmt(total)} worked` : "";
@@ -779,6 +787,7 @@ function renderOutreach() {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td><button class="btn btn-secondary sm" data-otext="${esc(x.phone)}" style="padding:3px 10px;font-size:12px;white-space:nowrap">💬 Text</button></td>
       <td>${esc(x.name || "—")}</td>
+      <td style="white-space:nowrap;font-variant-numeric:tabular-nums">${x.ltv ? "$" + fmt(Math.round(x.ltv)) : "—"}</td>
       <td><a href="tel:${esc(x.phone)}" style="color:var(--accent2,#2dd4bf)">${esc(x.phone)}</a></td>
       <td class="muted">${esc(x.email || "")}</td>
       <td><select data-ophone="${esc(x.phone)}" style="padding:4px 8px">${STATUSES.map((s) => `<option value="${s}" ${s === x.status ? "selected" : ""}>${s}</option>`).join("")}</select></td>
@@ -815,6 +824,69 @@ function renderOutreach() {
 }
 if ($("#outreachList")) $("#outreachList").onchange = loadOutreach;
 if ($("#outreachFilter")) $("#outreachFilter").onchange = renderOutreach;
+if ($("#outreachSort")) $("#outreachSort").onchange = renderOutreach;
+
+// ---------- Level 11 funnel ----------
+const fmtMoney = (n) => "$" + Math.round(n || 0).toLocaleString();
+const fmtPct = (r) => ((r || 0) * 100).toFixed(1) + "%";
+const funMetric = (label, value) =>
+  `<div style="flex:1;min-width:120px;background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px">
+    <div style="font-size:12px;color:#8b93a7;text-transform:uppercase;letter-spacing:.04em">${label}</div>
+    <div style="font-size:24px;font-weight:700;margin-top:4px">${value}</div></div>`;
+const funBar = (label, val, max, color) => {
+  const w = max > 0 ? Math.max(2, (val / max) * 100) : 0;
+  return `<div style="margin:6px 0">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#aeb6cc;margin-bottom:3px"><span>${label}</span><span style="font-weight:700;color:#fff">${(val || 0).toLocaleString()}</span></div>
+    <div style="height:10px;background:#0e0f12;border-radius:6px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div></div>`;
+};
+async function loadFunnel() {
+  $("#funMsg").textContent = "Loading…";
+  const qs = new URLSearchParams();
+  if ($("#funFrom").value) qs.set("from", $("#funFrom").value);
+  if ($("#funTo").value) qs.set("to", $("#funTo").value);
+  let d; try { d = await api("/api/funnel?" + qs.toString()); } catch { $("#funMsg").textContent = "Couldn't load."; return; }
+  $("#funMsg").textContent = "";
+  renderFunnel(d);
+}
+function renderFunnel(d) {
+  const t = d.totals;
+  $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
+    ${funMetric("Visitors", fmt(t.view))}${funMetric("Checkout clicks", fmt(t.cta))}
+    ${funMetric("Conversions", fmt(t.conv))}${funMetric("Conv. rate", fmtPct(t.convRate))}
+    ${funMetric("Revenue", fmtMoney(t.revenue))}${funMetric("AOV", fmtMoney(t.aov))}
+    ${funMetric("EPC / visitor", fmtMoney(t.epc))}</div>`;
+  const variants = d.variants || [];
+  const maxView = Math.max(1, ...variants.map((v) => v.view));
+  let winner = null;
+  variants.filter((v) => v.view > 0).forEach((v) => { if (!winner || v.epc > winner.epc) winner = v; });
+  $("#funVariants").innerHTML = variants.length ? `<div style="display:flex;gap:14px;flex-wrap:wrap">` + variants.map((v) => {
+    const win = winner && v.variant === winner.variant && t.conv > 0;
+    return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
+      ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
+      <div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Variant ${(v.variant || "?").toUpperCase()}</div>
+      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar("Checkout clicks", v.cta, maxView, "#a855f7")}${funBar("Conversions", v.conv, maxView, "#22c55e")}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Conv. rate</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">AOV</div><div style="font-weight:700">${fmtMoney(v.aov)}</div></div>
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">EPC</div><div style="font-weight:700;color:#FF7722">${fmtMoney(v.epc)}</div></div>
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700">${fmtMoney(v.revenue)}</div></div>
+      </div></div>`;
+  }).join("") + `</div>` : `<p class="muted">No funnel data yet for this range — once traffic hits the lander, it shows up here live.</p>`;
+  const tiers = ["monthly", "annual", "lifetime"];
+  const maxTier = Math.max(1, ...tiers.map((k) => t.tiers[k] || 0));
+  $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
+    tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
+}
+if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
+$$(".fun-preset").forEach((b) => b.onclick = () => {
+  const days = +b.dataset.days;
+  if (days === 0) { $("#funFrom").value = ""; $("#funTo").value = ""; }
+  else {
+    $("#funFrom").value = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+    $("#funTo").value = new Date().toISOString().slice(0, 10);
+  }
+  loadFunnel();
+});
 // opener message: persist per browser, default to a friendly intro
 const OUTREACH_MSG_KEY = "ch_outreachOpener";
 if ($("#outreachMsg")) {

@@ -30,7 +30,8 @@
   var v=(forced&&VARIANTS.indexOf(forced)>-1)?forced:localStorage.getItem('l11_variant');
   if(VARIANTS.indexOf(v)===-1){ v=VARIANTS[Math.floor(Math.random()*VARIANTS.length)]; } // sticky random split
   localStorage.setItem('l11_variant',v);
-  document.cookie='l11_variant='+v+';path=/;max-age=2592000;samesite=lax';
+  var d11=/(^|\.)cratehackers\.com$/.test(location.hostname)?';domain=.cratehackers.com':''; // share the variant across lander/www/checkout subdomains
+  document.cookie='l11_variant='+v+';path=/'+d11+';max-age=2592000;samesite=lax';
   window.dataLayer=window.dataLayer||[];
   window.dataLayer.push({event:'l11_variant_assigned',variant:v}); // <- log/forward here (GA, webhook, etc.)
   location.replace('/level11/sales-'+v+'.html'+location.search); // absolute path: works from the pretty /level11 URL; carries gclid/fbclid/utm_* through

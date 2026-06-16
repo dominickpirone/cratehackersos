@@ -38,6 +38,7 @@
       <button class="tab" data-tab="sms"><svg class="ico" viewBox="0 0 24 24"><use href="#i-mail"/></svg><span class="lbl">SMS / MMS</span></button>
       <button class="tab" data-tab="outreach"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Outreach</span></button>
       <button class="tab" data-tab="analytics"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Analytics</span></button>
+      <button class="tab" data-tab="funnel"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Funnel</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -357,13 +358,46 @@
             <option value="no-answer">No answer</option>
             <option value="done">Done</option>
           </select>
+          <select id="outreachSort" style="max-width:200px">
+            <option value="ltv-desc">Sort: LTV (high → low)</option>
+            <option value="ltv-asc">LTV (low → high)</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="status">Status</option>
+          </select>
           <span id="outreachStats" class="muted small"></span>
         </div>
         <table class="camp-table" id="outreachTable">
-          <thead><tr><th></th><th>Name</th><th>Phone</th><th>Email</th><th>Status</th><th>Note</th></tr></thead>
+          <thead><tr><th></th><th>Name</th><th>LTV</th><th>Phone</th><th>Email</th><th>Status</th><th>Note</th></tr></thead>
           <tbody></tbody>
         </table>
         <p id="outreachEmpty" class="muted small hidden" style="margin-top:14px">No phone list selected — pick one above (lists come from the SMS tab).</p>
+      </section>
+
+      <!-- ===== LEVEL 11 FUNNEL ===== -->
+      <section id="funnel" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Funnel</span>
+          <h1>Level 11 Funnel</h1>
+          <p>Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.</p>
+        </div>
+        <div class="row" style="gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+          <div class="field" style="margin:0"><span class="lab">From</span><input id="funFrom" type="date" /></div>
+          <div class="field" style="margin:0"><span class="lab">To</span><input id="funTo" type="date" /></div>
+          <button id="funRefresh" class="btn btn-primary">Refresh</button>
+          <span style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-ghost sm fun-preset" data-days="1">Today</button>
+            <button class="btn btn-ghost sm fun-preset" data-days="7">7 days</button>
+            <button class="btn btn-ghost sm fun-preset" data-days="30">30 days</button>
+            <button class="btn btn-ghost sm fun-preset" data-days="0">All time</button>
+          </span>
+          <span id="funMsg" class="muted small"></span>
+        </div>
+        <div id="funTotals"></div>
+        <h3 style="margin:24px 0 10px">By variant <span class="muted" style="font-weight:400;text-transform:none">— winner = highest earnings per visitor (EPC)</span></h3>
+        <div id="funVariants"></div>
+        <h3 style="margin:24px 0 10px">Conversions by tier</h3>
+        <div id="funTiers"></div>
+        <p class="muted small" style="margin-top:18px">The tracking pixel fires from the lander pages. Conversions + revenue require the Kartra thank-you redirects to point at the lander TY pages. Order values — Monthly $99 · Annual $891 · Lifetime $1,500 (tell Claude to adjust).</p>
       </section>
 
       <!-- ===== SETTINGS ===== -->

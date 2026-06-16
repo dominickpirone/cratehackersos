@@ -29,6 +29,7 @@ const SMS_SEGMENTS = path.join(DATA, "sms-segments");
 const RECIPIENTS = path.join(DATA, "recipients");
 const JOBS_DIR = path.join(DATA, "jobs");
 const PHONE_EMAIL_MAP = path.join(DATA, "phone-email-map.json");
+const PHONE_LTV_MAP = path.join(DATA, "phone-ltv-map.json");
 const SUPPRESSION = path.join(DATA, "suppression.csv");
 const CAMPAIGNS = path.join(DATA, "campaigns.json");
 // CONFIG_PATH lets settings saved via the UI persist on the cloud disk too.
@@ -724,6 +725,68 @@ const OUTREACH = path.join(DATA, "outreach.json");
 function loadOutreach() { try { return JSON.parse(fs.readFileSync(OUTREACH, "utf8")); } catch { return {}; } }
 function saveOutreach(all) { fs.writeFileSync(OUTREACH, JSON.stringify(all, null, 2)); }
 
+// ---------- funnel analytics (first-party pixel) ----------
+const FUNNEL_LOG = path.join(DATA, "funnel-events.jsonl");
+// $ value booked per tier conversion (initial cart value). Override in config.local.json → funnelPrices.
+const FUNNEL_PRICES = { monthly: 99, annual: 891, lifetime: 1500 };
+const GIF_1x1 = Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64");
+function trackPixel(req, res, u) {
+  try {
+    const q = u.searchParams;
+    const e = (q.get("e") || "").slice(0, 16);
+    if (["view", "cta", "conv", "assign"].includes(e)) {
+      const rec = {
+        ts: Date.now(),
+        e,
+        v: (q.get("v") || "").slice(0, 4).toLowerCase(),
+        tier: (q.get("tier") || "").slice(0, 16).toLowerCase(),
+        f: (q.get("f") || "level11").slice(0, 32),
+      };
+      try { fs.mkdirSync(DATA, { recursive: true }); fs.appendFileSync(FUNNEL_LOG, JSON.stringify(rec) + "\n"); } catch {}
+    }
+  } catch {}
+  res.writeHead(200, {
+    "Content-Type": "image/gif", "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Access-Control-Allow-Origin": "*", "Content-Length": GIF_1x1.length,
+  });
+  res.end(GIF_1x1);
+}
+function funnelPrices() { const c = loadConfig(); return { ...FUNNEL_PRICES, ...(c.funnelPrices || {}) }; }
+function aggregateFunnel(fromTs, toTs, funnel) {
+  const prices = funnelPrices();
+  const V = () => ({ view: 0, cta: 0, conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } });
+  const byVariant = {}; const totals = V();
+  if (fs.existsSync(FUNNEL_LOG)) {
+    const lines = fs.readFileSync(FUNNEL_LOG, "utf8").split("\n");
+    for (const ln of lines) {
+      if (!ln.trim()) continue;
+      let r; try { r = JSON.parse(ln); } catch { continue; }
+      if (funnel && r.f !== funnel) continue;
+      if (r.ts < fromTs || r.ts > toTs) continue;
+      const v = r.v || "?";
+      byVariant[v] = byVariant[v] || V();
+      const slot = byVariant[v];
+      if (r.e === "view") { slot.view++; totals.view++; }
+      else if (r.e === "cta") { slot.cta++; totals.cta++; }
+      else if (r.e === "conv") {
+        slot.conv++; totals.conv++;
+        const val = prices[r.tier] || 0;
+        slot.revenue += val; totals.revenue += val;
+        if (slot.tiers[r.tier] != null) { slot.tiers[r.tier]++; totals.tiers[r.tier]++; }
+      }
+    }
+  }
+  const metrics = (s) => ({
+    ...s,
+    convRate: s.view ? s.conv / s.view : 0,       // visitor → buyer
+    ctaRate: s.view ? s.cta / s.view : 0,         // visitor → checkout click
+    aov: s.conv ? s.revenue / s.conv : 0,         // average order value
+    epc: s.view ? s.revenue / s.view : 0,         // earnings per click/visitor
+  });
+  const variants = Object.keys(byVariant).sort().map((v) => ({ variant: v, ...metrics(byVariant[v]) }));
+  return { funnel: funnel || "level11", prices, variants, totals: metrics(totals) };
+}
+
 // ---------- send jobs (in-memory progress, persisted to disk) ----------
 const jobs = new Map();
 function persistJob(job) {
@@ -978,6 +1041,10 @@ const server = http.createServer(async (req, res) => {
     // ----- health check (no auth — used by the host's uptime probe) -----
     if (p === "/healthz") return send(res, 200, { ok: true });
 
+    // ----- funnel tracking pixel (public — the lander pages ping this) -----
+    // /t.gif?e=view|cta|conv&v=<a|b|c>&tier=<monthly|annual|lifetime>&f=level11
+    if (p === "/t.gif") return trackPixel(req, res, u);
+
     // ----- auth gate -----
     if (p.startsWith("/auth/")) return auth.handleAuthRoute(req, res, u);
     const user = auth.requireUser(req, res, { isApi: p.startsWith("/api/") });
@@ -989,6 +1056,12 @@ const server = http.createServer(async (req, res) => {
       // who am I (for the UI's "signed in as … · Log out")
       if (p === "/api/me" && req.method === "GET") {
         return send(res, 200, { email: user.email, name: user.name, authEnabled: auth.enabled });
+      }
+      // funnel analytics (visitors → checkout clicks → conversions → revenue, per variant)
+      if (p === "/api/funnel" && req.method === "GET") {
+        const fromTs = u.searchParams.get("from") ? new Date(u.searchParams.get("from") + "T00:00:00Z").getTime() : 0;
+        const toTs = u.searchParams.get("to") ? new Date(u.searchParams.get("to") + "T23:59:59Z").getTime() : Date.now();
+        return send(res, 200, aggregateFunnel(fromTs, toTs, u.searchParams.get("funnel") || "level11"));
       }
       // settings
       if (p === "/api/settings" && req.method === "GET") {
@@ -1296,11 +1369,25 @@ const server = http.createServer(async (req, res) => {
         if (!list) return send(res, 200, { lists });
         const file = path.join(SMS_SEGMENTS, slugify(list) + ".csv");
         if (!fs.existsSync(file)) return send(res, 404, { error: "list not found" });
-        const { recipients } = extractPhones(fs.readFileSync(file, "utf8"));
+        const raw = fs.readFileSync(file, "utf8");
+        const { recipients } = extractPhones(raw);
         let p2e = {}; try { p2e = JSON.parse(fs.readFileSync(PHONE_EMAIL_MAP, "utf8")); } catch {}
+        let ltvMap = {}; try { ltvMap = JSON.parse(fs.readFileSync(PHONE_LTV_MAP, "utf8")); } catch {}
+        // LTV from the list's own "ltv" column (exact), if present
+        const segLtv = {};
+        try {
+          const rr = parseCSV(raw.replace(/^﻿/, ""));
+          const h = (rr[0] || []).map((x) => x.trim().toLowerCase());
+          const pi = h.findIndex((x) => /phone|mobile|cell|number/.test(x));
+          const li = h.findIndex((x) => x === "ltv" || x.includes("value") || x.includes("spent"));
+          if (pi >= 0 && li >= 0) for (const r of rr.slice(1)) {
+            const ph = normalizePhone(r[pi]); if (ph) segLtv[ph] = parseFloat(String(r[li] || "").replace(/[^0-9.]/g, "")) || 0;
+          }
+        } catch {}
         const state = loadOutreach()[slugify(list)] || {};
         const rows = recipients.map((r) => ({
           phone: r.phone, name: r.name, email: p2e[r.phone] || "",
+          ltv: segLtv[r.phone] != null ? segLtv[r.phone] : (ltvMap[r.phone] || 0),
           status: (state[r.phone] && state[r.phone].status) || "todo",
           note: (state[r.phone] && state[r.phone].note) || "",
         }));
