@@ -88,7 +88,10 @@
   .tee-wrap { position: relative; width: min(360px, 78%); filter: drop-shadow(0 26px 44px rgba(0,0,0,.55)); }
   .tee-svg { width: 100%; height: auto; display: block; }
   .tee-print { position: absolute; top: 31%; left: 50%; transform: translate(-50%, -50%); width: 56%; }
-  .tee-badge { position: absolute; top: 14px; right: 6px; background: var(--accent); color: var(--accent-ink); font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; transform: rotate(6deg); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+  /* Real tee photo */
+  .tee-photo { position: relative; width: min(380px, 90%); border-radius: 18px; overflow: hidden; filter: drop-shadow(0 26px 44px rgba(0,0,0,.55)); }
+  .tee-photo img { width: 100%; height: auto; display: block; }
+  .tee-badge { position: absolute; top: 12px; right: 12px; background: var(--accent); color: var(--accent-ink); font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 6px 11px; border-radius: 999px; transform: rotate(6deg); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
 
   .gift-body { padding: 38px 36px; display: flex; flex-direction: column; justify-content: center; }
   .gift-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
@@ -104,6 +107,14 @@
   .promo-btn:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
   .promo-btn.copied { color: var(--fg); }
   .gift-fine { margin-top: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); line-height: 1.5; }
+
+  /* Redeem row: QR + claim button */
+  .redeem { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; margin-top: 16px; }
+  .qr-box { background: #fff; border-radius: 14px; padding: 9px; width: 128px; height: 128px; flex-shrink: 0; display: grid; place-items: center; box-shadow: 0 10px 24px rgba(0,0,0,.4); }
+  .qr-box img { width: 100%; height: 100%; image-rendering: pixelated; }
+  .redeem-main { flex: 1 1 230px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .redeem-scan { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); letter-spacing: .03em; text-align: center; }
+  @media (max-width: 520px) { .qr-box { width: 100%; height: auto; aspect-ratio: 1; } }
 
   /* Footer */
   footer.foot { border-top: 1px solid var(--border); padding: 34px 0 30px; margin-top: 30px; }
@@ -148,13 +159,13 @@
       <span class="sec-num">02</span>
       <div class="sec-title display">Roast us to our face</div>
     </div>
-    <p class="sec-desc">Grab 20 minutes with Dom on the <b>"Crate Hackers Sucks" roast call</b>. You talk, we take notes and squirm. Pick a time that works:</p>
+    <p class="sec-desc">Grab 20 minutes with Dom on the <b>"Crate Hackers Sucks" roast call</b>. You talk, we take notes and squirm — and for giving us your honest time, there's a <b>free month</b> in it for you. Pick a slot:</p>
 
     <div class="cal-card">
       <div class="cal-strip">
         <span class="cal-dot"></span>
         <b>"Crate Hackers Sucks" — Roast Us</b>
-        <span>· 20 min · Zoom · with Dom</span>
+        <span>· 20 min · Zoom · free month for your time</span>
       </div>
 
       <!-- Calendly inline widget (dark themed). Booking confirmation includes the Zoom link. -->
@@ -177,39 +188,39 @@
       <span class="sec-num">03</span>
       <div class="sec-title display">Wear the slander</div>
     </div>
-    <p class="sec-desc">A thank-you for your time: a <b>"CRATE HACKERS SUCKS"</b> tee, on us. Use your code at checkout.</p>
+    <p class="sec-desc">A thank-you for your time: a <b>"CRATE HACKERS SUCKS"</b> tee, on us — you just cover shipping. Code already applied below.</p>
 
     <div class="gift">
       <div class="gift-art">
-        <!-- ↓↓↓ Swap this image for your real Printful product photo when ready ↓↓↓ -->
-        <div class="tee-wrap">
-          <svg class="tee-svg" viewBox="0 0 400 446" aria-hidden="true">
-            <path d="M150,16 L104,36 L18,92 L60,168 L104,144 L104,430 L296,430 L296,144 L340,168 L382,92 L296,36 L250,16 C242,52 158,52 150,16 Z"
-                  fill="#171719" stroke="rgba(255,255,255,.10)" stroke-width="2"/>
-            <path d="M150,16 C158,52 242,52 250,16" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="2"/>
-          </svg>
-          <img class="tee-print" src="../assets/crate-hackers-sucks-tee.png" alt="CRATE HACKERS SUCKS tee print">
+        <div class="tee-photo">
+          <img src="../assets/roaster-tee-photo.png" alt="CRATE HACKERS SUCKS — Official Roaster tee">
           <div class="tee-badge">On us</div>
         </div>
       </div>
 
       <div class="gift-body">
         <div class="gift-eyebrow">Your thank-you gift</div>
-        <h3>The official "Crate Hackers Sucks" tee.</h3>
-        <p>You roasted us, you earned the merch. <b>Free tee</b>, you cover nothing — redeem with the code below at the merch store.</p>
+        <h3>The official “Crate Hackers Sucks” tee — on the house.</h3>
+        <p>You roasted us, you earned the merch. The tee is <b>free with code ROASTED</b> — you just cover shipping &amp; handling. Tap to claim, or scan the code with your phone.</p>
 
-        <!-- ↓↓↓ EDIT: set your real promo code here (and in the copy button's data-code) ↓↓↓ -->
         <div class="promo">
           <div class="promo-main">
-            <div class="promo-eyebrow">Your thank-you code</div>
-            <div class="promo-code" id="promoCode">ROASTME</div>
+            <div class="promo-eyebrow">Your discount code</div>
+            <div class="promo-code" id="promoCode">ROASTED</div>
           </div>
-          <button class="promo-btn" id="copyPromo" data-code="ROASTME">Copy</button>
+          <button class="promo-btn" id="copyPromo" data-code="ROASTED">Copy</button>
+        </div>
+
+        <div class="redeem">
+          <div class="qr-box"><img src="../assets/roasted-qr.png" alt="Scan to claim your free Crate Hackers Sucks tee"></div>
+          <div class="redeem-main">
+            <a class="btn btn-primary btn-lg" href="https://dj.style/discount/ROASTED?redirect=%2Fproducts%2Fcrate-hackers-sucks-unisex-t-shirt" target="_blank" rel="noopener">Claim my free tee →</a>
+            <div class="redeem-scan">📱 Or scan the code to claim on your phone</div>
+          </div>
         </div>
 
         <div class="gift-fine">
-          <!-- ↓↓↓ EDIT: point this at your real Printful / merch store link ↓↓↓ -->
-          One tee per roaster, while supplies last. Redeem at the Crate Hackers merch store (link coming soon).
+          One tee per roaster, while supplies last. <b>Shipping &amp; handling not included.</b> Code <b>ROASTED</b> is auto-applied at checkout on the official <b>dj.style</b> Crate Hackers store.
         </div>
       </div>
     </div>
