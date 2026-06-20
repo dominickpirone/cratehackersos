@@ -532,6 +532,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <input class="field" type="text" id="name" name="name" placeholder="Name or DJ handle">
             <input class="field" type="email" id="email" name="email" placeholder="Email">
           </div>
+          <input class="field" type="tel" id="phone" name="phone" placeholder="Phone (so Dom can text you about the roast Zoom)" style="margin-top:14px">
         </div>
 
         <div class="form-submit-row">
@@ -564,42 +565,32 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
 <script>
 /* ============================================================
-   GOOGLE FORM WIRING  —  set this up once, then it just works.
+   LEADS → GOOGLE SHEET WIRING  (writes straight into Dom's sheet)
    ------------------------------------------------------------
-   STEP 1. Create a Google Form with one question per field below
-           (a short-answer or checkbox question for each).
-   STEP 2. Click the ⋮ menu → "Get pre-filled link", fill each
-           question with the field's KEY name (djType, rating, …),
-           then "Get link" and copy it.
-   STEP 3. In that copied URL you'll see chunks like
-           entry.1234567=djType  →  copy each entry.NUMBER and
-           paste it next to the matching key below.
-   STEP 4. Take your form's URL and swap the trailing
-           "/viewform" for "/formResponse" — paste it as FORM_ACTION.
-   That's it. While FORM_ACTION is blank the page runs in DEMO
-   mode (logs answers to the console, still shows the thank-you).
+   Posts every roast as one clean row — Name, Email, Phone, and
+   all the roast answers — into the linked Google Sheet via a
+   tiny Apps Script Web App. No Google Form, no entry IDs.
+
+   ONE-TIME SETUP (≈ 2 min, see google-apps-script.gs in this folder):
+     1. Open the Sheet → Extensions → Apps Script.
+     2. Paste the contents of google-apps-script.gs, Save.
+     3. Deploy → New deployment → type "Web app" → Execute as: Me,
+        Who has access: Anyone → Deploy → copy the /exec URL.
+     4. Paste that URL into SHEET_ENDPOINT below.
+   While SHEET_ENDPOINT is blank the page runs in DEMO mode
+   (logs answers to the console, still shows the thank-you).
 ============================================================ */
-const FORM_ACTION = ""; // e.g. "https://docs.google.com/forms/d/e/1FAIpQLSxxxx/formResponse"
+const SHEET_ENDPOINT = ""; // e.g. "https://script.google.com/macros/s/AKfycbx.../exec"
+
+// Multi-value answers (checkboxes) get joined into one tidy cell with this.
+const MULTI_SEP = "; ";
 
 // Where to send people the moment they submit — the schedule-a-Zoom + free-tee page.
 // PREVIEW default below. For production set this to "thanks/" (the deployed folder)
 // or the full URL, e.g. "https://lander.cratehackers.com/roastus/thanks/".
 const THANKS_URL = "thanks/";
 
-const ENTRY_IDS = {
-  djType:      "entry.000000001",
-  rating:      "entry.000000002",
-  primaryUse:  "entry.000000010", // checkbox question — multiple values supported
-  competitor:  "entry.000000011",
-  painPoints:  "entry.000000003", // checkbox question — multiple values supported
-  theRoast:    "entry.000000004",
-  priceWorth:  "entry.000000012",
-  pricing:     "entry.000000005",
-  makeFan:     "entry.000000006",
-  zoom:        "entry.000000007",
-  name:        "entry.000000008",
-  email:       "entry.000000009"
-};
+const ENTRY_IDS = null; // (legacy Google Form mapping removed — we post named fields straight to the Sheet)
 
 (function () {
   const form = document.getElementById("roastForm");
@@ -608,7 +599,7 @@ const ENTRY_IDS = {
   function collect() {
     const data = {};
     // free-text fields
-    ["theRoast", "pricing", "makeFan", "name", "email"].forEach(function (k) {
+    ["theRoast", "pricing", "makeFan", "name", "email", "phone"].forEach(function (k) {
       const el = form.elements[k];
       data[k] = el ? (el.value || "").trim() : "";
     });
@@ -626,29 +617,32 @@ const ENTRY_IDS = {
     return data;
   }
 
-  function submitToGoogle(data) {
-    if (!FORM_ACTION) {
-      console.log("[Roast Us] DEMO MODE — no FORM_ACTION set. Captured answers:", data);
+  function submitToSheet(data) {
+    if (!SHEET_ENDPOINT) {
+      console.log("[Roast Us] DEMO MODE — no SHEET_ENDPOINT set. Captured answers:", data);
       return;
     }
     const ghost = document.createElement("form");
-    ghost.action = FORM_ACTION;
+    ghost.action = SHEET_ENDPOINT;
     ghost.method = "POST";
     ghost.target = "ch_hidden_iframe";
     ghost.style.display = "none";
 
-    Object.keys(ENTRY_IDS).forEach(function (key) {
-      const entry = ENTRY_IDS[key];
+    const payload = {};
+    Object.keys(data).forEach(function (key) {
       const val = data[key];
-      if (val === undefined || val === "" || (Array.isArray(val) && val.length === 0)) return;
-      const values = Array.isArray(val) ? val : [val];
-      values.forEach(function (v) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = entry;
-        input.value = v;
-        ghost.appendChild(input);
-      });
+      payload[key] = Array.isArray(val) ? val.join(MULTI_SEP) : val;
+    });
+    payload.userAgent = navigator.userAgent;
+
+    Object.keys(payload).forEach(function (key) {
+      const v = payload[key];
+      if (v === undefined || v === "") return;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = v;
+      ghost.appendChild(input);
     });
 
     document.body.appendChild(ghost);
@@ -669,7 +663,7 @@ const ENTRY_IDS = {
     }
     errorEl.classList.remove("show");
 
-    submitToGoogle(data);
+    submitToSheet(data);
 
     // GTM conversion event — build Facebook/Meta custom audiences off this.
     window.dataLayer = window.dataLayer || [];
