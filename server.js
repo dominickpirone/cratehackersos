@@ -787,6 +787,56 @@ function aggregateFunnel(fromTs, toTs, funnel) {
   return { funnel: funnel || "level11", prices, variants, totals: metrics(totals) };
 }
 
+// Real conversions come from the Kartra sales ledger, not the pixel: Kartra's
+// post-purchase redirect bypasses the instrumented lander thank-you pages, so the
+// `conv` pixel never fires. We pull actual Level 11 sales (count + $) from the ledger
+// and fold them into the funnel. Tier is inferred from the charged amount; revenue is
+// the real amount charged (not the list price).
+function level11LedgerSales(rows, from, to) {
+  const inRange = (d) => (!from || d >= from) && (!to || d <= to);
+  const out = { conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } };
+  for (const r of rows) {
+    if (r.type !== "sale" || !/level\s*-?\s*11/i.test(r.product)) continue;
+    if (!inRange(r.date)) continue;
+    if (!(r.amount > 0)) continue;               // skip $0 comps / test rows
+    out.conv++; out.revenue += r.amount;
+    const tier = r.amount >= 1200 ? "lifetime" : r.amount >= 500 ? "annual" : "monthly";
+    out.tiers[tier]++;
+  }
+  out.revenue = Math.round(out.revenue * 100) / 100;
+  return out;
+}
+// Fold real ledger conversions into a pixel-built funnel. Totals are exact. Per-variant
+// conversions/revenue are *modeled* by each variant's checkout-click share (the variant
+// the buyer saw isn't captured at the off-site Kartra checkout) -- flagged `estimated`.
+function mergeLedgerConversions(funnel, sales) {
+  const t = funnel.totals;
+  t.conv = sales.conv; t.revenue = sales.revenue; t.tiers = sales.tiers;
+  t.convRate = t.view ? t.conv / t.view : 0;
+  t.aov = t.conv ? t.revenue / t.conv : 0;
+  t.epc = t.view ? t.revenue / t.view : 0;
+  const vs = funnel.variants || [];
+  const totalCta = vs.reduce((a, v) => a + (v.cta || 0), 0);
+  const totalView = vs.reduce((a, v) => a + (v.view || 0), 0);
+  const basis = totalCta > 0 ? "cta" : "view";
+  const denom = totalCta > 0 ? totalCta : totalView;
+  let convLeft = sales.conv, revLeft = sales.revenue;
+  vs.forEach((v, i) => {
+    const last = i === vs.length - 1;
+    const share = denom > 0 ? (v[basis] || 0) / denom : 0;
+    v.conv = last ? convLeft : Math.round(sales.conv * share);
+    v.revenue = last ? Math.round(revLeft * 100) / 100 : Math.round(sales.revenue * share * 100) / 100;
+    convLeft -= v.conv; revLeft -= v.revenue;
+    v.convRate = v.view ? v.conv / v.view : 0;
+    v.aov = v.conv ? v.revenue / v.conv : 0;
+    v.epc = v.view ? v.revenue / v.view : 0;
+    v.estimated = true;
+  });
+  funnel.conversionSource = "ledger";
+  funnel.variantConvEstimated = true;
+  return funnel;
+}
+
 // ---------- send jobs (in-memory progress, persisted to disk) ----------
 const jobs = new Map();
 function persistJob(job) {
@@ -1059,9 +1109,23 @@ const server = http.createServer(async (req, res) => {
       }
       // funnel analytics (visitors → checkout clicks → conversions → revenue, per variant)
       if (p === "/api/funnel" && req.method === "GET") {
-        const fromTs = u.searchParams.get("from") ? new Date(u.searchParams.get("from") + "T00:00:00Z").getTime() : 0;
-        const toTs = u.searchParams.get("to") ? new Date(u.searchParams.get("to") + "T23:59:59Z").getTime() : Date.now();
-        return send(res, 200, aggregateFunnel(fromTs, toTs, u.searchParams.get("funnel") || "level11"));
+        const from = u.searchParams.get("from") || "";
+        const to = u.searchParams.get("to") || "";
+        const fromTs = from ? new Date(from + "T00:00:00Z").getTime() : 0;
+        const toTs = to ? new Date(to + "T23:59:59Z").getTime() : Date.now();
+        const fn = u.searchParams.get("funnel") || "level11";
+        const result = aggregateFunnel(fromTs, toTs, fn);
+        // Conversions come from the real Kartra ledger (the lander pixel can't see them).
+        if (fn === "level11") {
+          try {
+            const cfg = loadConfig();
+            if (cfg.salesLedgerCsvUrl) {
+              const rows = await fetchLedger(cfg.salesLedgerCsvUrl);
+              mergeLedgerConversions(result, level11LedgerSales(rows, from, to));
+            }
+          } catch (e) { result.ledgerError = String(e && e.message || e); }
+        }
+        return send(res, 200, result);
       }
       // settings
       if (p === "/api/settings" && req.method === "GET") {
