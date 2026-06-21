@@ -33,10 +33,32 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "outreach") loadOutreach();
     if (btn.dataset.tab === "analytics") loadAnalytics();
     if (btn.dataset.tab === "funnel") loadFunnel();
+    if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
   };
 });
+
+// ---------- dashboards ----------
+const DASHBOARDS = {
+  "exec-summary": { title: "Executive Summary", url: "/dashboards/exec-summary.html" },
+  "weekly-health": { title: "Weekly Health", url: "/dashboards/weekly-health.html" },
+};
+function openDash(key) {
+  const d = DASHBOARDS[key];
+  if (!d || !$("#dashFrame")) return;
+  $$(".dash-card").forEach((c) => c.classList.toggle("active", c.dataset.dash === key));
+  $("#dashViewer").classList.remove("hidden");
+  if ($("#dashFrame").getAttribute("src") !== d.url) $("#dashFrame").src = d.url;
+  $("#dashTitle").textContent = d.title + " — live view";
+  $("#dashPop").href = d.url;
+  $("#dashViewer").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$$(".dash-card").forEach((c) => (c.onclick = () => openDash(c.dataset.dash)));
+// first open of the tab shows the executive summary by default
+function loadDashboardsDefault() {
+  if ($("#dashFrame") && !$("#dashFrame").getAttribute("src")) openDash("exec-summary");
+}
 
 // ---------- connection badge ----------
 async function refreshConn() {

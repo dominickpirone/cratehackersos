@@ -39,6 +39,7 @@
       <button class="tab" data-tab="outreach"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Outreach</span></button>
       <button class="tab" data-tab="analytics"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Analytics</span></button>
       <button class="tab" data-tab="funnel"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Funnel</span></button>
+      <button class="tab" data-tab="dashboards"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Dashboards</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -398,6 +399,44 @@
         <h3 style="margin:24px 0 10px">Conversions by tier</h3>
         <div id="funTiers"></div>
         <p class="muted small" style="margin-top:18px">Visitors + checkout clicks are tracked by the lander pixel. <strong>Conversions + revenue are pulled live from your Kartra sales ledger</strong> — Kartra’s thank-you redirect bypasses the lander, so the pixel can’t see the sale. Totals are exact; per-variant conversions are <em>estimated</em> from each variant’s checkout-click share (the variant a buyer saw isn’t recorded at the off-site Kartra checkout). Tier is inferred from amount charged — ~$99 monthly · ~$891 annual · ≥$1,200 lifetime.</p>
+      </section>
+
+      <!-- ===== DASHBOARDS ===== -->
+      <section id="dashboards" class="panel">
+        <style>
+          .dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:22px}
+          .dash-card{display:flex;flex-direction:column;text-align:left;padding:0;border:1px solid #2a2f42;border-radius:12px;overflow:hidden;background:#141722;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s;font:inherit}
+          .dash-card:hover{border-color:#FF7722;transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.35)}
+          .dash-card.active{border-color:#FF7722}
+          .dash-thumb{display:block;height:158px;background-size:cover;background-position:top center;background-color:#0e1018;border-bottom:1px solid #2a2f42}
+          .dash-meta{padding:13px 15px;display:flex;flex-direction:column;gap:3px}
+          .dash-meta b{color:#e9ecf5;font-size:15px}
+          .dash-meta span{color:#8a90a6;font-size:12.5px;line-height:1.35}
+          .dash-viewer-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+          #dashFrame{width:100%;height:80vh;border:1px solid #2a2f42;border-radius:12px;background:#0e1018;display:block}
+        </style>
+        <div class="panel-head">
+          <span class="eyebrow">// Dashboards</span>
+          <h1>Dashboards</h1>
+          <p>Shared business dashboards for the Crate Hackers team. Pick one to open it right here — no extra logins. Snapshots update when a fresh export is dropped in.</p>
+        </div>
+        <div class="dash-grid">
+          <button class="dash-card" data-dash="exec-summary">
+            <span class="dash-thumb" style="background-image:url('/dashboards/exec-summary-thumb.png')"></span>
+            <span class="dash-meta"><b>Executive Summary</b><span>Top-line KPIs &amp; business health at a glance</span></span>
+          </button>
+          <button class="dash-card" data-dash="weekly-health">
+            <span class="dash-thumb" style="background-image:url('/dashboards/weekly-health-thumb.png')"></span>
+            <span class="dash-meta"><b>Weekly Health</b><span>Marketing weekly metrics &amp; trends</span></span>
+          </button>
+        </div>
+        <div class="dash-viewer hidden" id="dashViewer">
+          <div class="dash-viewer-bar">
+            <span id="dashTitle" class="muted small"></span>
+            <a id="dashPop" class="btn btn-ghost sm" target="_blank" rel="noopener">↗ Open in new tab</a>
+          </div>
+          <iframe id="dashFrame" title="dashboard" loading="lazy"></iframe>
+        </div>
       </section>
 
       <!-- ===== SETTINGS ===== -->

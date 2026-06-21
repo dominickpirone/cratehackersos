@@ -1081,7 +1081,7 @@ function readBody(req) {
     req.on("end", () => { try { resolve(b ? JSON.parse(b) : {}); } catch { resolve({}); } });
   });
 }
-const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml" };
+const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".ico": "image/x-icon" };
 
 // ---------- routes ----------
 const server = http.createServer(async (req, res) => {
