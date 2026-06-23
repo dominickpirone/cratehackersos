@@ -6,10 +6,10 @@
 <!-- Google Tag Manager -->
 <script>!function(){"use strict";function l(e){for(var t=e,r=0,n=document.cookie.split(";");r<n.length;r++){var o=n[r].split("=");if(o[0].trim()===t)return o[1]}}function s(e){return localStorage.getItem(e)}function u(e){return window[e]}function A(e,t){e=document.querySelector(e);return t?null==e?void 0:e.getAttribute(t):null==e?void 0:e.textContent}var e=window,t=document,r="script",n="dataLayer",o="https://www.cratehackers.com/metrics",a="https://load.gtm.cratehackers.com",i="2ifskwxsoim",c="k=BA1SNCw6RkZeOVsiMDBNBVBbQUJeEwVOGh4YXRsFCgcIAQ4QExIZAEMKAB5eBAQDUEYCFgwFAhAe",g="cookie",v="CHCookie",E="",d=!1;try{var d=!!g&&(m=navigator.userAgent,!!(m=new RegExp("Version/([0-9._]+)(.*Mobile)?.*Safari.*").exec(m)))&&16.4<=parseFloat(m[1]),f="stapeUserId"===g,I=d&&!f?function(e,t,r){void 0===t&&(t="");var n={cookie:l,localStorage:s,jsVariable:u,cssSelector:A},t=Array.isArray(t)?t:[t];if(e&&n[e])for(var o=n[e],a=0,i=t;a<i.length;a++){var c=i[a],c=r?o(c,r):o(c);if(c)return c}else console.warn("invalid uid source",e)}(g,v,E):void 0;d=d&&(!!I||f)}catch(e){console.error(e)}var m=e,g=(m[n]=m[n]||[],m[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"}),t.getElementsByTagName(r)[0]),v=I?"&bi="+encodeURIComponent(I):"",E=t.createElement(r),f=(d&&(i=8<i.length?i.replace(/([a-z]{8}$)/,"kp$1"):"kp"+i),!d&&a?a:o);E.async=!0,E.src=f+"/"+i+".js?"+c+v,null!=(e=g.parentNode)&&e.insertBefore(E,g)}();</script>
 <!-- End Google Tag Manager -->
-<title>You're checked in! — Tonight's On-Site Hacker Hotel Deal</title>
+<title>You're signed in! — Chicago Crate Hackathon at The Bean</title>
 <link rel="canonical" href="https://lander.cratehackers.com/chicago-ty">
 <meta name="robots" content="noindex">
-<meta name="description" content="You're checked in to the Chicago Crate Hackathon. Tonight only: grab the Hacker Hotel Virtual Pass for $27 (normally $97) and get a free DJ necklace handed to you on-site, plus a free month of Crate Hackers and Banger Button for new members.">
+<meta name="description" content="You're signed in to the Chicago Crate Hackathon at The Bean. Claim your free months of Crate Hackers and Banger Button, apply to come to Hacker Hotel in person, and grab tonight's on-site $27 Hacker Hotel Virtual Pass.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -43,9 +43,9 @@
   .confirm{position:relative; text-align:center; padding:34px 0 8px; overflow:hidden;}
   .confirm .g{position:absolute; top:-160px; left:50%; transform:translateX(-50%); width:760px; height:460px; background:radial-gradient(ellipse at center,rgba(120,150,175,.22),transparent 65%);}
   .confirm .wrap{position:relative; z-index:2;}
-  .check{width:74px; height:74px; border-radius:50%; margin:0 auto 18px; display:grid; place-items:center;
-    background:linear-gradient(150deg,var(--orange-lt),var(--orange)); box-shadow:0 16px 40px -10px rgba(255,106,0,.6);}
-  .check svg{width:38px; height:38px;}
+  .check{width:84px; height:84px; border-radius:50%; margin:0 auto 18px; display:grid; place-items:center;
+    background:linear-gradient(150deg,#3ddc84,#15a34a); box-shadow:0 16px 44px -8px rgba(34,197,94,.6), 0 0 0 6px rgba(34,197,94,.14);}
+  .check svg{width:42px; height:42px;}
   .confirm .eyebrow{display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--chrome); border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.01)); padding:7px 13px; border-radius:999px; margin-bottom:16px;}
   h1.confirm-h1{font-size:clamp(30px,5.4vw,50px); margin:0 0 12px;}
   h1.confirm-h1 .o{color:var(--orange); -webkit-text-fill-color:var(--orange);}
@@ -118,14 +118,14 @@
   /* bonus block */
   .bonus{margin:18px 0 6px;}
   .bonus-head{text-align:center; margin-bottom:16px;}
-  .bonus-head .k{font-size:12px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--chrome); margin:0 0 6px;}
+  .bonus-head .k{text-align:center; font-size:12px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--chrome); margin:0 0 6px;}
   .bonus-head h3{font-size:clamp(22px,4vw,30px); margin:0 0 6px;}
   .bonus-head p{font-size:14.5px; color:var(--muted); margin:0 auto; max-width:44ch;}
   .bgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
   .bcard{position:relative; overflow:hidden; border-radius:var(--radius); padding:20px 18px;
     background:linear-gradient(180deg,rgba(40,54,66,.55),rgba(18,24,31,.72)); border:1px solid var(--line); display:flex; flex-direction:column;}
   .bcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,var(--chrome-hi),var(--chrome-lo));}
-  .bcard .bk{font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--orange-lt); margin:0 0 6px;}
+  .bcard .bk{font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--orange-lt); margin:0 0 4px;}
   .bcard h4{font-size:18px; margin:0 0 6px;}
   .bcard p{font-size:13.5px; color:var(--muted); margin:0 0 16px; flex:1;}
   .bbtn{display:flex; align-items:center; justify-content:center; gap:9px; width:100%; min-height:50px; padding:12px 16px; box-sizing:border-box; font-family:inherit; font-weight:800; font-size:15px; letter-spacing:.01em; text-transform:uppercase;
@@ -136,6 +136,20 @@
   .newonly b{color:#fff;}
 
   .chrome-rule{height:3px; margin:30px 0; border-radius:2px; background:linear-gradient(90deg,transparent,var(--chrome-lo),var(--chrome-hi),var(--chrome-lo),transparent); opacity:.7;}
+
+  /* apply: hacker hotel in person */
+  .apply-sec{padding:8px 0;}
+  .apply{position:relative; overflow:hidden; border-radius:20px; padding:30px 26px 28px; text-align:center;
+    background:linear-gradient(165deg,rgba(43,58,71,.92),rgba(14,20,27,.96)); border:1px solid rgba(255,138,61,.4);
+    box-shadow:0 40px 90px -36px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.14);}
+  .apply::before{content:""; position:absolute; left:0; right:0; top:0; height:4px; background:linear-gradient(90deg,var(--orange),var(--orange-lt),var(--orange));}
+  .apply .otag{margin-bottom:4px;}
+  .apply h2{font-size:clamp(24px,4.8vw,38px); margin:16px 0 8px;}
+  .apply h2 .o{color:var(--orange-lt);}
+  .apply .osub{font-size:16px; color:#d7dee3; margin:0 auto 22px; max-width:48ch; text-wrap:pretty;}
+  .apply .osub b{color:#fff;}
+  .apply .checkout{max-width:380px; margin:0 auto;}
+  .apply .ofine{margin-top:13px;}
 
   footer{border-top:1px solid var(--line); padding:28px 0 38px; text-align:center; color:var(--muted); font-size:13px;}
   footer .o{color:var(--orange-lt);} footer p{margin:5px 0;}
@@ -169,12 +183,62 @@
 <header class="confirm">
   <div class="g"></div>
   <div class="wrap">
-    <div class="check"><svg viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="#0a0a0c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-    <span class="eyebrow">You're checked in</span>
-    <h1 class="confirm-h1 display" id="confirmHeadline">YOU'RE IN! NOW GRAB THE CHICAGO-ONLY DEAL.</h1>
-    <p class="sub"><b>This price is only good tonight, here at The Bean.</b> Lock in your Hacker Hotel Virtual Pass and pick up your free necklace before you leave.</p>
+    <div class="check"><svg viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <span class="eyebrow">Signed in at The Bean</span>
+    <h1 class="confirm-h1 display" id="confirmHeadline">YOU’RE SIGNED IN!</h1>
+    <p class="sub"><b>Show this screen to our crew</b> to grab your free DJ necklace before you leave — our thank-you for signing in. Everything below is unlocked for you tonight.</p>
   </div>
 </header>
+
+<!-- ===================== BONUS DETAIL ===================== -->
+<section class="bonus">
+  <div class="wrap">
+    <div class="bonus-head">
+      <p class="k">Unlocked for you tonight</p>
+      <h3 class="display">Claim your <span class="chrome">free months</span></h3>
+      <p>New to Crate Hackers? Tap to activate — 2 free months of Crate Hackers and 2 free months of Banger Button.</p>
+    </div>
+    <div class="bgrid">
+      <div class="bcard">
+        <p class="bk">2 free months · New members</p>
+        <h4 class="display">Crate Hackers</h4>
+        <p>Full access to the vault, crates and tools that keep your sets fresh all year.</p>
+        <!-- Kartra popup — Crate Hackers 2 free months (new members only) -->
+        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="57WByqmjLza4" data-kt-owner="Pr2bAmrM" aria-label="Claim 2 free months of Crate Hackers">Claim 2 free months →</a>
+      </div>
+      <div class="bcard">
+        <p class="bk">2 free months · New members</p>
+        <h4 class="display">Banger Button</h4>
+        <p>Your shortcut to the crowd-movers — instant heaters when the floor needs them.</p>
+        <!-- Kartra popup — Banger Button 2 free months -->
+        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="68pgl7OE2ya4" data-kt-owner="Pr2bAmrM" aria-label="Claim 2 free months of Banger Button">Claim 2 free months →</a>
+      </div>
+    </div>
+    <p class="newonly"><b>New members only.</b>&nbsp;Free months apply to new Crate Hackers / Banger Button accounts.</p>
+  </div>
+</section>
+
+<div class="wrap"><div class="chrome-rule"></div></div>
+
+<!-- ===================== APPLY: HACKER HOTEL IN PERSON ===================== -->
+<section class="apply-sec">
+  <div class="wrap">
+    <div class="apply">
+      <span class="otag"><span class="live" aria-hidden="true"></span> Tonight's big announcement</span>
+      <h2 class="display">Apply to come to <span class="o">Hacker Hotel — in&nbsp;person</span></h2>
+      <p class="osub">The in-person experience is the one everyone talks about. We're opening 10 GENERAL ACCESS PASSES tonight — put your name in before spots fill up.
+(Aug 3 - Aug 7 in Nashville, TN)</p>
+      <!-- Hacker Hotel in-person application (Typeform) -->
+      <a class="checkout" href="https://cratehackers.typeform.com/hh2026" target="_blank" rel="noopener" aria-label="Apply to attend Hacker Hotel in person">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Apply for in-person
+      </a>
+      <p class="ofine">Limited spots · Apply now and we'll follow up with the details.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="chrome-rule"></div></div>
 
 <!-- ===================== OFFER ===================== -->
 <section class="offer-sec">
@@ -183,7 +247,7 @@
       <div class="offer-inner">
         <span class="otag"><span class="live" aria-hidden="true"></span> Tonight only · On-site exclusive</span>
         <h2 class="display">Hacker Hotel Virtual Pass <span class="o">for $27</span></h2>
-        <p class="osub">The full <b>Hacker Hotel Virtual</b> experience — normally <b>$97</b>. Grab it tonight and we'll hand you a <b>free DJ necklace</b> on the spot.</p>
+        <p class="osub">The full <b>Hacker Hotel Virtual</b> experience — normally <b>$97</b>. Tonight, on-site only, it’s just <b>$27</b>.</p>
 
         <div class="price">
           <div class="price-lockup">
@@ -198,19 +262,10 @@
 
         <p class="incl">What you get tonight</p>
         <ul>
-          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Hacker Hotel Virtual Pass</b> — the full virtual experience, just $27 tonight (reg. $97).</span></li>
-          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Free DJ necklace</b> handed to you <b>on-site tonight</b> as a thank-you. <span class="tagfree">Free</span></span></li>
-          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Free month of Crate Hackers</b> — full vault &amp; tools access. <span class="tagfree">New members</span></span></li>
+          
+          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>2 free months of Crate Hackers</b> — full vault &amp; tools access. <span class="tagfree">New members</span></span></li>
           <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>2 free months of Banger Button</b> — your shortcut to crowd-movers. <span class="tagfree">New members</span></span></li>
         </ul>
-
-        <div class="neck-row">
-          <div class="necklace">
-            <span class="freetag">Free</span>
-            <img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/151201240194Gunmetal_Necklace_DJSTYLE_Crate-Hackers_r1_plug-in-hand.gif" alt="Free Crate Hackers DJ necklace — DJ-style plug pendant">
-          </div>
-          <p class="nt"><b>Your free necklace is waiting.</b>Check out for the $27 pass, then show your confirmation at the table to grab it before you head out.</p>
-        </div>
 
         <!-- ============================================================
              KARTRA POPUP CHECKOUT — Hacker Hotel Virtual ($27).
@@ -219,42 +274,12 @@
         <a href="javascript:void(0);" class="js_kt_asset_embed js_kartra_trackable_object pay-link" data-kt-type="pay" data-kt-embed="popup" data-kt-value="KYghjXGvA9dT" data-kt-owner="Pr2bAmrM" aria-label="Get the $27 Hacker Hotel Virtual Pass">
           <span class="checkout">
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 6h2l2.4 12.3a1 1 0 0 0 1 .7h8.7a1 1 0 0 0 1-.8L21 8H6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="21" r="1.4" fill="#fff"/><circle cx="18" cy="21" r="1.4" fill="#fff"/></svg>
-            Get my $27 pass + free necklace
+            Get my $27 on-site pass
           </span>
         </a>
-        <p class="ofine">Secure Kartra checkout · Tonight's on-site price · Necklace handed to you here while supplies last.</p>
+        <p class="ofine">Secure Kartra checkout · Tonight’s on-site price only.</p>
       </div>
     </div>
-  </div>
-</section>
-
-<div class="wrap"><div class="chrome-rule"></div></div>
-
-<!-- ===================== BONUS DETAIL ===================== -->
-<section class="bonus">
-  <div class="wrap">
-    <div class="bonus-head">
-      <p class="k">Bundled with your pass</p>
-      <h3 class="display">More months, <span class="chrome">on the house</span></h3>
-      <p>New to Crate Hackers? Claim a free month of Crate Hackers and 2 free months of Banger Button — tap to activate.</p>
-    </div>
-    <div class="bgrid">
-      <div class="bcard">
-        <p class="bk">Free month · New members</p>
-        <h4 class="display">Crate Hackers</h4>
-        <p>Full access to the vault, crates and tools that keep your sets fresh all year.</p>
-        <!-- Kartra popup — Crate Hackers free month (new members only) -->
-        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="57WByqmjLza4" data-kt-owner="Pr2bAmrM" aria-label="Claim free month of Crate Hackers">Claim free month →</a>
-      </div>
-      <div class="bcard">
-        <p class="bk">2 free months · New members</p>
-        <h4 class="display">Banger Button</h4>
-        <p>Your shortcut to the crowd-movers — instant heaters when the floor needs them.</p>
-        <!-- Kartra popup — Banger Button 2 free months -->
-        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="68pgl7OE2ya4" data-kt-owner="Pr2bAmrM" aria-label="Claim 2 free months of Banger Button">Claim 2 free months →</a>
-      </div>
-    </div>
-    <p class="newonly"><b>New members only.</b>&nbsp;Free months apply to new Crate Hackers / Banger Button accounts.</p>
   </div>
 </section>
 
