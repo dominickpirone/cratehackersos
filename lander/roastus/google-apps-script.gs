@@ -35,11 +35,15 @@
    ---------------------------------------------------------------------
    ZAPIER → KARTRA (after the Sheet is filling)
    ---------------------------------------------------------------------
+   Kartra list:  "Crate Hackers - Roast Leads"
+   Kartra tag:   roast-us-leads   (in the "Crate Hackers" category)
+
    Trigger:  Google Sheets — "New Spreadsheet Row"
              Spreadsheet: this one · Worksheet: "Roast Leads"
    Action:   Kartra — "Create / Update Lead"  (or via Webhooks → Kartra API)
              Map Name, Email, Phone from the row.
-             Assign the list/tag Dom creates (see note below).
+             Add to list "Crate Hackers - Roast Leads" + apply tag
+             roast-us-leads.
    ===================================================================== */
 
 var SHEET_ID  = '14s0PiTV9QmNqKmCPPSrd6mqzTvEbcpXtPqg1_x8UkxI';
