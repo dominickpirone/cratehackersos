@@ -315,9 +315,14 @@
     tick(); setInterval(tick,1000);
   })();
 </script>
-<!-- Meta Pixel — register Lead -->
+<!-- Meta Pixel — register Lead (waits for fbq to load from GTM, then fires once) -->
 <script>
-  fbq('track', 'Lead');
+  (function(){
+    function fire(){ if(window.fbq){ try{ fbq('track','Lead'); }catch(e){} return true; } return false; }
+    if(!fire()){
+      var n=0, iv=setInterval(function(){ if(fire() || ++n>60){ clearInterval(iv); } }, 200);
+    }
+  })();
 </script>
 
 </body>

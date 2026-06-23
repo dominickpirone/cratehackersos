@@ -12,12 +12,12 @@
 <meta property="og:url" content="https://lander.cratehackers.com/chicagohackathon">
 <meta property="og:title" content="Watch the Chicago Crate Hackathon — Live at The Bean">
 <meta property="og:description" content="Tue June 23 · 7PM CT / 8PM ET. 100+ DJs build the ultimate Chicago crate, live at The Bean. RSVP free to watch the stream + get reminders.">
-<meta property="og:image" content="https://lander.cratehackers.com/chicagohackathon/assets/chicago-flyer.jpg">
+<meta property="og:image" content="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/31078285_1782183569chmch_chicago.jpg">
 <meta property="og:image:width" content="640">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Watch the Chicago Crate Hackathon — Live at The Bean">
 <meta name="twitter:description" content="Tue June 23 · 7PM CT / 8PM ET. 100+ DJs build the ultimate Chicago crate, live. RSVP free.">
-<meta name="twitter:image" content="https://lander.cratehackers.com/chicagohackathon/assets/chicago-flyer.jpg">
+<meta name="twitter:image" content="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/31078285_1782183569chmch_chicago.jpg">
 <meta name="description" content="Watch the Chicago Crate Hackathon live — Tue June 23, 7PM CT / 8PM ET, in person at The Bean, Millennium Park. 100+ DJs building the ultimate Chicago crate. RSVP free to stream it live and get reminders.">
 <!--
 ====================================================================
@@ -198,6 +198,20 @@
     .ch-optin .row2{grid-template-columns:1fr;}
     .final{padding:52px 0;}
   }
+
+  /* ---- Hacker Hotel announcement banner ---- */
+  .hh-banner{position:relative; z-index:8; background:linear-gradient(90deg,#ff6a00,#ff8b3d 55%,#ff6a00); color:#0a0a0c; border-bottom:1px solid rgba(0,0,0,.18);}
+  .hh-inner{max-width:1140px; margin:0 auto; padding:9px 22px; display:flex; align-items:center; justify-content:center; gap:8px 16px; flex-wrap:wrap; text-align:center;}
+  .hh-pulse{width:10px; height:10px; border-radius:50%; background:#0a0a0c; flex:none; animation:hhpulse 1.4s infinite;}
+  @keyframes hhpulse{0%{box-shadow:0 0 0 0 rgba(10,10,12,.5)}70%{box-shadow:0 0 0 9px rgba(10,10,12,0)}100%{box-shadow:0 0 0 0 rgba(10,10,12,0)}}
+  .hh-text{font-size:13.5px; font-weight:600; line-height:1.3;}
+  .hh-text b{font-weight:800; text-transform:uppercase; letter-spacing:.03em;}
+  .hh-count{display:inline-flex; gap:6px;}
+  .hh-count .seg{display:inline-flex; flex-direction:column; align-items:center; background:rgba(10,10,12,.16); border-radius:7px; padding:3px 7px; min-width:38px;}
+  .hh-count .seg b{font-family:Anton,Inter,sans-serif; font-weight:400; font-size:16px; line-height:1;}
+  .hh-count .seg i{font-style:normal; font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; opacity:.72; margin-top:2px;}
+  @media (max-width:600px){ .hh-text{font-size:12px; flex-basis:100%;} .hh-inner{padding:8px 14px; gap:7px;} .hh-count .seg{min-width:34px; padding:3px 6px;} }
+  @media (prefers-reduced-motion: reduce){ .hh-pulse{animation:none;} }
 </style>
 </head>
 <body>
@@ -205,11 +219,24 @@
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://load.gtm.cratehackers.com/ns.html?id=GTM-53P4QHG" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
+<!-- ===================== HACKER HOTEL ANNOUNCEMENT BANNER ===================== -->
+<div class="hh-banner" role="region" aria-label="Hacker Hotel announcement">
+  <div class="hh-inner">
+    <span class="hh-pulse" aria-hidden="true"></span>
+    <span class="hh-text"><b>Huge Hacker Hotel 2026 announcement</b> drops LIVE at the hackathon</span>
+    <span class="hh-count" id="hhCount" aria-label="Countdown to the announcement">
+      <span class="seg"><b id="hh-d">--</b><i>days</i></span>
+      <span class="seg"><b id="hh-h">--</b><i>hrs</i></span>
+      <span class="seg"><b id="hh-m">--</b><i>min</i></span>
+      <span class="seg"><b id="hh-s">--</b><i>sec</i></span>
+    </span>
+  </div>
+</div>
 
 <!-- ===================== NAV ===================== -->
 <nav class="nav">
   <div class="wrap">
-    <a class="logo" href="#top" aria-label="Crate Hackers"><img src="assets/crate-hackers-logo.png" alt="Crate Hackers"></a>
+    <a class="logo" href="#top" aria-label="Crate Hackers"><img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/26660530_16468968032PaCrate_Hackers_Logowhite_1.jpg" alt="Crate Hackers"></a>
     <span class="badge"><span class="dot"></span> Chicago · June 23 · Live</span>
   </div>
 </nav>
@@ -351,7 +378,7 @@
       <p>Chicago is the birthplace of house music. We're bringing that lineage back to The Bean for one night.</p>
     </div>
     <div class="col-art">
-      <div class="flyer-art"><img src="assets/chicago-flyer.jpg" alt="Chicago Pop-Up Party — Crate Hackers Live at The Bean, Millennium Park. Tue June 23, 7PM CT / 8PM ET. Free event, no ticket required."></div>
+      <div class="flyer-art"><img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/31078285_1782183569chmch_chicago.jpg" alt="Chicago Pop-Up Party — Crate Hackers Live at The Bean, Millennium Park. Tue June 23, 7PM CT / 8PM ET. Free event, no ticket required."></div>
     </div>
   </div>
 </section>
@@ -403,5 +430,23 @@
   </div>
 </footer>
 
+
+<script>
+  // Countdown to the live Hacker Hotel announcement — Tue June 23, 2026, 7PM CT (00:00 UTC Jun 24).
+  (function(){
+    var t = new Date('2026-06-24T00:00:00Z').getTime();
+    var d=document.getElementById('hh-d'),h=document.getElementById('hh-h'),m=document.getElementById('hh-m'),s=document.getElementById('hh-s');
+    if(!d) return;
+    function p(n){return (n<10?'0':'')+n;}
+    function tick(){
+      var diff=t-Date.now(); if(diff<0) diff=0;
+      d.textContent=p(Math.floor(diff/864e5));
+      h.textContent=p(Math.floor(diff%864e5/36e5));
+      m.textContent=p(Math.floor(diff%36e5/6e4));
+      s.textContent=p(Math.floor(diff%6e4/1e3));
+    }
+    tick(); setInterval(tick,1000);
+  })();
+</script>
 </body>
 </html>
