@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Google Tag Manager -->
+<script>!function(){"use strict";function l(e){for(var t=e,r=0,n=document.cookie.split(";");r<n.length;r++){var o=n[r].split("=");if(o[0].trim()===t)return o[1]}}function s(e){return localStorage.getItem(e)}function u(e){return window[e]}function A(e,t){e=document.querySelector(e);return t?null==e?void 0:e.getAttribute(t):null==e?void 0:e.textContent}var e=window,t=document,r="script",n="dataLayer",o="https://www.cratehackers.com/metrics",a="https://load.gtm.cratehackers.com",i="2ifskwxsoim",c="k=BA1SNCw6RkZeOVsiMDBNBVBbQUJeEwVOGh4YXRsFCgcIAQ4QExIZAEMKAB5eBAQDUEYCFgwFAhAe",g="cookie",v="CHCookie",E="",d=!1;try{var d=!!g&&(m=navigator.userAgent,!!(m=new RegExp("Version/([0-9._]+)(.*Mobile)?.*Safari.*").exec(m)))&&16.4<=parseFloat(m[1]),f="stapeUserId"===g,I=d&&!f?function(e,t,r){void 0===t&&(t="");var n={cookie:l,localStorage:s,jsVariable:u,cssSelector:A},t=Array.isArray(t)?t:[t];if(e&&n[e])for(var o=n[e],a=0,i=t;a<i.length;a++){var c=i[a],c=r?o(c,r):o(c);if(c)return c}else console.warn("invalid uid source",e)}(g,v,E):void 0;d=d&&(!!I||f)}catch(e){console.error(e)}var m=e,g=(m[n]=m[n]||[],m[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"}),t.getElementsByTagName(r)[0]),v=I?"&bi="+encodeURIComponent(I):"",E=t.createElement(r),f=(d&&(i=8<i.length?i.replace(/([a-z]{8}$)/,"kp$1"):"kp"+i),!d&&a?a:o);E.async=!0,E.src=f+"/"+i+".js?"+c+v,null!=(e=g.parentNode)&&e.insertBefore(E,g)}();</script>
+<!-- End Google Tag Manager -->
+<title>Check In — Chicago Crate Hackathon at The Bean</title>
+<link rel="canonical" href="https://lander.cratehackers.com/chicago">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Check in — Chicago Crate Hackathon at The Bean">
+<meta property="og:description" content="You're on-site at The Bean. Drop your name, email & phone to get the finished Chicago crate and unlock tonight's on-site-only Hacker Hotel deal.">
+<meta name="description" content="On-site check-in for the Chicago Crate Hackathon at The Bean. Drop your name, email and phone to get the finished crate and tonight's on-site-only deal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f14; --bg-2:#0e141b; --panel:#141b24; --panel-2:#1b2530;
+    --orange:#ff6a00; --orange-lt:#ff8b3d;
+    --chrome-hi:#eef3f7; --chrome:#b7c4cf; --chrome-lo:#6b7a87;
+    --text:#f2f6f9; --muted:#9fb1bf; --line:rgba(255,255,255,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    min-height:100vh; display:flex; flex-direction:column;}
+  img{max-width:100%; display:block;}
+  a{color:inherit;}
+  .display{font-family:Anton,Inter,sans-serif; font-weight:400; text-transform:uppercase; letter-spacing:.01em; line-height:.94;}
+  .chrome{background:linear-gradient(180deg,#ffffff 0%,#dbe5ec 42%,#8b99a5 52%,#c3d0da 60%,#eef3f7 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent;}
+
+  /* nav */
+  .nav{position:relative; z-index:4;}
+  .nav .inner{max-width:560px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:18px 22px; gap:12px;}
+  .logo img{height:42px; width:auto;}
+  .badge{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:#fff;
+    border:1px solid var(--line); padding:7px 12px; border-radius:999px; background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.02));}
+  .badge .dot{width:8px; height:8px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 3px rgba(255,106,0,.18); animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,106,0,.4)}70%{box-shadow:0 0 0 8px rgba(255,106,0,0)}100%{box-shadow:0 0 0 0 rgba(255,106,0,0)}}
+
+  /* main */
+  main{flex:1; position:relative; display:flex; align-items:center; justify-content:center; padding:18px 18px 40px;}
+  .glow{position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%,rgba(120,150,175,.20),transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 100%,rgba(255,106,0,.10),transparent 60%);}
+  .stack{position:relative; z-index:2; width:100%; max-width:520px;}
+
+  .intro{text-align:center; margin-bottom:20px;}
+  .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+    color:var(--chrome); padding:7px 13px; border:1px solid var(--line); border-radius:999px;
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.01)); margin-bottom:16px;}
+  .eyebrow b{color:var(--orange-lt);}
+  h1{font-size:clamp(32px,8vw,46px); margin:0 0 12px;}
+  h1 .o{color:var(--orange); -webkit-text-fill-color:var(--orange);}
+  .intro p{font-size:16.5px; color:var(--muted); margin:0 auto; max-width:40ch; text-wrap:pretty;}
+  .intro p b{color:#fff;}
+
+  /* form card */
+  .formcard{position:relative; overflow:hidden; border-radius:var(--radius); padding:24px 22px 22px;
+    background:linear-gradient(180deg,rgba(40,54,66,.85),rgba(18,24,31,.92));
+    border:1px solid rgba(255,255,255,.14); box-shadow:0 30px 70px -28px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.18);}
+  .formcard::before{content:""; position:absolute; left:0; right:0; top:0; height:2px; background:linear-gradient(90deg,transparent,var(--chrome-hi),transparent);}
+  .ch-optin form{display:flex; flex-direction:column; gap:11px;}
+  .ch-optin input[type=text]{width:100%; font:inherit; font-size:16px; color:#fff; background:rgba(8,12,16,.7);
+    border:1.5px solid rgba(255,255,255,.16); border-radius:11px; padding:15px 15px; transition:border-color .15s, box-shadow .15s;}
+  .ch-optin input::placeholder{color:#7e8d99;}
+  .ch-optin input:focus{outline:none; border-color:var(--chrome); box-shadow:0 0 0 3px rgba(183,196,207,.22);}
+  .ch-optin .row2{display:grid; grid-template-columns:1fr 1fr; gap:11px;}
+  .ch-optin button{margin-top:4px; width:100%; min-height:56px; font:inherit; font-weight:800; font-size:18px; letter-spacing:.03em; text-transform:uppercase;
+    color:#fff; cursor:pointer; border:none; border-radius:12px; background:linear-gradient(180deg,var(--orange-lt),var(--orange));
+    box-shadow:0 12px 26px -8px rgba(255,106,0,.6); transition:transform .12s, box-shadow .12s;}
+  .ch-optin button:hover{transform:translateY(-1px); box-shadow:0 16px 32px -8px rgba(255,106,0,.7);}
+  .ch-optin button:active{transform:translateY(0);}
+  .ch-optin button:disabled{opacity:.7; cursor:default;}
+  .js_captcha_wrapper:not(:empty){margin-top:4px;}
+  .trust{display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap; margin-top:14px; font-size:12.5px; color:var(--muted); text-align:center;}
+
+  /* teaser */
+  .teaser{margin-top:18px; display:flex; align-items:center; gap:13px; padding:15px 17px; border-radius:14px;
+    background:linear-gradient(180deg,rgba(40,54,66,.5),rgba(18,24,31,.6)); border:1px solid var(--line);}
+  .teaser .tg{flex:none; width:40px; height:40px; border-radius:10px; background:linear-gradient(150deg,var(--orange-lt),var(--orange)); display:grid; place-items:center;}
+  .teaser .tg svg{width:22px; height:22px;}
+  .teaser p{margin:0; font-size:13.5px; color:var(--muted); line-height:1.45;}
+  .teaser p b{color:#fff;} .teaser p .o{color:var(--orange-lt); font-weight:700;}
+
+  footer{text-align:center; color:var(--muted); font-size:12.5px; padding:18px 18px 28px;}
+  footer p{margin:4px 0;} footer .o{color:var(--orange-lt);}
+
+  @media (max-width:430px){
+    .ch-optin .row2{grid-template-columns:1fr;}
+    .nav .inner{padding:16px 18px;}
+    h1{font-size:clamp(30px,9vw,40px);}
+  }
+</style>
+</head>
+<body>
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://load.gtm.cratehackers.com/ns.html?id=GTM-53P4QHG" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<nav class="nav">
+  <div class="inner">
+    <a class="logo" href="https://cratehackers.com" aria-label="Crate Hackers"><img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/26660530_16468968032PaCrate_Hackers_Logowhite_1.jpg" alt="Crate Hackers"></a>
+    <span class="badge"><span class="dot"></span> Live tonight · The Bean</span>
+  </div>
+</nav>
+
+<main>
+  <div class="glow"></div>
+  <div class="stack">
+
+    <div class="intro">
+      <span class="eyebrow"><b>You made it</b> · On-site at The Bean</span>
+      <h1 class="display">Check in to the <span class="o">Chicago Crate Hackathon</span></h1>
+      <p>Drop your info and you're in. We'll send you the <b>finished Chicago crate</b> and unlock tonight's <b>on-site-only deal</b> on the next screen.</p>
+    </div>
+
+    <div class="formcard">
+      <!-- ============================================================
+           KARTRA OPT-IN — on-site check-in.
+           Posts to add_lead/ZPhfToRHveZa (form 9461cce28ebe3e76fb4b931c35a169b0).
+           Set this form's redirect IN KARTRA to:
+           https://lander.cratehackers.com/chicago-ty
+           ============================================================ -->
+      <div class="ch-optin">
+        <div class="form_class_9461cce28ebe3e76fb4b931c35a169b0" data-form_id="9461cce28ebe3e76fb4b931c35a169b0">
+          <form method="post" action="https://app.kartra.com/process/add_lead/ZPhfToRHveZa" target="_top" class="form_class_ZPhfToRHveZa js_kartra_trackable_object" data-kt-type="optin" data-kt-value="ZPhfToRHveZa" data-kt-owner="Pr2bAmrM" accept-charset="UTF-8">
+            <input type="text" class="" placeholder="" name="aaddress_url" value="" style="display:none;position:absolute;left:-9999px;" aria-hidden="true" tabindex="-1">
+            <div class="row2">
+              <input type="text" class="js_kartra_santitation" data-santitation-type="front_name" placeholder="First name" name="first_name" value="" aria-label="First name">
+              <input type="text" class="js_kartra_santitation" data-santitation-type="front_name" placeholder="Last name" name="last_name" value="" aria-label="Last name">
+            </div>
+            <input type="text" class="js_kartra_santitation" data-santitation-type="email" placeholder="Email address" name="email" value="" aria-label="Email address">
+            <input type="text" class="js_kartra_santitation" data-santitation-type="phone_number" placeholder="Phone number" name="phone" value="" aria-label="Phone number">
+            <div class="js_captcha_wrapper"></div>
+            <button class="submit_button_9461cce28ebe3e76fb4b931c35a169b0" onclick="var element = this; element.form.submit(); element.setAttribute('disabled', true); setTimeout(function(){element.removeAttribute('disabled');}, 1000);" type="submit">CHECK ME IN →</button>
+          </form>
+          <script>window.jQuery || document.write('<script src="https://app.kartra.com/js/node_modules/kartra-jquery/jquery-1.11.3/jquery-1.11.3.min.js"><\/script>')</script>
+          <script src="https://app.kartra.com/resources/js/analytics/Pr2bAmrM"></script>
+          <script src="https://app.kartra.com//resources/js/optin_front_javascript?form_id=9461cce28ebe3e76fb4b931c35a169b0&optin_hash=ZPhfToRHveZa&khoi=Pr2bAmrM"></script>
+        </div>
+      </div>
+
+      <div class="trust">Takes 10 seconds · We'll only use this to follow up about tonight</div>
+    </div>
+
+    <div class="teaser">
+      <span class="tg" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" stroke="#0a0a0c" stroke-width="2" stroke-linecap="round"/><path d="M2 8h20v4H2zM12 8v12" stroke="#0a0a0c" stroke-width="2"/><path d="M12 8S10 3 7.5 3 5 7 12 8ZM12 8s2-5 4.5-5S19 7 12 8Z" stroke="#0a0a0c" stroke-width="2" stroke-linejoin="round"/></svg></span>
+      <p>Next screen: tonight's <span class="o">on-site-only</span> deal — <b>Hacker Hotel Virtual for $27</b> (normally $97) <b>+ a free DJ necklace</b> handed to you right here.</p>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p>© Crate Hackers · <span class="o">Chicago Crate Hackathon</span></p>
+  <p>The Bean / Millennium Park · Live tonight</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Google Tag Manager -->
+<script>!function(){"use strict";function l(e){for(var t=e,r=0,n=document.cookie.split(";");r<n.length;r++){var o=n[r].split("=");if(o[0].trim()===t)return o[1]}}function s(e){return localStorage.getItem(e)}function u(e){return window[e]}function A(e,t){e=document.querySelector(e);return t?null==e?void 0:e.getAttribute(t):null==e?void 0:e.textContent}var e=window,t=document,r="script",n="dataLayer",o="https://www.cratehackers.com/metrics",a="https://load.gtm.cratehackers.com",i="2ifskwxsoim",c="k=BA1SNCw6RkZeOVsiMDBNBVBbQUJeEwVOGh4YXRsFCgcIAQ4QExIZAEMKAB5eBAQDUEYCFgwFAhAe",g="cookie",v="CHCookie",E="",d=!1;try{var d=!!g&&(m=navigator.userAgent,!!(m=new RegExp("Version/([0-9._]+)(.*Mobile)?.*Safari.*").exec(m)))&&16.4<=parseFloat(m[1]),f="stapeUserId"===g,I=d&&!f?function(e,t,r){void 0===t&&(t="");var n={cookie:l,localStorage:s,jsVariable:u,cssSelector:A},t=Array.isArray(t)?t:[t];if(e&&n[e])for(var o=n[e],a=0,i=t;a<i.length;a++){var c=i[a],c=r?o(c,r):o(c);if(c)return c}else console.warn("invalid uid source",e)}(g,v,E):void 0;d=d&&(!!I||f)}catch(e){console.error(e)}var m=e,g=(m[n]=m[n]||[],m[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"}),t.getElementsByTagName(r)[0]),v=I?"&bi="+encodeURIComponent(I):"",E=t.createElement(r),f=(d&&(i=8<i.length?i.replace(/([a-z]{8}$)/,"kp$1"):"kp"+i),!d&&a?a:o);E.async=!0,E.src=f+"/"+i+".js?"+c+v,null!=(e=g.parentNode)&&e.insertBefore(E,g)}();</script>
+<!-- End Google Tag Manager -->
+<title>You're checked in! — Tonight's On-Site Hacker Hotel Deal</title>
+<link rel="canonical" href="https://lander.cratehackers.com/chicago-ty">
+<meta name="robots" content="noindex">
+<meta name="description" content="You're checked in to the Chicago Crate Hackathon. Tonight only: grab the Hacker Hotel Virtual Pass for $27 (normally $97) and get a free DJ necklace handed to you on-site, plus a free month of Crate Hackers and Banger Button for new members.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f14; --bg-2:#0e141b; --panel:#141b24; --panel-2:#1b2530;
+    --orange:#ff6a00; --orange-lt:#ff8b3d;
+    --chrome-hi:#eef3f7; --chrome:#b7c4cf; --chrome-lo:#6b7a87;
+    --text:#f2f6f9; --muted:#9fb1bf; --line:rgba(255,255,255,.10);
+    --radius:16px; --maxw:680px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;}
+  img{max-width:100%; display:block;}
+  a{color:inherit;}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 22px;}
+  .display{font-family:Anton,Inter,sans-serif; font-weight:400; text-transform:uppercase; letter-spacing:.01em; line-height:.96;}
+  .chrome{background:linear-gradient(180deg,#ffffff 0%,#dbe5ec 42%,#8b99a5 52%,#c3d0da 60%,#eef3f7 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent;}
+
+  .nav .inner{max-width:1040px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:18px 22px;}
+  .logo img{height:42px; width:auto;}
+  .badge{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:#fff;
+    border:1px solid var(--line); padding:7px 12px; border-radius:999px; background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.02));}
+  .badge .dot{width:8px; height:8px; border-radius:50%; background:var(--orange); box-shadow:0 0 0 3px rgba(255,106,0,.18);}
+
+  /* confirm */
+  .confirm{position:relative; text-align:center; padding:34px 0 8px; overflow:hidden;}
+  .confirm .g{position:absolute; top:-160px; left:50%; transform:translateX(-50%); width:760px; height:460px; background:radial-gradient(ellipse at center,rgba(120,150,175,.22),transparent 65%);}
+  .confirm .wrap{position:relative; z-index:2;}
+  .check{width:74px; height:74px; border-radius:50%; margin:0 auto 18px; display:grid; place-items:center;
+    background:linear-gradient(150deg,var(--orange-lt),var(--orange)); box-shadow:0 16px 40px -10px rgba(255,106,0,.6);}
+  .check svg{width:38px; height:38px;}
+  .confirm .eyebrow{display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--chrome); border:1px solid var(--line); background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.01)); padding:7px 13px; border-radius:999px; margin-bottom:16px;}
+  h1.confirm-h1{font-size:clamp(30px,5.4vw,50px); margin:0 0 12px;}
+  h1.confirm-h1 .o{color:var(--orange); -webkit-text-fill-color:var(--orange);}
+  .confirm p.sub{font-size:17px; color:var(--muted); margin:0 auto; max-width:46ch; text-wrap:pretty;}
+  .confirm p.sub b{color:#fff;}
+
+  /* offer hero */
+  .offer-sec{padding:24px 0 18px;}
+  .offer{position:relative; overflow:hidden; border-radius:20px;
+    background:linear-gradient(165deg,rgba(43,58,71,.92),rgba(14,20,27,.96)); border:1px solid rgba(255,138,61,.4);
+    box-shadow:0 40px 90px -36px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,106,0,.08);}
+  .offer::before{content:""; position:absolute; left:0; right:0; top:0; height:4px; background:linear-gradient(90deg,var(--orange),var(--orange-lt),var(--orange));}
+  .offer-inner{padding:26px 26px 28px;}
+  .otag{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#0a0a0c; background:var(--orange); padding:7px 14px; border-radius:999px;}
+  .otag .live{width:8px; height:8px; border-radius:50%; background:#0a0a0c; animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(10,10,12,.5)}70%{box-shadow:0 0 0 7px rgba(10,10,12,0)}100%{box-shadow:0 0 0 0 rgba(10,10,12,0)}}
+  .offer h2{font-size:clamp(26px,5vw,40px); margin:16px 0 6px;}
+  .offer h2 .o{color:var(--orange-lt);}
+  .offer .osub{font-size:16px; color:#d7dee3; margin:0 0 20px; text-wrap:pretty;}
+  .offer .osub b{color:#fff;}
+
+  /* price row */
+  .price{display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:18px 20px; margin:0 0 22px; border-radius:14px;
+    background:rgba(8,12,16,.5); border:1px solid var(--line);}
+  .price .was{font-size:20px; color:var(--muted); text-decoration:line-through; text-decoration-color:var(--orange); text-decoration-thickness:2px;}
+  .price .arrow{color:var(--chrome-lo);}
+  .price .now{font-family:Anton,Inter,sans-serif; font-size:54px; line-height:.9; color:#fff;}
+  .price .now sup{font-size:24px; vertical-align:super; color:var(--orange-lt);}
+  .price .save{margin-left:auto; font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#0a0a0c; background:var(--orange-lt); padding:6px 12px; border-radius:999px; line-height:1.3; text-align:center;}
+
+  .incl{font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--chrome); margin:0 0 12px;}
+  .offer ul{list-style:none; padding:0; margin:0 0 24px;}
+  .offer ul li{display:flex; align-items:flex-start; gap:12px; margin-bottom:13px; font-size:15.5px; color:#e8eef3;}
+  .offer ul li:last-child{margin-bottom:0;}
+  .offer ul li b{color:#fff;}
+  .offer ul li .ck{width:22px; height:22px; flex:none; margin-top:1px; color:var(--orange-lt);}
+  .offer ul li .tagfree{display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#0a0a0c; background:var(--orange-lt); padding:2px 7px; border-radius:5px; margin-left:2px; vertical-align:1px;}
+
+  /* necklace */
+  .neck-row{display:grid; grid-template-columns:130px 1fr; gap:18px; align-items:center; margin:0 0 24px; padding:16px; border-radius:14px;
+    background:rgba(8,12,16,.4); border:1px solid var(--line);}
+  .necklace{position:relative; aspect-ratio:1/1; border-radius:12px; overflow:hidden; border:1px solid var(--line);
+    background:radial-gradient(ellipse at 50% 30%,rgba(183,196,207,.18),rgba(10,14,18,.6));}
+  .necklace img{width:100%; height:100%; object-fit:cover;}
+  .necklace .freetag{position:absolute; left:8px; top:8px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#0a0a0c; background:var(--orange); padding:3px 8px; border-radius:999px;}
+  .neck-row .nt{font-size:14.5px; color:var(--muted); margin:0;}
+  .neck-row .nt b{color:#fff; display:block; font-size:16px; margin-bottom:3px;}
+
+  /* checkout button (wraps Kartra popup anchor) */
+  .checkout{display:flex; align-items:center; justify-content:center; gap:11px; width:100%; min-height:62px;
+    font-family:inherit; font-weight:800; font-size:19px; letter-spacing:.02em; text-transform:uppercase; text-decoration:none; color:#fff; cursor:pointer;
+    border:none; border-radius:14px; background:linear-gradient(180deg,var(--orange-lt),var(--orange));
+    box-shadow:0 16px 34px -10px rgba(255,106,0,.65); transition:transform .12s,box-shadow .12s;}
+  .checkout:hover{transform:translateY(-2px); box-shadow:0 22px 44px -10px rgba(255,106,0,.78);}
+  .checkout svg{width:22px; height:22px;}
+  .pay-link{display:block; text-decoration:none;}
+  .ofine{font-size:12.5px; color:var(--muted); margin:13px 0 0; text-align:center;}
+
+  /* bonus block */
+  .bonus{margin:18px 0 6px;}
+  .bonus-head{text-align:center; margin-bottom:16px;}
+  .bonus-head .k{font-size:12px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--chrome); margin:0 0 6px;}
+  .bonus-head h3{font-size:clamp(22px,4vw,30px); margin:0 0 6px;}
+  .bonus-head p{font-size:14.5px; color:var(--muted); margin:0 auto; max-width:44ch;}
+  .bgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .bcard{position:relative; overflow:hidden; border-radius:var(--radius); padding:20px 18px;
+    background:linear-gradient(180deg,rgba(40,54,66,.55),rgba(18,24,31,.72)); border:1px solid var(--line); display:flex; flex-direction:column;}
+  .bcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(180deg,var(--chrome-hi),var(--chrome-lo));}
+  .bcard .bk{font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--orange-lt); margin:0 0 6px;}
+  .bcard h4{font-size:18px; margin:0 0 6px;}
+  .bcard p{font-size:13.5px; color:var(--muted); margin:0 0 16px; flex:1;}
+  .bbtn{display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; font-weight:700; font-size:14.5px;
+    text-decoration:none; color:#fff; border-radius:11px; border:1.5px solid rgba(255,255,255,.2); background:rgba(8,12,16,.5); transition:border-color .15s, background .15s;}
+  .bbtn:hover{border-color:var(--orange-lt); background:rgba(255,106,0,.12);}
+
+  .newonly{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px; font-size:12.5px; color:var(--muted); text-align:center;}
+  .newonly b{color:#fff;}
+
+  .chrome-rule{height:3px; margin:30px 0; border-radius:2px; background:linear-gradient(90deg,transparent,var(--chrome-lo),var(--chrome-hi),var(--chrome-lo),transparent); opacity:.7;}
+
+  footer{border-top:1px solid var(--line); padding:28px 0 38px; text-align:center; color:var(--muted); font-size:13px;}
+  footer .o{color:var(--orange-lt);} footer p{margin:5px 0;}
+
+  @media (max-width:560px){
+    body{font-size:16px;}
+    .offer-inner{padding:22px 18px 24px;}
+    .price{padding:16px; gap:12px;}
+    .price .now{font-size:46px;}
+    .price .save{margin-left:0; flex-basis:100%; order:3;}
+    .neck-row{grid-template-columns:104px 1fr; gap:14px;}
+    .bgrid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://load.gtm.cratehackers.com/ns.html?id=GTM-53P4QHG" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<!-- Kartra tracking pixel -->
+<img src="https://app.kartra.com/button/tc/e5986d33d3ed6b45eb60ed9f5055a573" style="border:0px; width:0px; height:0px;" alt="" aria-hidden="true">
+
+<nav class="nav">
+  <div class="inner">
+    <a class="logo" href="https://cratehackers.com" aria-label="Crate Hackers"><img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/26660530_16468968032PaCrate_Hackers_Logowhite_1.jpg" alt="Crate Hackers"></a>
+    <span class="badge"><span class="dot"></span> The Bean · Live tonight</span>
+  </div>
+</nav>
+
+<header class="confirm">
+  <div class="g"></div>
+  <div class="wrap">
+    <div class="check"><svg viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="#0a0a0c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <span class="eyebrow">You're checked in</span>
+    <h1 class="confirm-h1 display" id="confirmHeadline">You're in<span id="fnameWrap">, <span id="fname">{first_name}</span></span>! Now grab tonight's <span class="o">on-site-only deal</span>.</h1>
+    <p class="sub"><b>This price is only good tonight, here at The Bean.</b> Lock in your Hacker Hotel Virtual Pass and pick up your free necklace before you leave.</p>
+  </div>
+</header>
+
+<!-- ===================== OFFER ===================== -->
+<section class="offer-sec">
+  <div class="wrap">
+    <div class="offer">
+      <div class="offer-inner">
+        <span class="otag"><span class="live" aria-hidden="true"></span> Tonight only · On-site exclusive</span>
+        <h2 class="display">Hacker Hotel Virtual Pass <span class="o">for $27</span></h2>
+        <p class="osub">The full <b>Hacker Hotel Virtual</b> experience — normally <b>$97</b>. Grab it tonight and we'll hand you a <b>free DJ necklace</b> on the spot.</p>
+
+        <div class="price">
+          <span class="was">$97</span>
+          <span class="arrow" aria-hidden="true">
+            <svg width="26" height="18" viewBox="0 0 26 18" fill="none"><path d="M2 9h20m0 0-6-6m6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="now"><sup>$</sup>27</span>
+          <span class="save">Save<br>$70</span>
+        </div>
+
+        <p class="incl">What you get tonight</p>
+        <ul>
+          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Hacker Hotel Virtual Pass</b> — the full virtual experience, just $27 tonight (reg. $97).</span></li>
+          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Free DJ necklace</b> handed to you <b>on-site tonight</b> as a thank-you. <span class="tagfree">Free</span></span></li>
+          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Free month of Crate Hackers</b> — full vault &amp; tools access. <span class="tagfree">New members</span></span></li>
+          <li><svg class="ck" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>2 free months of Banger Button</b> — your shortcut to crowd-movers. <span class="tagfree">New members</span></span></li>
+        </ul>
+
+        <div class="neck-row">
+          <div class="necklace">
+            <span class="freetag">Free</span>
+            <img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/151201240194Gunmetal_Necklace_DJSTYLE_Crate-Hackers_r1_plug-in-hand.gif" alt="Free Crate Hackers DJ necklace — DJ-style plug pendant">
+          </div>
+          <p class="nt"><b>Your free necklace is waiting.</b>Check out for the $27 pass, then show your confirmation at the table to grab it before you head out.</p>
+        </div>
+
+        <!-- ============================================================
+             KARTRA POPUP CHECKOUT — Hacker Hotel Virtual ($27).
+             pay.js binds the popup to .js_kt_asset_embed; keep the data-kt-* attrs.
+             ============================================================ -->
+        <a href="javascript:void(0);" class="js_kt_asset_embed js_kartra_trackable_object pay-link" data-kt-type="pay" data-kt-embed="popup" data-kt-value="KYghjXGvA9dT" data-kt-owner="Pr2bAmrM" aria-label="Get the $27 Hacker Hotel Virtual Pass">
+          <span class="checkout">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 6h2l2.4 12.3a1 1 0 0 0 1 .7h8.7a1 1 0 0 0 1-.8L21 8H6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="21" r="1.4" fill="#fff"/><circle cx="18" cy="21" r="1.4" fill="#fff"/></svg>
+            Get my $27 pass + free necklace
+          </span>
+        </a>
+        <p class="ofine">Secure Kartra checkout · Tonight's on-site price · Necklace handed to you here while supplies last.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== BONUS DETAIL ===================== -->
+<section class="bonus">
+  <div class="wrap">
+    <div class="bonus-head">
+      <p class="k">Bundled with your pass</p>
+      <h3 class="display">More months, <span class="chrome">on the house</span></h3>
+      <p>New to Crate Hackers? Claim a free month of Crate Hackers and 2 free months of Banger Button — tap to activate.</p>
+    </div>
+    <div class="bgrid">
+      <div class="bcard">
+        <p class="bk">Free month · New members</p>
+        <h4 class="display">Crate Hackers</h4>
+        <p>Full access to the vault, crates and tools that keep your sets fresh all year.</p>
+        <!-- Kartra popup — Crate Hackers free month (new members only) -->
+        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="57WByqmjLza4" data-kt-owner="Pr2bAmrM" aria-label="Claim free month of Crate Hackers">Claim free month →</a>
+      </div>
+      <div class="bcard">
+        <p class="bk">2 free months · New members</p>
+        <h4 class="display">Banger Button</h4>
+        <p>Your shortcut to the crowd-movers — instant heaters when the floor needs them.</p>
+        <!-- Kartra popup — Banger Button 2 free months -->
+        <a class="bbtn js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="68pgl7OE2ya4" data-kt-owner="Pr2bAmrM" aria-label="Claim 2 free months of Banger Button">Claim 2 free months →</a>
+      </div>
+    </div>
+    <p class="newonly"><b>New members only.</b>&nbsp;Free months apply to new Crate Hackers / Banger Button accounts.</p>
+  </div>
+</section>
+
+<div class="wrap"><div class="chrome-rule"></div></div>
+
+<footer>
+  <div class="wrap">
+    <p>© Crate Hackers · <span class="o">Chicago Crate Hackathon</span></p>
+    <p>The Bean / Millennium Park · On-site exclusive · Tonight only</p>
+  </div>
+</footer>
+
+<script>
+  // Push a conversion event into the dataLayer for GTM.
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'chicago_checkin', page: 'chicago-ty' });
+
+  // Clean up the Kartra {first_name} merge if empty or left literal.
+  (function(){
+    var fn = document.getElementById('fname'), wrap = document.getElementById('fnameWrap');
+    if(!fn) return;
+    var v = (fn.textContent || '').trim();
+    if(!v || v === '{first_name}' || v.charAt(0) === '{'){ wrap.parentNode.removeChild(wrap); }
+  })();
+</script>
+
+<!-- Kartra popup checkout engine -->
+<script type="text/javascript" src="https://app.kartra.com/js/build/front/embed/pay.js"></script>
+
+<!-- Meta Pixel — fire Purchase after a successful Hacker Hotel checkout.
+     PRIMARY trigger: set this Kartra product's post-purchase redirect (thank-you URL) to:
+       https://lander.cratehackers.com/chicago-ty?purchased=1
+     When the buyer lands back here with ?purchased=1 we register the Purchase once.
+     FALLBACK: if Kartra's popup posts a completion message, we also catch that. -->
+<script>
+  (function(){
+    var VALUE = 27.00, CURRENCY = 'USD';
+    var fired = false;
+
+    // Wait for fbq (loaded via GTM), then fire Purchase exactly once.
+    function firePurchase(){
+      if(fired) return;
+      function go(){
+        if(!window.fbq) return false;
+        try{
+          fbq('track','Purchase',{value:VALUE,currency:CURRENCY,content_name:'Hacker Hotel Virtual Pass'});
+        }catch(e){}
+        return true;
+      }
+      if(go()){ fired = true; return; }
+      var n=0, iv=setInterval(function(){ if(go()){ fired=true; clearInterval(iv); } else if(++n>60){ clearInterval(iv); } },200);
+    }
+
+    // Mirror the conversion into the dataLayer too (for a GTM Purchase tag if you prefer).
+    function pushDL(){
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event:'chicago_purchase', value:VALUE, currency:CURRENCY, page:'chicago-ty' });
+    }
+
+    // PRIMARY — buyer redirected back with ?purchased=1
+    try{
+      var p = new URLSearchParams(window.location.search);
+      if(p.get('purchased') === '1' || p.get('purchase') === '1'){
+        pushDL(); firePurchase();
+      }
+    }catch(e){}
+
+    // FALLBACK — listen for a Kartra popup completion message.
+    window.addEventListener('message', function(ev){
+      var d = ev && ev.data;
+      var s = typeof d === 'string' ? d : (d && (d.event || d.type || d.action) || '');
+      if(typeof s === 'string' && /purchase|payment_success|order_complete|thank/i.test(s)){
+        pushDL(); firePurchase();
+      }
+    }, false);
+  })();
+</script>
+
+</body>
+</html>
