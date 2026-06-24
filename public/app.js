@@ -35,6 +35,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "funnel") loadFunnel();
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "settings") loadSettings();
+    if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
   };
 });
@@ -81,18 +82,27 @@ async function refreshConn() {
 
 // ---------- compose ----------
 async function loadAudienceOptions() {
-  const { segments } = await api("/api/segments");
   const sel = $("#audience");
+  const hadOptions = sel.options.length > 0;
+  const prev = new Set([...sel.selectedOptions].map((o) => o.value)); // keep the user's picks across refresh
+  const { segments } = await api("/api/segments");
   sel.innerHTML = "";
   segments.forEach((s) => {
     const o = document.createElement("option");
     o.value = s.name;
     o.textContent = `${s.name} (${fmt(s.count)})`;
+    if (prev.has(s.name)) o.selected = true;
     sel.appendChild(o);
   });
-  if (segments.some((s) => s.name === "members")) sel.querySelector('[value="members"]').selected = true;
+  // default to "members" only on the very first load — never override the user's selection on a refresh
+  if (!hadOptions && !prev.size) { const m = sel.querySelector('[value="members"]'); if (m) m.selected = true; }
+  return segments.length;
 }
 const selectedSegments = () => [...$("#audience").selectedOptions].map((o) => o.value);
+if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
+  const n = await loadAudienceOptions();
+  toast(`Audiences refreshed — ${fmt(n)} list${n === 1 ? "" : "s"} available.`, "ok");
+};
 
 // Editor modes: HTML (raw) · Visual (WYSIWYG) · Preview (rendered, read-only)
 function setComposeMode(mode) {
