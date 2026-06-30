@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R&B Crate Hackathon — Live with DJ POPO</title>
+<meta name="description" content="Watch the R&B Crate Hackathon live with DJ POPO — Tue June 30, 8PM ET / 5PM PT on Twitch. RSVP free.">
+<meta name="robots" content="noindex">
+<!--
+====================================================================
+  R&B CRATE HACKATHON — A/B ROTATOR  ·  /hackathon-popo
+  Assigns each visitor a theme variant (jewel | storm), remembers it
+  (localStorage + 30-day cookie shared across *.cratehackers.com), and
+  redirects to that variant. Returning visitors always see the same one.
+  Force a variant for testing/ads:  /hackathon-popo?v=jewel  (or ?v=storm)
+  The matching thank-you page (/hackathon-popo-ty) reads the same cookie.
+====================================================================
+-->
+<noscript><meta http-equiv="refresh" content="0; url=/hackathon-popo/jewel.html"></noscript>
+<style>
+  html,body{margin:0;height:100%;background:#0b0710;color:#caa9b6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;}
+  .wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:24px;text-align:center;}
+  img{height:54px;width:auto;opacity:.95;}
+  .dots{display:flex;gap:9px;}
+  .dots i{width:10px;height:10px;border-radius:50%;display:block;
+    background:linear-gradient(180deg,#f1cf80,#9c7320);animation:b 1s ease-in-out infinite;}
+  .dots i:nth-child(2){animation-delay:.16s}.dots i:nth-child(3){animation-delay:.32s}
+  @keyframes b{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-6px)}}
+  .tag{font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;}
+  noscript a{color:#f1cf80;}
+  @media (prefers-reduced-motion: reduce){ .dots i{animation:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img src="https://d11n7da8rpqbjy.cloudfront.net/thedjsvault/26660530_16468968032PaCrate_Hackers_Logowhite_1.jpg" alt="Crate Hackers">
+  <div class="dots"><i></i><i></i><i></i></div>
+  <div class="tag">Loading the R&amp;B Hackathon…</div>
+  <noscript><a href="/hackathon-popo/jewel.html">Enter →</a></noscript>
+</div>
+<script>
+(function(){
+  var VARIANTS=['jewel','storm'];
+  var qs=new URLSearchParams(location.search);
+  var forced=qs.get('v');                                   // ?v=jewel forces a variant (testing / a specific ad)
+  var v=(forced&&VARIANTS.indexOf(forced)>-1)?forced:localStorage.getItem('popo_variant');
+  if(VARIANTS.indexOf(v)===-1){ v=VARIANTS[Math.floor(Math.random()*VARIANTS.length)]; } // sticky 50/50 split
+  localStorage.setItem('popo_variant',v);
+  var dom=/(^|\.)cratehackers\.com$/.test(location.hostname)?';domain=.cratehackers.com':''; // share variant across lander/www/checkout
+  document.cookie='popo_variant='+v+';path=/'+dom+';max-age=2592000;samesite=lax';
+  window.dataLayer=window.dataLayer||[];
+  window.dataLayer.push({event:'popo_variant_assigned',variant:v});  // <- wire into GA4 / webhook to see which theme converts
+  location.replace('/hackathon-popo/'+v+'.html'+location.search);    // carries gclid/fbclid/utm_* through
+})();
+</script>
+</body>
+</html>
