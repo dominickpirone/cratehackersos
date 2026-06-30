@@ -738,7 +738,7 @@ function trackPixel(req, res, u) {
       const rec = {
         ts: Date.now(),
         e,
-        v: (q.get("v") || "").slice(0, 4).toLowerCase(),
+        v: (q.get("v") || "").slice(0, 24).toLowerCase(),
         tier: (q.get("tier") || "").slice(0, 16).toLowerCase(),
         f: (q.get("f") || "level11").slice(0, 32),
       };

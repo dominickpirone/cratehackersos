@@ -871,43 +871,71 @@ const funBar = (label, val, max, color) => {
     <div style="display:flex;justify-content:space-between;font-size:12px;color:#aeb6cc;margin-bottom:3px"><span>${label}</span><span style="font-weight:700;color:#fff">${(val || 0).toLocaleString()}</span></div>
     <div style="height:10px;background:#0e0f12;border-radius:6px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div></div>`;
 };
+const FUNNELS = {
+  level11: { title: "Level 11 Funnel", desc: 'Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.', lead: false },
+  "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
+  chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
+  chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
+};
+function curFunnel() { return ($("#funSelect") && $("#funSelect").value) || "level11"; }
+function funMeta() { return FUNNELS[curFunnel()] || FUNNELS.level11; }
+(function initFunnelSelect() {
+  const sel = $("#funSelect"); if (!sel) return;
+  sel.innerHTML = Object.entries(FUNNELS).map(([id, m]) => `<option value="${id}">${m.title}</option>`).join("");
+  sel.onchange = loadFunnel;
+})();
+function vLabel(m, v) { return (m && m.labels && m.labels[v]) || (v || "?").toUpperCase(); }
 async function loadFunnel() {
+  const m = funMeta();
+  if ($("#funTitle")) $("#funTitle").textContent = m.title;
+  if ($("#funDesc")) $("#funDesc").innerHTML = m.desc;
+  if ($("#funTierWrap")) $("#funTierWrap").style.display = m.lead ? "none" : "";
+  if ($("#funNote")) $("#funNote").style.display = m.lead ? "none" : "";
   $("#funMsg").textContent = "Loading…";
   const qs = new URLSearchParams();
+  qs.set("funnel", curFunnel());
   if ($("#funFrom").value) qs.set("from", $("#funFrom").value);
   if ($("#funTo").value) qs.set("to", $("#funTo").value);
   let d; try { d = await api("/api/funnel?" + qs.toString()); } catch { $("#funMsg").textContent = "Couldn't load."; return; }
   $("#funMsg").textContent = "";
-  renderFunnel(d);
+  renderFunnel(d, m);
 }
-function renderFunnel(d) {
+function renderFunnel(d, m) {
+  m = m || funMeta();
+  const lead = !!m.lead;
   const t = d.totals;
-  $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
-    ${funMetric("Visitors", fmt(t.view))}${funMetric("Checkout clicks", fmt(t.cta))}
-    ${funMetric("Conversions", fmt(t.conv))}${funMetric("Conv. rate", fmtPct(t.convRate))}
-    ${funMetric("Revenue", fmtMoney(t.revenue))}${funMetric("AOV", fmtMoney(t.aov))}
-    ${funMetric("EPC / visitor", fmtMoney(t.epc))}</div>`;
+  const totCells = [
+    funMetric("Visitors", fmt(t.view)),
+    funMetric(lead ? "Opt-in clicks" : "Checkout clicks", fmt(t.cta)),
+    funMetric(lead ? "Leads" : "Conversions", fmt(t.conv)),
+    funMetric(lead ? "Opt-in rate" : "Conv. rate", fmtPct(t.convRate)),
+  ];
+  if (!lead) totCells.push(funMetric("Revenue", fmtMoney(t.revenue)), funMetric("AOV", fmtMoney(t.aov)), funMetric("EPC / visitor", fmtMoney(t.epc)));
+  $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">${totCells.join("")}</div>`;
   const variants = d.variants || [];
   const maxView = Math.max(1, ...variants.map((v) => v.view));
-  let winner = null;
-  variants.filter((v) => v.view > 0).forEach((v) => { if (!winner || v.epc > winner.epc) winner = v; });
+  let winner = null, winScore = -1;
+  variants.filter((v) => v.view > 0).forEach((v) => { const s = lead ? v.convRate : v.epc; if (s > winScore) { winScore = s; winner = v; } });
   $("#funVariants").innerHTML = variants.length ? `<div style="display:flex;gap:14px;flex-wrap:wrap">` + variants.map((v) => {
     const win = winner && v.variant === winner.variant && t.conv > 0;
-    return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
-      ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
-      <div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Variant ${(v.variant || "?").toUpperCase()}</div>
-      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar("Checkout clicks", v.cta, maxView, "#a855f7")}${funBar("Conversions", v.conv, maxView, "#22c55e")}
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
-        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Conv. rate</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>
+    const extra = lead ? "" : `
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">AOV</div><div style="font-weight:700">${fmtMoney(v.aov)}</div></div>
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">EPC</div><div style="font-weight:700;color:#FF7722">${fmtMoney(v.epc)}</div></div>
-        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700">${fmtMoney(v.revenue)}</div></div>
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700">${fmtMoney(v.revenue)}</div></div>`;
+    return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
+      ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
+      <div style="font-size:15px;font-weight:800;letter-spacing:.04em;margin-bottom:10px">${vLabel(m, v.variant)}</div>
+      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
+        <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">${lead ? "Opt-in rate" : "Conv. rate"}</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>${extra}
       </div></div>`;
   }).join("") + `</div>` : `<p class="muted">No funnel data yet for this range — once traffic hits the lander, it shows up here live.</p>`;
-  const tiers = ["monthly", "annual", "lifetime"];
-  const maxTier = Math.max(1, ...tiers.map((k) => t.tiers[k] || 0));
-  $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
-    tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
+  if (!lead) {
+    const tiers = ["monthly", "annual", "lifetime"];
+    const maxTier = Math.max(1, ...tiers.map((k) => t.tiers[k] || 0));
+    $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
+      tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
+  }
 }
 if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
 $$(".fun-preset").forEach((b) => b.onclick = () => {

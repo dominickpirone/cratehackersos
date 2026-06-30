@@ -378,10 +378,11 @@
       <section id="funnel" class="panel">
         <div class="panel-head">
           <span class="eyebrow">// Funnel</span>
-          <h1>Level 11 Funnel</h1>
-          <p>Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.</p>
+          <h1 id="funTitle">Level 11 Funnel</h1>
+          <p id="funDesc">Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.</p>
         </div>
         <div class="row" style="gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+          <div class="field" style="margin:0"><span class="lab">Funnel</span><select id="funSelect"></select></div>
           <div class="field" style="margin:0"><span class="lab">From</span><input id="funFrom" type="date" /></div>
           <div class="field" style="margin:0"><span class="lab">To</span><input id="funTo" type="date" /></div>
           <button id="funRefresh" class="btn btn-primary">Refresh</button>
@@ -396,9 +397,11 @@
         <div id="funTotals"></div>
         <h3 style="margin:24px 0 10px">By variant <span class="muted" style="font-weight:400;text-transform:none">— winner = highest earnings per visitor (EPC)</span></h3>
         <div id="funVariants"></div>
-        <h3 style="margin:24px 0 10px">Conversions by tier</h3>
-        <div id="funTiers"></div>
-        <p class="muted small" style="margin-top:18px">Visitors + checkout clicks are tracked by the lander pixel. <strong>Conversions + revenue are pulled live from your Kartra sales ledger</strong> — Kartra’s thank-you redirect bypasses the lander, so the pixel can’t see the sale. Totals are exact; per-variant conversions are <em>estimated</em> from each variant’s checkout-click share (the variant a buyer saw isn’t recorded at the off-site Kartra checkout). Tier is inferred from amount charged — ~$99 monthly · ~$891 annual · ≥$1,200 lifetime.</p>
+        <div id="funTierWrap">
+          <h3 style="margin:24px 0 10px">Conversions by tier</h3>
+          <div id="funTiers"></div>
+        </div>
+        <p id="funNote" class="muted small" style="margin-top:18px">Visitors + checkout clicks are tracked by the lander pixel. <strong>Conversions + revenue are pulled live from your Kartra sales ledger</strong> — Kartra’s thank-you redirect bypasses the lander, so the pixel can’t see the sale. Totals are exact; per-variant conversions are <em>estimated</em> from each variant’s checkout-click share (the variant a buyer saw isn’t recorded at the off-site Kartra checkout). Tier is inferred from amount charged — ~$99 monthly · ~$891 annual · ≥$1,200 lifetime.</p>
       </section>
 
       <!-- ===== DASHBOARDS ===== -->
