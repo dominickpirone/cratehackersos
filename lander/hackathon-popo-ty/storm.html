@@ -237,7 +237,7 @@
             <a class="btn-offer js_kt_asset_embed js_kartra_trackable_object" href="javascript:void(0);" data-kt-type="pay" data-kt-embed="popup" data-kt-value="tDblgxcjqUrK" data-kt-owner="Pr2bAmrM">
               Lock in my $27 pass →
             </a>
-            <script src="https://app.kartra.com/resources/js/pay.js"></script>
+            <script type="text/javascript" src="https://app.kartra.com/js/build/front/embed/pay.js"></script>
 
             <p class="ofine"><b>One-time, right-now price.</b> Secure checkout · Instant access.</p>
           </div>
@@ -277,14 +277,9 @@
   })();
 </script>
 
-<!-- Meta Pixel — register Lead (waits for fbq to load from GTM, then fires once) -->
+<!-- Meta Pixel — Lead event -->
 <script>
-  (function(){
-    function fire(){ if(window.fbq){ try{ fbq('track','Lead'); }catch(e){} return true; } return false; }
-    if(!fire()){
-      var n=0, iv=setInterval(function(){ if(fire() || ++n>60){ clearInterval(iv); } }, 200);
-    }
-  })();
+  fbq('track', 'Lead');
 </script>
 
 
