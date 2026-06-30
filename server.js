@@ -332,6 +332,92 @@ function writeSegmentFromMap(name, map) {
   fs.writeFileSync(path.join(SEGMENTS, slugify(name) + ".csv"), lines.join("\n"));
 }
 
+// ---------- failed payments (dunning / recovery) ----------
+// Phase 1 = visibility: pull recent failed charges from Stripe, classify by
+// reason, group per person with attempt counts. (Recovery sequences come later.)
+const FAILED_PAYMENTS_CACHE = path.join(DATA, "failed-payments.json");
+function classifyFailure(code) {
+  const c = (code || "").toLowerCase();
+  if (c === "insufficient_funds") return "insufficient_funds";
+  if (["expired_card", "lost_card", "stolen_card", "pickup_card", "incorrect_number", "invalid_account"].includes(c)) return "dead_card";
+  if (c === "card_declined" || c === "do_not_honor" || c === "generic_decline") return "declined";
+  return "other";
+}
+// Stripe events keep ~30 days and `charge.failed` returns ONLY failures, so this
+// is far cheaper than scanning every charge.
+async function getStripeFailedCharges(cfg, sinceTs) {
+  const out = [];
+  let after = "", guard = 0;
+  while (guard++ < 60) {
+    const qs = new URLSearchParams({ type: "charge.failed", limit: "100", "created[gte]": String(sinceTs) });
+    if (after) qs.set("starting_after", after);
+    const page = await stripeGet("events?" + qs.toString(), cfg);
+    const evs = page.data || [];
+    for (const ev of evs) {
+      const ch = ev.data && ev.data.object;
+      if (!ch || ch.object !== "charge") continue;
+      const bd = ch.billing_details || {};
+      const email = (bd.email || ch.receipt_email || "").trim().toLowerCase();
+      if (!email) continue;
+      out.push({
+        email,
+        name: (bd.name || "").trim(),
+        amount: (ch.amount || 0) / 100,
+        currency: (ch.currency || "usd").toUpperCase(),
+        created: ch.created || ev.created,
+        failureCode: ch.failure_code || "",
+        failureMessage: ch.failure_message || "",
+        reason: classifyFailure(ch.failure_code),
+        product: (ch.statement_descriptor || ch.description || "").trim(),
+        source: "stripe",
+      });
+    }
+    if (!page.has_more || !evs.length) break;
+    after = evs[evs.length - 1].id;
+  }
+  return out;
+}
+// One row per person: attempt count + the most recent failure details.
+function buildFailedPayments(raw) {
+  const byEmail = new Map();
+  for (const r of raw) {
+    let g = byEmail.get(r.email);
+    if (!g) { g = { email: r.email, name: r.name, attempts: 0, amount: r.amount, currency: r.currency, lastCreated: 0, reason: r.reason, failureMessage: r.failureMessage, products: new Set(), sources: new Set() }; byEmail.set(r.email, g); }
+    g.attempts++;
+    if (r.name && !g.name) g.name = r.name;
+    if (r.created > g.lastCreated) { g.lastCreated = r.created; g.amount = r.amount; g.reason = r.reason; g.failureMessage = r.failureMessage; }
+    if (r.product) g.products.add(r.product);
+    g.sources.add(r.source);
+  }
+  const rows = [...byEmail.values()].map((g) => ({
+    email: g.email, name: g.name, attempts: g.attempts, amount: g.amount, currency: g.currency,
+    lastCreated: g.lastCreated, reason: g.reason, failureMessage: g.failureMessage,
+    products: [...g.products], sources: [...g.sources],
+    segment: g.attempts >= 3 ? "dead_card_repeat" : g.reason,
+  }));
+  rows.sort((a, b) => (b.attempts - a.attempts) || (b.amount - a.amount));
+  return rows;
+}
+async function aggregateFailedPayments(cfg, days) {
+  const sinceTs = Math.floor(Date.now() / 1000) - days * 86400;
+  const raw = await getStripeFailedCharges(cfg, sinceTs);
+  const rows = buildFailedPayments(raw);
+  const summary = { people: rows.length, attempts: raw.length, atRisk: 0, repeat3plus: 0, byReason: {}, byProduct: {} };
+  for (const r of rows) {
+    summary.atRisk += r.amount;
+    if (r.attempts >= 3) summary.repeat3plus++;
+    summary.byReason[r.reason] = (summary.byReason[r.reason] || 0) + 1;
+    for (const p of (r.products.length ? r.products : ["(unlabeled)"])) summary.byProduct[p] = (summary.byProduct[p] || 0) + 1;
+  }
+  summary.atRisk = Math.round(summary.atRisk * 100) / 100;
+  const result = { updated: Date.now(), days, summary, rows };
+  try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(FAILED_PAYMENTS_CACHE, JSON.stringify(result)); } catch {}
+  return result;
+}
+function loadFailedPaymentsCache() {
+  try { return JSON.parse(fs.readFileSync(FAILED_PAYMENTS_CACHE, "utf8")); } catch { return null; }
+}
+
 // ---------- PayPal ----------
 async function paypalAuth(cfg) {
   const base = cfg.paypalEnv === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
@@ -1126,6 +1212,20 @@ const server = http.createServer(async (req, res) => {
           } catch (e) { result.ledgerError = String(e && e.message || e); }
         }
         return send(res, 200, result);
+      }
+      // failed payments (dunning / recovery) — Phase 1: visibility
+      if (p === "/api/failed-payments" && req.method === "GET") {
+        const cfg = loadConfig();
+        const empty = { configured: !!cfg.stripeKey, summary: { people: 0, attempts: 0, atRisk: 0, repeat3plus: 0, byReason: {}, byProduct: {} }, rows: [], updated: 0 };
+        if (!cfg.stripeKey) return send(res, 200, empty);
+        const days = Math.min(90, Math.max(1, parseInt(u.searchParams.get("days") || "30", 10) || 30));
+        const refresh = u.searchParams.get("refresh") === "1";
+        let result = refresh ? null : loadFailedPaymentsCache();
+        if (!result || result.days !== days) {
+          try { result = await aggregateFailedPayments(cfg, days); }
+          catch (e) { return send(res, 200, { ...empty, configured: true, error: String((e && e.message) || e) }); }
+        }
+        return send(res, 200, { configured: true, ...result });
       }
       // settings
       if (p === "/api/settings" && req.method === "GET") {

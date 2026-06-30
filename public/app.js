@@ -34,6 +34,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "analytics") loadAnalytics();
     if (btn.dataset.tab === "funnel") loadFunnel();
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
+    if (btn.dataset.tab === "failed-payments") loadFailedPayments();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -947,6 +948,59 @@ $$(".fun-preset").forEach((b) => b.onclick = () => {
   }
   loadFunnel();
 });
+// ---------- failed payments ----------
+const FP_REASON_LABEL = { dead_card: "Dead card", insufficient_funds: "Insufficient funds", declined: "Declined", other: "Other" };
+let FP_DATA = null;
+async function loadFailedPayments(refresh) {
+  if (!$("#fpMsg")) return;
+  $("#fpMsg").textContent = refresh ? "Pulling from Stripe…" : "Loading…";
+  const days = ($("#fpDays") && $("#fpDays").value) || "30";
+  const qs = new URLSearchParams({ days });
+  if (refresh) qs.set("refresh", "1");
+  let d; try { d = await api("/api/failed-payments?" + qs.toString()); } catch { $("#fpMsg").textContent = "Couldn't load."; return; }
+  FP_DATA = d;
+  $("#fpMsg").textContent = d.updated ? "Updated " + new Date(d.updated).toLocaleString() : "";
+  renderFailedPayments();
+}
+function renderFailedPayments() {
+  const d = FP_DATA; if (!d) return;
+  if (!d.configured) {
+    $("#fpTotals").innerHTML = `<div class="card" style="max-width:520px">Connect <b>Stripe</b> in Settings to pull failed payments.</div>`;
+    $("#fpTable").innerHTML = ""; return;
+  }
+  if (d.error) $("#fpMsg").textContent = "Stripe error: " + d.error;
+  const s = d.summary;
+  $("#fpTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
+    ${funMetric("People failing", fmt(s.people))}${funMetric("Failed attempts", fmt(s.attempts))}
+    ${funMetric("$ at risk", fmtMoney(s.atRisk))}${funMetric("Dead-card repeat (3+)", fmt(s.repeat3plus))}
+    ${funMetric("Insufficient funds", fmt(s.byReason.insufficient_funds || 0))}</div>`;
+  const reasonFilter = ($("#fpReason") && $("#fpReason").value) || "";
+  let rows = d.rows || [];
+  if (reasonFilter) rows = rows.filter((r) => r.reason === reasonFilter);
+  if (!rows.length) { $("#fpTable").innerHTML = `<p class="muted">No failed payments in this window${reasonFilter ? " for that reason" : ""}.</p>`; return; }
+  const badge = (r) => {
+    const dead = r.attempts >= 3;
+    const col = dead ? "#ef4444" : r.reason === "insufficient_funds" ? "#f59e0b" : "#8b93a7";
+    const lbl = dead ? "Dead card · " + r.attempts + "×" : (FP_REASON_LABEL[r.reason] || r.reason);
+    return `<span style="background:${col}22;color:${col};border:1px solid ${col}55;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap">${lbl}</span>`;
+  };
+  $("#fpTable").innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="text-align:left;color:#8b93a7;border-bottom:1px solid #242838">
+      <th style="padding:8px">Name</th><th style="padding:8px">Email</th><th style="padding:8px">Reason</th>
+      <th style="padding:8px;text-align:right">Attempts</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px">Last failed</th><th style="padding:8px">Product</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr style="border-bottom:1px solid #1c2030">
+      <td style="padding:8px;font-weight:600">${esc(r.name || "—")}</td>
+      <td style="padding:8px"><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td>
+      <td style="padding:8px">${badge(r)}</td>
+      <td style="padding:8px;text-align:right;font-weight:700">${r.attempts}</td>
+      <td style="padding:8px;text-align:right">${fmtMoney(r.amount)}</td>
+      <td style="padding:8px;color:#8b93a7">${r.lastCreated ? new Date(r.lastCreated * 1000).toLocaleDateString() : "—"}</td>
+      <td style="padding:8px;color:#8b93a7">${esc((r.products || []).join(", ") || "—")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+if ($("#fpRefresh")) $("#fpRefresh").onclick = () => loadFailedPayments(true);
+if ($("#fpDays")) $("#fpDays").onchange = () => loadFailedPayments(false);
+if ($("#fpReason")) $("#fpReason").onchange = renderFailedPayments;
+
 // opener message: persist per browser, default to a friendly intro
 const OUTREACH_MSG_KEY = "ch_outreachOpener";
 if ($("#outreachMsg")) {

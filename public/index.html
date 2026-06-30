@@ -40,6 +40,7 @@
       <button class="tab" data-tab="analytics"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Analytics</span></button>
       <button class="tab" data-tab="funnel"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Funnel</span></button>
       <button class="tab" data-tab="dashboards"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Dashboards</span></button>
+      <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -443,6 +444,27 @@
       </section>
 
       <!-- ===== SETTINGS ===== -->
+      <!-- ===== FAILED PAYMENTS ===== -->
+      <section id="failed-payments" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Recovery</span>
+          <h1>Failed Payments</h1>
+          <p>Recent failed charges pulled live from Stripe — who failed, why, and how many times. The <b>dead-card repeat</b> segment (3+ failures) is where most of the lost revenue hides. <span class="muted">Phase 1 is visibility only — recovery sequences (email/SMS) come next.</span></p>
+        </div>
+        <div class="row" style="gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+          <div class="field" style="margin:0"><span class="lab">Window</span>
+            <select id="fpDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="60">Last 60 days</option><option value="90">Last 90 days</option></select>
+          </div>
+          <div class="field" style="margin:0"><span class="lab">Reason</span>
+            <select id="fpReason"><option value="">All reasons</option><option value="dead_card">Dead card</option><option value="insufficient_funds">Insufficient funds</option><option value="declined">Declined</option><option value="other">Other</option></select>
+          </div>
+          <button id="fpRefresh" class="btn btn-primary">Refresh from Stripe</button>
+          <span id="fpMsg" class="muted small"></span>
+        </div>
+        <div id="fpTotals"></div>
+        <div id="fpTable" style="margin-top:18px"></div>
+      </section>
+
       <section id="settings" class="panel">
         <div class="panel-head">
           <span class="eyebrow">// Configuration</span>
