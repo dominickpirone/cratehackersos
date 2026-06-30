@@ -1,0 +1,37 @@
+R&B HACKATHON (DJ POPO) — LANDER DROP-IN
+=========================================
+
+These mirror your repo's `lander/` folder. Copy the three items below into
+dominickpirone/cratehackersos  →  /lander/  and commit/push to `main`.
+Render redeploys in ~30 seconds.
+
+  lander/
+    hackathon-popo/          → serves https://lander.cratehackers.com/hackathon-popo
+      index.html             (A/B rotator: jewel | storm, sticky 50/50, ?v=jewel forces)
+      jewel.html             (Jewel & Gold opt-in)
+      storm.html             (Quiet Storm opt-in)
+      assets/
+        popo.css             (DJ POPO cutout, inlined as WebP — no binary asset needed)
+    hackathon-popo-ty/       → serves https://lander.cratehackers.com/hackathon-popo-ty
+      index.html             (reads the cookie, shows the matching thank-you theme)
+      jewel.html             (Jewel & Gold thank-you)
+      storm.html             (Quiet Storm thank-you)
+    shared/
+      ch-funnels.js          (funnel pixel — was missing from the repo; also fixes the
+                              chicagohackathon pages that reference it)
+
+SETUP
+-----
+1. Kartra: set the opt-in form's post-signup redirect to
+   https://lander.cratehackers.com/hackathon-popo-ty
+2. Verify the integration IDs in the opt-in/thank-you HTML (flagged in comments):
+   Kartra opt-in form  g6oBtMbUJmXc  ·  AddEvent  qm7v22jqhcr6  ·
+   Hacker Hotel popup  tDblgxcjqUrK  (owner Pr2bAmrM)
+3. Directory-index serving means /hackathon-popo and /hackathon-popo-ty work with
+   no route config — same as the existing chicagohackathon folders.
+
+WANT ME TO PUSH IT DIRECTLY NEXT TIME?
+--------------------------------------
+The write/GitHub connection currently 404s on cratehackersos (it's private and not
+in that connection's scope). Grant the GitHub app access to the cratehackersos repo,
+then I can commit these straight to main for you.
