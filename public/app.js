@@ -166,8 +166,35 @@ function updateProviderNote() {
   }
   const sb = $("#sendBtn");
   if (sb) sb.lastChild.textContent = pv === "mailgun" ? "Send via Mailgun →" : "Send to audience →";
+  const db = $("#dripBox"); if (db) db.classList.toggle("hidden", pv !== "mailgun");
 }
 if ($("#provider")) $("#provider").onchange = updateProviderNote;
+
+// ----- drip / warm-up controls (throttle sends to protect a new domain) -----
+function dripBody() {
+  if (!($("#dripOn") && $("#dripOn").checked)) return {};
+  return { drip: { on: true, batchSize: parseInt($("#dripBatch").value, 10) || 50, everyMin: parseFloat($("#dripEvery").value) || 10 } };
+}
+function dripSummary() {
+  const d = dripBody().drip;
+  return d ? `\n\nDrip: ${d.batchSize} every ${d.everyMin} min (≈ ${Math.round(d.batchSize / d.everyMin * 60).toLocaleString()}/hr).` : "";
+}
+function updateDripRate() {
+  const el = $("#dripRate"); if (!el) return;
+  const b = parseInt($("#dripBatch") && $("#dripBatch").value, 10) || 0;
+  const m = parseFloat($("#dripEvery") && $("#dripEvery").value) || 0;
+  el.textContent = (b && m) ? `≈ ${Math.round(b / m * 60).toLocaleString()} emails/hour` : "";
+}
+if ($("#dripOn")) $("#dripOn").onchange = () => { const f = $("#dripFields"); if (f) f.classList.toggle("hidden", !$("#dripOn").checked); };
+if ($("#dripBatch")) $("#dripBatch").oninput = updateDripRate;
+if ($("#dripEvery")) $("#dripEvery").oninput = updateDripRate;
+$$(".drip-preset").forEach((btn) => btn.onclick = () => {
+  if ($("#dripOn")) { $("#dripOn").checked = true; const f = $("#dripFields"); if (f) f.classList.remove("hidden"); }
+  if ($("#dripBatch")) $("#dripBatch").value = btn.dataset.b;
+  if ($("#dripEvery")) $("#dripEvery").value = btn.dataset.m;
+  updateDripRate();
+});
+updateDripRate();
 
 $("#previewBtn").onclick = async () => {
   const segs = selectedSegments();
@@ -201,10 +228,10 @@ $("#sendBtn").onclick = async () => {
   if (!segs.length) return toast("Select at least one audience.", "err");
 
   const pre = await post("/api/preview", { segments: segs, provider: pv });
-  if (!confirm(`Send "${subject}" to ${pre.recipients.toLocaleString()} recipients across [${segs.join(", ")}]\nvia ${pv.toUpperCase()}?\n\nThis sends real emails. Continue?`)) return;
+  if (!confirm(`Send "${subject}" to ${pre.recipients.toLocaleString()} recipients across [${segs.join(", ")}]\nvia ${pv.toUpperCase()}?${dripSummary()}\n\nThis sends real emails. Continue?`)) return;
 
   $("#sendBtn").disabled = true;
-  const r = await post("/api/send", { subject, html, text: $("#text").value, segments: segs, provider: pv });
+  const r = await post("/api/send", { subject, html, text: $("#text").value, segments: segs, provider: pv, ...dripBody() });
   if (r.error) { $("#sendBtn").disabled = false; return toast(r.error, "err"); }
 
   $("#sendProgress").classList.remove("hidden");
@@ -718,7 +745,7 @@ async function loadUpcoming() {
 
 // ---------- drafts ----------
 const editingDraft = { email: null, sms: null };
-const emailPayload = () => ({ subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), provider: provider() });
+const emailPayload = () => ({ subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), provider: provider(), ...dripBody() });
 const smsPayloadOf = () => ({ body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom") ? $("#smsFrom").value : "", provider: smsProvider(), segments: smsSelected(), pasted: $("#smsPaste").value });
 async function saveDraft(channel) {
   const payload = channel === "sms" ? smsPayloadOf() : emailPayload();

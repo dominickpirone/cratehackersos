@@ -123,6 +123,21 @@
                 <option value="mailgun">Mailgun</option>
               </select>
               <div id="providerNote" class="preview-out muted" style="margin-top:8px"></div>
+              <div id="dripBox" class="hidden" style="margin-top:10px;border-top:1px solid #242838;padding-top:10px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="dripOn" /> Drip / warm-up mode <span class="muted">— protect a new domain</span></label>
+                <div id="dripFields" class="hidden" style="margin-top:10px">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <div class="field" style="margin:0"><span class="lab">Batch size</span><input id="dripBatch" type="number" min="1" value="50" style="width:88px" /></div>
+                    <div class="field" style="margin:0"><span class="lab">Every (min)</span><input id="dripEvery" type="number" min="0" step="0.5" value="10" style="width:88px" /></div>
+                  </div>
+                  <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-ghost sm drip-preset" data-b="25" data-m="15">Gentle</button>
+                    <button type="button" class="btn btn-ghost sm drip-preset" data-b="50" data-m="10">Warm</button>
+                    <button type="button" class="btn btn-ghost sm drip-preset" data-b="150" data-m="10">Steady</button>
+                  </div>
+                  <div id="dripRate" class="muted small" style="margin-top:8px"></div>
+                </div>
+              </div>
             </div>
             <div class="card recip-card">
               <h3>Recipients</h3>

@@ -973,7 +973,8 @@ async function runSendJob(jobId, opts) {
   const { subject, html, text, fromEmail, fromName, replyTo, stream, tag, targets } = opts;
   const provider = opts.provider === "mailgun" ? "mailgun" : "postmark";
   const fromHeader = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
-  const size = provider === "mailgun" ? 1000 : BATCH_SIZE; // Mailgun allows 1000/call, Postmark 500
+  // Drip throttle (for warming a new sending domain) overrides the default batch size.
+  const size = (opts.batchSize && opts.batchSize > 0) ? opts.batchSize : (provider === "mailgun" ? 1000 : BATCH_SIZE);
   // capture recipients for sales attribution (real sends only)
   if (!opts.isTest) {
     try { fs.mkdirSync(RECIPIENTS, { recursive: true }); fs.writeFileSync(path.join(RECIPIENTS, jobId + ".json"), JSON.stringify({ channel: "email", emails: targets.map((t) => t.email) })); } catch {}
@@ -1015,7 +1016,7 @@ async function runSendJob(jobId, opts) {
     job.sent = sent;
     job.failed = failed.length;
     job.processed = Math.min(i + size, targets.length);
-    if (i + size < targets.length) await new Promise((r) => setTimeout(r, provider === "mailgun" ? 600 : 1200));
+    if (i + size < targets.length) await new Promise((r) => setTimeout(r, opts.batchDelayMs != null ? opts.batchDelayMs : (provider === "mailgun" ? 600 : 1200)));
   }
   job.done = true;
   job.sent = sent;
@@ -1064,9 +1065,15 @@ function launchEmail(b) {
   const now = new Date().toISOString();
   const tag = (isTest ? "test-" : "") + slugify(b.subject) + "-" + now.slice(0, 10);
   const jobId = "job_" + now.replace(/[^0-9]/g, "").slice(0, 14) + "_" + Math.floor(targets.length);
-  jobs.set(jobId, { id: jobId, total: targets.length, processed: 0, sent: 0, failed: 0, done: false, isTest });
-  runSendJob(jobId, { provider, subject: b.subject, html: b.html, text, fromEmail, fromName, replyTo: cfg.replyTo, stream: cfg.stream, tag, targets, segments, isTest, now });
-  return { jobId, total: targets.length, tag, provider };
+  // Optional drip throttle — recommended when warming a new sending domain.
+  // Sends `batchSize` recipients, waits `everyMin` minutes, repeats.
+  const drip = (!isTest && b.drip && b.drip.on) ? {
+    batchSize: Math.max(1, parseInt(b.drip.batchSize, 10) || 50),
+    batchDelayMs: Math.max(0, Math.round((parseFloat(b.drip.everyMin) || 5) * 60000)),
+  } : {};
+  jobs.set(jobId, { id: jobId, total: targets.length, processed: 0, sent: 0, failed: 0, done: false, isTest, drip: drip.batchSize ? { batchSize: drip.batchSize, everyMin: drip.batchDelayMs / 60000 } : null });
+  runSendJob(jobId, { provider, subject: b.subject, html: b.html, text, fromEmail, fromName, replyTo: cfg.replyTo, stream: cfg.stream, tag, targets, segments, isTest, now, ...drip });
+  return { jobId, total: targets.length, tag, provider, drip: drip.batchSize ? { batchSize: drip.batchSize, everyMin: drip.batchDelayMs / 60000 } : null };
 }
 function launchSms(b) {
   const cfg = loadConfig();
