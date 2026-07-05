@@ -67,6 +67,10 @@ function loadConfig() {
 
     salesLedgerCsvUrl: cfg.salesLedgerCsvUrl || process.env.SALES_LEDGER_CSV_URL ||
       "https://docs.google.com/spreadsheets/d/1nsgP56EOuIkxynvCK0Qn7XuqRk8Bm4aRgMl3JExNGec/export?format=csv&gid=0",
+    // Meta (Facebook/Instagram) ad spend — live spend vs sales in the July 4 funnel
+    metaAccessToken: cfg.metaAccessToken || process.env.META_ACCESS_TOKEN || "",
+    metaAdAccountId: cfg.metaAdAccountId || process.env.META_AD_ACCOUNT_ID || "706544896413478",
+    metaCampaignFilter: cfg.metaCampaignFilter || process.env.META_CAMPAIGN_FILTER || "4th of july",
     twilioAccountSid: cfg.twilioAccountSid || process.env.TWILIO_ACCOUNT_SID || "",
     twilioAuthToken: cfg.twilioAuthToken || process.env.TWILIO_AUTH_TOKEN || "",
     twilioFromNumbers: cfg.twilioFromNumbers || process.env.TWILIO_FROM_NUMBERS || "",
@@ -943,6 +947,38 @@ function aggregateFunnel(fromTs, toTs, funnel) {
   return { funnel: funnel || "level11", prices, variants, totals: metrics(totals) };
 }
 
+// ---------- Meta (Facebook/Instagram) ad spend via Graph API ----------
+// Live spend for the campaign(s) whose name matches metaCampaignFilter, so the
+// July 4 view can show spend vs REAL ledger sales (Meta's own ROAS undercounts —
+// its pixel can't see Kartra checkouts). Cached ~5 min.
+let _metaCache = { key: "", at: 0, val: null };
+async function getMetaSpend(cfg, from, to) {
+  if (!cfg.metaAccessToken || !cfg.metaAdAccountId) return null; // not connected → view shows a connect prompt
+  const since = from || "2026-07-04";
+  const until = to || new Date().toISOString().slice(0, 10);
+  const filter = cfg.metaCampaignFilter || "";
+  const key = cfg.metaAdAccountId + "|" + filter + "|" + since + "|" + until;
+  if (_metaCache.val && _metaCache.key === key && Date.now() - _metaCache.at < 300000) return _metaCache.val;
+  const act = String(cfg.metaAdAccountId).startsWith("act_") ? cfg.metaAdAccountId : "act_" + cfg.metaAdAccountId;
+  const tr = encodeURIComponent(JSON.stringify({ since, until }));
+  const url = `https://graph.facebook.com/v21.0/${act}/insights?level=campaign&fields=campaign_name,spend&time_range=${tr}&limit=500&access_token=${encodeURIComponent(cfg.metaAccessToken)}`;
+  const res = await fetch(url);
+  const j = await res.json();
+  if (j.error) throw new Error((j.error && j.error.message) || "Meta API error");
+  const rx = filter ? new RegExp(filter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+  let spend = 0; const campaigns = [];
+  for (const row of (j.data || [])) {
+    if (rx && !rx.test(row.campaign_name || "")) continue;
+    const s = parseFloat(row.spend || "0") || 0;
+    if (s <= 0) continue;
+    spend += s; campaigns.push({ name: row.campaign_name, spend: Math.round(s * 100) / 100 });
+  }
+  campaigns.sort((a, b) => b.spend - a.spend);
+  const val = { spend: Math.round(spend * 100) / 100, currency: "USD", campaigns, since, until };
+  _metaCache = { key, at: Date.now(), val };
+  return val;
+}
+
 // Real conversions come from the Kartra sales ledger, not the pixel: Kartra's
 // post-purchase redirect bypasses the instrumented lander thank-you pages, so the
 // `conv` pixel never fires. We pull actual Level 11 sales (count + $) from the ledger
@@ -1344,7 +1380,10 @@ const server = http.createServer(async (req, res) => {
         buckets.forEach((b) => b.revenue = Math.round(b.revenue * 100) / 100);
         totals.revenue = Math.round(totals.revenue * 100) / 100;
         const byDayArr = Object.keys(byDay).sort().map((dd) => ({ date: dd, count: byDay[dd].count, revenue: Math.round(byDay[dd].revenue * 100) / 100 }));
-        return send(res, 200, { connected: true, from, to, buckets, other: { count: otherCount, revenue: Math.round(otherRev * 100) / 100 }, byDay: byDayArr, totals });
+        let adSpend = null;
+        try { adSpend = await getMetaSpend(cfg, from, to); }
+        catch (e) { adSpend = { error: String((e && e.message) || e) }; }
+        return send(res, 200, { connected: true, from, to, buckets, other: { count: otherCount, revenue: Math.round(otherRev * 100) / 100 }, byDay: byDayArr, totals, adSpend });
       }
       // failed payments (dunning / recovery) — Phase 1: visibility
       if (p === "/api/failed-payments" && req.method === "GET") {

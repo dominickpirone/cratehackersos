@@ -1050,7 +1050,34 @@ function renderSaleReport(d) {
         <div style="flex:1;height:24px;border-radius:5px;background:#0e1018;position:relative;overflow:hidden"><div style="width:${(x.revenue / maxDay * 100).toFixed(1)}%;height:100%;background:#FF7722;opacity:.85"></div><span style="position:absolute;left:9px;top:4px;font-size:12px;font-weight:600">${fmt(x.count)} sales · ${fmtMoney(x.revenue)}</span></div></div>`).join("")}</div>`;
   }
 
+  // ---- spend vs sales (live Meta spend vs REAL ledger sales) ----
+  let spendBlock = "";
+  const ad = d.adSpend;
+  if (ad && typeof ad.spend === "number") {
+    const spend = ad.spend;
+    const roas = spend ? t.revenue / spend : 0;
+    const net = t.revenue - spend;
+    const cps = t.count ? spend / t.count : 0;
+    const camp = (ad.campaigns && ad.campaigns[0] && ad.campaigns[0].name) || "campaign";
+    const more = ad.campaigns && ad.campaigns.length > 1 ? ` +${ad.campaigns.length - 1} more` : "";
+    const cardsHtml = [
+      funMetric("Ad spend (Meta)", fmtMoney(spend)),
+      funMetric("Sales", fmtMoney(t.revenue)),
+      funMetric("ROAS", (roas ? roas.toFixed(2) : "0") + "×"),
+      funMetric("Net", (net >= 0 ? "+" : "−") + fmtMoney(Math.abs(net))),
+      funMetric("Cost / sale", fmtMoney(cps)),
+    ].join("");
+    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales <span class="muted" style="font-weight:400;text-transform:none">— live Meta spend vs real ledger sales</span></h3>
+       <div style="display:flex;gap:12px;flex-wrap:wrap">${cardsHtml}</div>
+       <p class="muted small" style="margin-top:8px">Spend is live from Meta (<b>${esc(camp)}</b>${more}). <b>ROAS uses your real Kartra sales</b> — Meta's own ROAS undercounts because its pixel can't see Kartra checkouts.</p>`;
+  } else if (ad && ad.error) {
+    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales</h3><div class="card" style="max-width:560px">Couldn't load Meta spend: <span class="muted">${esc(ad.error)}</span></div>`;
+  } else {
+    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales</h3><div class="card" style="max-width:560px">Add a Meta access token (<b>META_ACCESS_TOKEN</b>) on the server to see <b>live ad spend vs sales</b> here. The sales side above is already live.</div>`;
+  }
+
   $("#funVariants").innerHTML =
+    spendBlock +
     `<h3 style="margin:24px 0 10px">Conversions by price point <span class="muted" style="font-weight:400;text-transform:none">— what they bought</span></h3>
      <div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:16px 18px;max-width:560px">${tierBars}</div>
      ${mixBlock}
