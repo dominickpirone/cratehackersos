@@ -27,7 +27,7 @@
    `conv` = a lead/opt-in (TY page load), NOT a purchase. The Kartra $27 checkout is
    off-site and can't ping this pixel — reconcile revenue from the Kartra ledger. */
 (function (w, d) {
-  var TRACK = 'https://cratehackersos-qmmv.onrender.com/t.gif';
+  var TRACK = 'https://os.cratehackers.com/t.gif';
   var s = d.currentScript || (function () { var a = d.getElementsByTagName('script'); return a[a.length - 1]; })();
   var funnel = (s && s.getAttribute('data-funnel')) || 'chicagohackathon';
   var page = (s && s.getAttribute('data-page')) ||

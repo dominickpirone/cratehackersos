@@ -25,7 +25,7 @@
   if (variant) w.dataLayer.push({ l11_variant: variant }); // expose as a GTM Data Layer Variable
 
   // ---- first-party funnel pixel → Crate Hackers OS (visitors / clicks / conversions / revenue) ----
-  var TRACK = 'https://cratehackersos-qmmv.onrender.com/t.gif';
+  var TRACK = 'https://os.cratehackers.com/t.gif';
   function track(e, tier) {
     try {
       (new Image()).src = TRACK + '?e=' + e + '&v=' + encodeURIComponent(variant || '') +
