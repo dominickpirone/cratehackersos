@@ -1040,6 +1040,60 @@ if ($("#fpExport")) $("#fpExport").onclick = async () => {
   toast(`Exported ${fmt(r.count)} to audience "${r.segment}" — pick it in Compose.`, "ok");
 };
 
+// Reason-matched recovery emails. Links default to cratehackers.com — swap the
+// CTA href for your Kartra billing/update-card link before sending.
+const RECOVERY_TEMPLATES = {
+  dead_card: {
+    name: "Update-your-card",
+    subject: "{{first_name}}, your Crate Hackers card didn't go through 💳",
+    html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
+<p>Hey {{first_name}},</p>
+<p>Quick heads-up — the card on file for your Crate Hackers membership didn't go through on the last billing (usually means it expired or got replaced). Nothing dramatic, but we don't want you to lose access to your crates.</p>
+<p>Takes about 30 seconds to fix:</p>
+<p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Update my card →</a></p>
+<p>Do it before it lapses and you keep everything — your library, your settings, all of it.</p>
+<p>If you meant to cancel, no hard feelings — just ignore this and you're all set.</p>
+<p>— Dom, Crate Hackers</p></div>`,
+  },
+  insufficient_funds: {
+    name: "Insufficient-funds downsell",
+    subject: "{{first_name}}, let's keep you in — at a lower price",
+    html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
+<p>Hey {{first_name}},</p>
+<p>Your last Crate Hackers payment didn't clear. Money's tight for a lot of DJs right now — I get it, and I'd rather keep you than lose you over a few bucks.</p>
+<p>So here's a lower rate to stay in and keep your crates:</p>
+<p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Keep my spot — lower price →</a></p>
+<p>No awkwardness, no downgrade in the app — same Crate Hackers, price that fits right now.</p>
+<p>— Dom, Crate Hackers</p></div>`,
+  },
+  other: {
+    name: "Generic billing fix",
+    subject: "{{first_name}}, quick heads-up on your Crate Hackers billing",
+    html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
+<p>Hey {{first_name}},</p>
+<p>Your last Crate Hackers payment hit a snag. Update your billing in about 30 seconds so you don't lose your crates:</p>
+<p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Fix my billing →</a></p>
+<p>Reply to this email if you need a hand — happy to sort it out.</p>
+<p>— Dom, Crate Hackers</p></div>`,
+  },
+};
+if ($("#fpRecover")) $("#fpRecover").onclick = async () => {
+  const reason = ($("#fpReason") && $("#fpReason").value) || "";
+  const days = ($("#fpDays") && $("#fpDays").value) || "30";
+  const key = reason === "insufficient_funds" ? "insufficient_funds" : (reason === "dead_card" || reason === "declined") ? "dead_card" : "other";
+  const tpl = RECOVERY_TEMPLATES[key];
+  const nice = reason ? (FP_REASON_LABEL[reason] || reason) : "all failed";
+  if (!confirm(`Build a recovery campaign for "${nice}" (${days}d)?\n\nThis creates the audience and loads the "${tpl.name}" email into Compose. NOTHING sends — you review, set your billing link, and send it yourself.`)) return;
+  $("#fpMsg").textContent = "Building…";
+  const r = await post("/api/failed-payments/export", { reason, days: +days });
+  if (r.error) { $("#fpMsg").textContent = ""; return toast(r.error, "err"); }
+  $("#fpMsg").textContent = "";
+  if ($("#subject")) $("#subject").value = tpl.subject;
+  if ($("#html")) $("#html").value = tpl.html;
+  const ct = document.querySelector('.tab[data-tab="compose"]'); if (ct) ct.click();
+  toast(`Audience "${r.segment}" (${fmt(r.count)}) + "${tpl.name}" email loaded. Pick the audience, swap in your billing link, review, send.`, "ok");
+};
+
 // opener message: persist per browser, default to a friendly intro
 const OUTREACH_MSG_KEY = "ch_outreachOpener";
 if ($("#outreachMsg")) {
