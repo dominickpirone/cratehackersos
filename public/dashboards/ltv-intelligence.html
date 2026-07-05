@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crate Hackers — Avatar Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --panel:#161a22; --panel2:#1d222d; --line:#2a3140;
+  --txt:#e8ecf3; --dim:#8b94a7; --gold:#f5b942; --hot:#ff5470; --cyan:#3dd6d0; --purp:#9b7bff; --green:#4ade80;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.45}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 22px 80px}
+header{padding:36px 0 8px}
+h1{font-size:30px;letter-spacing:-.5px}
+h1 span{color:var(--gold)}
+.sub{color:var(--dim);margin-top:6px;font-size:14px;max-width:860px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi .n{font-size:26px;font-weight:700;color:var(--gold)}
+.kpi .l{font-size:12px;color:var(--dim);margin-top:2px}
+h2{font-size:20px;margin:38px 0 6px;display:flex;align-items:center;gap:10px}
+h2::before{content:"";width:10px;height:22px;background:var(--gold);border-radius:3px;display:inline-block}
+.h2sub{color:var(--dim);font-size:13px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{font-size:15px;margin-bottom:10px;color:var(--txt)}
+canvas{max-height:280px}
+/* avatars */
+.avgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.avatar{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;cursor:pointer;transition:.18s;position:relative;overflow:hidden}
+.avatar:hover{transform:translateY(-3px);border-color:var(--gold)}
+.avatar .pct{position:absolute;top:14px;right:14px;font-size:22px;font-weight:800;color:var(--gold)}
+.avatar .emoji{font-size:34px}
+.avatar h3{font-size:17px;margin:8px 0 2px}
+.avatar .tag{font-size:12px;color:var(--dim)}
+.avatar .one{font-size:13px;margin-top:10px;color:#c9d1e0;font-style:italic}
+.avatar .cta{margin-top:12px;font-size:12px;color:var(--cyan)}
+.detail{display:none;background:var(--panel2);border:1px solid var(--gold);border-radius:16px;padding:24px;margin-top:14px}
+.detail.open{display:block}
+.detail h3{font-size:20px;color:var(--gold)}
+.detail .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:14px}
+@media(max-width:900px){.detail .cols{grid-template-columns:1fr}}
+.detail h4{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin:14px 0 6px}
+.detail ul{list-style:none}
+.detail li{font-size:13px;padding:4px 0 4px 16px;position:relative;color:#c9d1e0}
+.detail li::before{content:"▸";position:absolute;left:0;color:var(--gold)}
+.q{background:#11141b;border-left:3px solid var(--hot);border-radius:0 8px 8px 0;padding:8px 12px;margin:6px 0;font-size:13px;font-style:italic;color:#dbe2ee}
+.q b{color:var(--hot);font-style:normal}
+.pill{display:inline-block;background:#252c3a;border-radius:20px;padding:3px 12px;font-size:12px;margin:3px 3px 0 0;color:#c9d1e0}
+.pill.hot{background:rgba(255,84,112,.15);color:var(--hot)}
+.pill.gold{background:rgba(245,185,66,.15);color:var(--gold)}
+.pill.cyan{background:rgba(61,214,208,.14);color:var(--cyan)}
+/* veins */
+.vein{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.vein .top{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.vein .top h3{font-size:15px}
+.vein .bar{height:8px;background:#252c3a;border-radius:4px;margin:10px 0 4px;overflow:hidden}
+.vein .bar i{display:block;height:100%;border-radius:4px}
+.vein .body{display:none;margin-top:10px}
+.vein.open .body{display:block}
+.vein .freq{color:var(--gold);font-weight:700;font-size:14px;white-space:nowrap;margin-left:12px}
+.small{font-size:12px;color:var(--dim)}
+/* enemy */
+.enemy{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.enemy .e{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.enemy .e h4{color:var(--hot);font-size:14px;margin-bottom:6px}
+.enemy .e p{font-size:12.5px;color:#c9d1e0;font-style:italic}
+/* channels */
+.chan{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.chan h3{color:var(--cyan);font-size:16px;margin-bottom:8px}
+.chan table{width:100%;border-collapse:collapse;font-size:13px}
+.chan td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:top;color:#c9d1e0}
+.chan td:first-child{color:var(--dim);white-space:nowrap;width:140px}
+.vocab{display:flex;flex-wrap:wrap;gap:6px}
+footer{margin-top:50px;color:var(--dim);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+.tabnav{display:flex;gap:8px;margin:18px 0 6px;border-bottom:1px solid var(--line);padding-bottom:0}
+.tabnav button{background:none;border:none;border-bottom:3px solid transparent;color:var(--dim);font-size:15px;font-weight:700;padding:10px 18px;cursor:pointer;font-family:inherit}
+.tabnav button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.tabnav button:hover{color:var(--txt)}
+.tierbar{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
+.tierbar .t{border-radius:10px;padding:12px;border:1px solid var(--line);background:var(--panel)}
+.tierbar .t h4{font-size:13px;margin-bottom:4px}
+.tierbar .t .v{font-size:20px;font-weight:800}
+.duel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.duel{grid-template-columns:1fr}}
+.duel .side{background:var(--panel2);border-radius:16px;padding:20px}
+.duel .side.w{border:1px solid var(--gold)}
+.duel .side.k{border:1px solid var(--hot)}
+.duel h3{font-size:18px;margin-bottom:4px}
+.duel .side.w h3{color:var(--gold)}
+.duel .side.k h3{color:var(--hot)}
+.duel ul{list-style:none;margin-top:10px}
+.duel li{font-size:13px;padding:5px 0 5px 18px;position:relative;color:#c9d1e0}
+.duel .side.w li::before{content:"✓";position:absolute;left:0;color:var(--gold)}
+.duel .side.k li::before{content:"✗";position:absolute;left:0;color:var(--hot)}
+.notice{background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.3);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#e6d5ad;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+<h1>🎧 Crate Hackers <span>Avatar Intelligence</span></h1>
+<div class="sub">Mined from <b>1,995 post-purchase survey responses (~1,793 unique buyers)</b> across three survey waves. Every quote below is verbatim customer language. When you use their words, they assume you have their file.</div>
+<div class="kpis">
+<div class="kpi"><div class="n">1,793</div><div class="l">Unique buyers surveyed</div></div>
+<div class="kpi"><div class="n">44</div><div class="l">Median age (mean 43.4)</div></div>
+<div class="kpi"><div class="n">13 yrs</div><div class="l">Median time DJing</div></div>
+<div class="kpi"><div class="n">67%</div><div class="l">Part-time w/ day job</div></div>
+<div class="kpi"><div class="n">66%</div><div class="l">Mix on Serato</div></div>
+<div class="kpi"><div class="n">+43</div><div class="l">NPS (58% promoters)</div></div>
+</div>
+</header>
+
+<div class="tabnav">
+<button id="btnTab1" class="on" onclick="switchTab(1)">🎯 Avatars &amp; Copy</button>
+<button id="btnTab2" onclick="switchTab(2)">💰 LTV Intelligence</button>
+<button id="btnTab3" onclick="switchTab(3)">📊 Executive Scorecard</button>
+</div>
+
+<div id="tab1">
+<h2>The Avatars</h2>
+<div class="h2sub">Five buyer identities, sized from business-type self-categorization (n=1,975). Click any card for the full dossier: pains, dreams, objections, hooks, and where to reach them.</div>
+<div class="avgrid" id="avgrid"></div>
+<div class="detail" id="detail"></div>
+
+<h2>Who They Are — The Numbers</h2>
+<div class="grid2">
+<div class="card"><h3>Age distribution (n=1,629)</h3><canvas id="cAge"></canvas></div>
+<div class="card"><h3>Business type (n=1,975)</h3><canvas id="cBiz"></canvas></div>
+<div class="card"><h3>Years DJing (n=1,566)</h3><canvas id="cYrs"></canvas></div>
+<div class="card"><h3>DJ software (n≈1,990, multi)</h3><canvas id="cSw"></canvas></div>
+<div class="card"><h3>Events they play (n=1,248, multi-select)</h3><canvas id="cEv"></canvas></div>
+<div class="card"><h3>How they found Crate Hackers (n=568)</h3><canvas id="cSrc"></canvas></div>
+<div class="card"><h3>Record pools (multi)</h3><canvas id="cPool"></canvas></div>
+<div class="card"><h3>Gigs per year (n=486)</h3><canvas id="cGigs"></canvas></div>
+</div>
+<div class="notice">⚠️ 487 respondents belong to <b>no record pool</b> — the single biggest partnership/bundle whitespace. And 69% use <b>no CRM at all</b>.</div>
+
+<h2>Copy Veins — The Pains</h2>
+<div class="h2sub">Ranked pain themes from ~3,900 open-text answers about their library and their #1 challenge. Click to open the golden verbatims. % = share of responses hitting the theme (themes overlap).</div>
+<div id="pains"></div>
+
+<h2>Copy Veins — The Dreams</h2>
+<div class="h2sub">From "What is your GIANT GOAL?" (1,940 answers). The promised land in their words.</div>
+<div id="dreams"></div>
+
+<h2>The Enemy Map</h2>
+<div class="h2sub">Who and what they blame — in order of blame-weight. Category positioning: make the PREP GRIND the enemy, because it causes all the internal ones (disorganized library → no confidence → anxiety → "maybe I'm too old").</div>
+<div class="enemy" id="enemy"></div>
+
+<h2>Objections — What Almost Stopped Them (n=560 buyers)</h2>
+<div id="objections"></div>
+
+<h2>Vocabulary Bank — Their Exact Words</h2>
+<div class="h2sub">Use these back at them. Frequencies from the full corpus.</div>
+<div class="card"><div class="vocab" id="vocab"></div></div>
+
+<h2>Channel Playbook</h2>
+<div class="h2sub">Where to say what. Meta already delivers ~60% of stated discovery — the survey tells you exactly what to feed it.</div>
+<div id="channels"></div>
+</div><!-- /tab1 -->
+
+<div id="tab2" style="display:none">
+<h2>The Money Map</h2>
+<div class="h2sub">All-time Kartra transactions (374,461 rows, 2020 → July 2026) aggregated to 36,629 unique buyers. LTV = net revenue (sales + rebills − refunds − chargebacks) per buyer email.</div>
+<div class="kpis">
+<div class="kpi"><div class="n">$8.31M</div><div class="l">All-time net revenue</div></div>
+<div class="kpi"><div class="n">36,629</div><div class="l">Unique buyers</div></div>
+<div class="kpi"><div class="n">$75</div><div class="l">Median LTV (mean $227)</div></div>
+<div class="kpi"><div class="n">73%</div><div class="l">of revenue from top 20% of buyers</div></div>
+<div class="kpi"><div class="n">2,104</div><div class="l">Whales ($1K+) = 5.7% of buyers, 36% of revenue</div></div>
+<div class="kpi"><div class="n">16,207</div><div class="l">Kickers+Ghosts (&lt;$50) = 44% of buyers, ~0% of revenue</div></div>
+</div>
+
+<h2>The Five Tiers</h2>
+<div class="tierbar">
+<div class="t" style="border-color:var(--gold)"><h4 style="color:var(--gold)">🐋 WHALE $1K+</h4><div class="v">2,104</div><div class="small">$2.99M · 35.9% of rev · median 48 months active</div></div>
+<div class="t" style="border-color:var(--cyan)"><h4 style="color:var(--cyan)">CORE $250–1K</h4><div class="v">7,218</div><div class="small">$3.64M · 43.8% of rev · 16 months active</div></div>
+<div class="t"><h4>MID $50–250</h4><div class="v">11,100</div><div class="small">$1.43M · 17.2% of rev · 3 months active</div></div>
+<div class="t" style="border-color:var(--purp)"><h4 style="color:var(--purp)">KICKER $0–50</h4><div class="v">10,630</div><div class="small">$261K · 3.1% of rev · one-and-done</div></div>
+<div class="t" style="border-color:var(--hot)"><h4 style="color:var(--hot)">👻 GHOST $0/refund</h4><div class="v">5,577</div><div class="small">$0 net · 56% refunded · pure CAC burn</div></div>
+</div>
+<div class="grid2">
+<div class="card"><h3>LTV distribution (buyers per bucket)</h3><canvas id="cDist"></canvas></div>
+<div class="card"><h3>Revenue share by tier</h3><canvas id="cShare"></canvas></div>
+</div>
+
+<h2>The LTV Gradient — survey joined to money</h2>
+<div class="h2sub">1,660 of 1,793 survey respondents (93%) matched to the buyer file. Every attribute below moves monotonically with LTV — these are the targeting dials. (Whale discovery-source n=24: directional.)</div>
+<div class="grid2">
+<div class="card"><h3>Median age by tier</h3><canvas id="gAge"></canvas></div>
+<div class="card"><h3>Median years DJing by tier</h3><canvas id="gYrs"></canvas></div>
+<div class="card"><h3>% Open Format (vs single-genre) by tier</h3><canvas id="gOF"></canvas></div>
+<div class="card"><h3>DJ identity: Wedding+Corporate vs Club share</h3><canvas id="gWC"></canvas></div>
+<div class="card"><h3>Started on $2.50 trial vs full price</h3><canvas id="gTrial"></canvas></div>
+<div class="card"><h3>NPS by tier</h3><canvas id="gNPS"></canvas></div>
+<div class="card"><h3>Goal language: "multi-op/hire/team" vs "festival/EDC"</h3><canvas id="gGoal"></canvas></div>
+<div class="card"><h3>Buys add-ons (VIP/Rekord Cloud) by tier</h3><canvas id="gAddon"></canvas></div>
+</div>
+<div class="notice">⚠️ The festival dream inverts: only 1% of whales talk festivals/EDC in their goals vs 9% of ghosts. Business language ("multi-op", "hire", "team") runs 11% whale vs 1% ghost. <b>The dream in the ad selects the buyer you get.</b></div>
+
+<h2>Whale vs Tire Kicker — the two dossiers</h2>
+<div class="duel">
+<div class="side w">
+<h3>🐋 The Whale (target relentlessly)</h3>
+<div class="small">$1K+ LTV · 5.7% of buyers · 36% of revenue · stays ~4 years</div>
+<ul>
+<li>48 years old, 22 years DJing (median) — the most veteran segment</li>
+<li>Open Format (72%) wedding/corporate/mobile DJ, 11–50 gigs a year</li>
+<li>Weekend Warrior or Empire Builder avatar; 51% part-time solo, 25% full-time</li>
+<li>Already pays for music: multiple record pools — DMS (2×) and Promo Only over-index</li>
+<li>VirtualDJ over-indexes 2× (23.6% vs ~12%); Serato flat across tiers</li>
+<li>Found via <b>Facebook ad</b> (50% of stated sources) or YouTube video — not IG/TikTok</li>
+<li><b>Skipped the trial:</b> only 19% entered on $2.50 trial; bought full price or lifetime day one</li>
+<li>27% attach add-ons (VIP, Rekord Cloud); 10% own Banger Button; Hacker Hotel buyers cluster here</li>
+<li>Goal language: multi-op, hiring, $100K, weddings & corporate — business builder</li>
+<li>93% United States · NPS +58</li>
+</ul>
+</div>
+<div class="side k">
+<h3>👻 The Tire Kicker / Ghost (filter out)</h3>
+<div class="small">&lt;$50 LTV · 44% of buyers · ~3% of revenue · gone in month one</div>
+<ul>
+<li>~40 years old, ≤10 years DJing; more beginners &amp; "just starting out" (24%)</li>
+<li>Club/bar/bedroom identity rises as LTV falls (club: 15% of ghosts vs 5% of whales)</li>
+<li>Single-genre: Hip-Hop (21%) and EDM over-index; Open Format drops to 49%</li>
+<li>No record pool (21% of ghosts) — doesn't yet pay for music, won't pay for tools</li>
+<li>Rekordbox over-indexes 2.6× among ghosts (16.7% vs 6.4% whale) — club-software signal</li>
+<li><b>Entered on the $2.50 trial</b> (58–63%) — the trial funnel is the kicker magnet</li>
+<li>Ghosts: 56% refunded; NPS +22; average 0.1 rebills — they never activated</li>
+<li>Goal language: festivals, EDC, Ibiza, "get famous" — the stage dream, not the business</li>
+<li>International over-indexes (UK/CA/DE ~2× whale rate) — FX price pain from the survey</li>
+<li>Avatar overlap: Open-Format Dreamer + parts of Joy Protector</li>
+</ul>
+</div>
+</div>
+
+<h2>Targeting Playbook — point the money at whales</h2>
+<div class="chan"><h3>Seed &amp; audience moves</h3><table>
+<tr><td>Meta LAL seed</td><td>Stop seeding lookalikes from ALL buyers. Seed from the 2,104-whale list (value-based custom audience with LTV column) — Meta optimizes toward 48-year-old US wedding/corporate pros instead of trial-hunters.</td></tr>
+<tr><td>Value optimization</td><td>Switch key campaigns from purchase-count to VALUE optimization; upload LTV as conversion value so the algorithm learns the whale shape.</td></tr>
+<tr><td>Exclusions</td><td>Exclude the 5,577 ghost/refunder emails from all prospecting AND retargeting. They are pure CAC burn with a 56% refund rate.</td></tr>
+<tr><td>Geo &amp; age</td><td>US-first budgets; 35–60 age band for whale campaigns. International: keep, but expect ~½ LTV or localize pricing.</td></tr>
+</table></div>
+<div class="chan"><h3>Offer architecture (the trial is a kicker magnet)</h3><table>
+<tr><td>The finding</td><td>63% of kickers and 58% of ghosts entered on the $2.50 trial vs only 19% of whales. Whales self-select by paying full price or lifetime on day one.</td></tr>
+<tr><td>The move</td><td>Show annual/lifetime FIRST to whale-profile traffic (FB, 35+, wedding/corporate creative). Reserve the trial for cold TikTok/IG traffic where it belongs — or gate it behind a quiz that routes business-builders to the real offer.</td></tr>
+<tr><td>Attach engine</td><td>27% of whales buy add-ons. Post-purchase flow: VIP add-ons + Banger Button + Hacker Hotel to every new full-price buyer within 30 days.</td></tr>
+</table></div>
+<div class="chan"><h3>Creative selection = buyer selection</h3><table>
+<tr><td>Whale magnets</td><td>Wedding/corporate scenes, 45-year-old on camera, "multi-op", "your second DJ is only as good as your crates", must-plays/do-not-play liturgy, time-back-to-family, business math ($ per gig).</td></tr>
+<tr><td>Kicker magnets (use only for cheap trial CAC)</td><td>Festival/EDC imagery, "get famous", club-dark aesthetics, EDM drops, hype editing. These pull 40-year-old dreamers who refund.</td></tr>
+<tr><td>Qualifying copy</td><td>Add friction that filters: "For working DJs with 10+ years of chaos on their drives." Whales have 22 years of tenure — say the number and kickers scroll past.</td></tr>
+</table></div>
+
+<div class="notice">Survey-takers skew valuable (matched mean LTV $295 vs $227 population): the people who answer your surveys are disproportionately your best customers — keep surveying, and treat survey completion itself as an LTV signal.</div>
+</div><!-- /tab2 -->
+
+<div id="tab3" style="display:none">
+<h2>June 2026 Snapshot</h2>
+<div class="h2sub">All-time Kartra ledger, cash basis. MRR is normalized (annual plans ÷12, lifetime excluded). June is the strongest June on record — but see the cohort-quality warning below.</div>
+<div class="kpis">
+<div class="kpi"><div class="n">$200.7K</div><div class="l">June net revenue (+20% MoM, +36% YoY)</div></div>
+<div class="kpi"><div class="n">$144.8K</div><div class="l">MRR (June) — flat vs $148K Jan 2024</div></div>
+<div class="kpi"><div class="n">1,085</div><div class="l">New buyers (+48% YoY)</div></div>
+<div class="kpi"><div class="n">$18.0K</div><div class="l">Refunds = 9.0% of revenue</div></div>
+<div class="kpi"><div class="n">2,006</div><div class="l">Failed payment events (record high)</div></div>
+<div class="kpi"><div class="n">4.2%</div><div class="l">Cancel-request save rate (658 of 15,703)</div></div>
+</div>
+
+<h2>Revenue & MRR</h2>
+<div class="grid2">
+<div class="card"><h3>Monthly net revenue &amp; refunds (2021 → Jun 2026)</h3><canvas id="eRev"></canvas></div>
+<div class="card"><h3>MRR — the treadmill (2024 → Jun 2026)</h3><canvas id="eMRR"></canvas></div>
+</div>
+<div class="notice">⚠️ <b>The treadmill:</b> MRR has been pinned at $130–153K for 30 straight months. New MRR (~$8–16K/mo) is almost exactly cancelled out by churned MRR every single month. Revenue growth since 2023 has come from volume + promos (Nov spikes = Black Friday: $236K '23, $203K '24, $323K '25), not from a compounding subscriber base. Fixing retention or entry-offer mix is worth more than any CAC improvement.</div>
+<div class="card" style="margin-top:14px"><h3>New MRR vs churned MRR by month</h3><canvas id="eWF"></canvas></div>
+
+<h2>Cohort LTV — the quality warning</h2>
+<div class="h2sub">Mean cumulative revenue per buyer, by acquisition year, over months since first purchase. Only offsets with ≥12 months of full observation are shown per cohort.</div>
+<div class="grid2">
+<div class="card"><h3>Cohort curves ($/buyer, cumulative)</h3><canvas id="eCoh"></canvas></div>
+<div class="card"><h3>12-month LTV by acquisition year</h3><canvas id="eLtv12"></canvas></div>
+</div>
+<div class="notice">🚨 <b>LTV compression — the headline finding:</b> a 2022 buyer was worth $206 at 12 months; a 2025 buyer is worth $106 — <b>down 49%</b>. Month-1 value fell from $85 to $46. New-buyer volume is up 48% YoY but each buyer is worth half as much. This is the arithmetic signature of the trial-funnel mix shift (see LTV Intelligence tab: trials = 63% of kickers). Volume is masking value decay — the single most important conversation for CMO + CFO.</div>
+
+<h2>Entry-Offer Economics (the CRO lever)</h2>
+<div class="grid2">
+<div class="card"><h3>Median LTV by entry offer</h3><canvas id="eEntry"></canvas></div>
+<div class="card"><h3>% who become whales ($1K+) by entry offer</h3><canvas id="eWhale"></canvas></div>
+</div>
+<div class="chan"><h3>Entry-offer table (n = 34,160 classified buyers)</h3><table>
+<tr><td><b>Entry offer</b></td><td><b>Buyers · median LTV · 12-mo LTV · 2nd-payment rate · refund rate · whale rate</b></td></tr>
+<tr><td>Trial / discounted</td><td>11,728 · $45 · $99 · 55% make a 2nd payment · 12% refund · <b>0.3% become whales</b></td></tr>
+<tr><td>Monthly full price</td><td>14,993 · $90 · $147 · 72% · 25% refund · 7.5% whales</td></tr>
+<tr><td>Annual</td><td>4,544 · $297 · $412 · 67% · <b>27% refund — highest, worth investigating</b> · 14.7% whales</td></tr>
+<tr><td>Lifetime</td><td>195 (excl. legacy) · $527 · $579 · 57% attach more products · 12% refund · 4.6%+ whales (LTV capped by design but cash-up-front)</td></tr>
+<tr><td>The math</td><td>Moving 1,000 buyers/yr from trial entry to monthly-full entry ≈ +$48K in year-1 revenue and 25× the whale yield. Moving them to annual ≈ +$313K year-1. Same traffic, different first offer.</td></tr>
+</table></div>
+
+<h2>CAC & Payback</h2>
+<div class="grid2">
+<div class="card"><h3>June 2026 acquisition math</h3>
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+<tr><td style="padding:6px;color:var(--dim)">Google Ads June spend (actual)</td><td style="padding:6px">$45,499</td></tr>
+<tr><td style="padding:6px;color:var(--dim)">Meta June spend</td><td style="padding:6px"><input id="metaSpend" type="number" value="60000" style="width:110px;background:#11141b;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:4px 8px"> ← enter actual</td></tr>
+<tr><td style="padding:6px;color:var(--dim)">New buyers (June)</td><td style="padding:6px">1,085</td></tr>
+<tr><td style="padding:6px;color:var(--dim)">Blended CAC</td><td style="padding:6px;font-size:18px;font-weight:800;color:var(--gold)" id="cacOut">—</td></tr>
+<tr><td style="padding:6px;color:var(--dim)">Payback (2025-26 cohort curve)</td><td style="padding:6px;font-weight:700" id="paybackOut">—</td></tr>
+</table>
+<div class="small" style="margin-top:8px">Kartra has no historical spend by channel — the handoff doc specs the Hyros/Meta ingest to make this a live monthly series. Google-only CAC floor: $42/buyer vs $46 month-1 cohort value — payback is already ~12+ months before Meta spend is counted.</div></div>
+<div class="card"><h3>New buyers per month (volume vs value)</h3><canvas id="eNew"></canvas></div>
+</div>
+
+<h2>Leak Monitor (the CRO floor money)</h2>
+<div class="grid2">
+<div class="card"><h3>Failed payment events per month</h3><canvas id="eFail"></canvas></div>
+<div class="card"><h3>Refund $ per month</h3><canvas id="eRef"></canvas></div>
+</div>
+<div class="chan"><h3>Three recoverable leaks, sized</h3><table>
+<tr><td>Dunning</td><td>68,912 failed payment events all-time; only <b>21% recover within 30 days</b>. June hit a record 2,006 events. Industry-standard dunning (pre-expiry card updater, retry ladder, SMS) recovers 40–60%. Every extra 10 pts ≈ $4–6K/mo at current MRR. (Note: events include retries — dollar sizing needs invoice-level dedupe, specced in handoff.)</td></tr>
+<tr><td>Cancel saves</td><td>15,703 cancellation requests all-time, 658 reverted = <b>4.2% save rate</b>. Price point 38 ($15/mo save offer) exists but is barely converting. A real save flow (pause option, downgrade, seasonal hold — remember "Monthly pricing when DJing events is seasonal" from the survey) at a 15–20% save rate ≈ $15–25K/yr MRR preserved per point.</td></tr>
+<tr><td>Refunds</td><td>$18K in June (9.0% of revenue), and <b>annual plans refund at 27%</b> — the highest of any entry class. Hypothesis from survey objections: the "trap page" annual upsell buys refunds. Test consent-clear annual checkout vs forced-annual flow.</td></tr>
+</table></div>
+
+<div class="notice">📋 <b>The one-slide summary for the exec meeting:</b> Revenue is fine ($200K June, +36% YoY). The machine underneath is not: MRR flat 30 months, cohort LTV down 49% in 3 years, trial entries produce 0.3% whales, and three leaks (dunning 21% recovery, 4.2% save rate, 27% annual refunds) are worth more than the next creative test. Priorities: (1) entry-offer mix shift, (2) dunning + save flow, (3) whale-seeded acquisition from the LTV tab.</div>
+</div><!-- /tab3 -->
+
+<footer>Crate Hackers Post-Purchase Survey Mining · 3 survey waves, 1,995 responses, ~15,200 open-text answers analyzed · All quotes verbatim (typos preserved) · Built July 2026</footer>
+</div>
+
+<script>
+const C = {gold:'#f5b942',hot:'#ff5470',cyan:'#3dd6d0',purp:'#9b7bff',green:'#4ade80',dim:'#8b94a7',grid:'#242b38'};
+Chart.defaults.color = '#8b94a7'; Chart.defaults.borderColor = C.grid; Chart.defaults.font.size = 11;
+
+/* ================= AVATARS ================= */
+const avatars = [
+{emoji:'🕔', pct:'~45%', name:'The Weekend Warrior', tag:'Part-time mobile DJ, works alone · 40s · day job · Serato · weddings & private parties',
+ one:'"Started DJing in high school, I have less time now as an adult with a full time job, wife and kids."',
+ identity:['894 of 1,975 self-describe as "Part-Time Mobile DJ (Work By Myself)"','Median age 44, 13+ years behind the decks — a veteran, not a newbie','Works IT / sales / government / trades by day; DJs Fri–Sat','Library: 30k–100k+ tracks across drives, "folders upon folders"','Buys when: a big gig is coming, or after a bad night'],
+ pains:['TIME — "after along day at work the last thing I want to do is spend hours trying to get the hottest songs"','Prep eats the joy: "By the time im done I don\'t feel like dj\'ing anymore"','Serato face mid-set panic','Duplicates & chaos: "Duplicates, duplicates, DUPLICATES."'],
+ dreams:['Quit the 9-5 ("hang up the 9-5" — the #1 aspiration phrase, 157 mentions)','Booked every weekend / 40+ gigs a year','Walk into any gig ready — "confidence in my next 3 to 5 songs"','More family time: "give the prep hours back"'],
+ objection:'"Another subscription... lol... i got too many of those" → answer with time-ROI: one gig pays for a year.',
+ hooks:['"You\'re not disorganized. You have a 9-to-5, two kids, and 80,000 tracks."','"Prep for Saturday\'s wedding on Tuesday\'s lunch break."','"I find myself playing the same 500 songs out of a library of 50,000."'],
+ channels:'Meta (FB+IG) core; YouTube pre-roll on DJ tutorial content; email nurture on weekday lunch hours.'},
+{emoji:'🔁', pct:'~10-15%', name:'The Comeback Kid', tag:'Returning after 4–10 yrs away (COVID, kids, military) or rebuilding after a crash/theft',
+ one:'"I\'ve been a professional DJ for nearly 39 years... I had been out of it for about 8 years and now I feel LOST."',
+ identity:['Overlaps every business type — defined by the trigger, not the title','Feels "8-10 years behind" on music; knows the old bangers cold','Big rebuild triggers: crashed drive, stolen laptop, botched Mac migration, Rekordbox update renaming 60,000 files','Emotionally rawest segment — shame + hope'],
+ pains:['"This is where my world shatters... I no longer have my VDJ crates that I\'ve had organized for about a decade"','"I lost all my music twice... i freeze up now sometime when i play"','"I feel like I know the bangers of the past, but I\'m lost with the music of the last 5-8 years"','"Am I too old for this? Am I too late?"'],
+ dreams:['"Getting restarted again after so many years"','Feel LEGIT again; stay relevant for "todays kids"','Retirement act two: "Goal is to retire from my real job, and dj full time!" (45 "retire" mentions)'],
+ objection:'"The price. Since I\'m still trying to get back into DJing... it\'s bare bones starting over." → comeback-priced entry offer.',
+ hooks:['"You never stopped being a DJ. The day job just buried it."','"Rebuild 10 years of crates in a weekend."','"Coming back after years away? Your taste didn\'t expire. Your library did."'],
+ channels:'Meta interest + lookalike; YouTube "getting back into DJing" content; strong story-ad fit (loss → rebuild).'},
+{emoji:'🏢', pct:'~20%', name:'The Empire Builder', tag:'Full-time solo pro or multi-op owner · scaling to team, $100k+, weddings & corporate',
+ one:'"I want to run a business where I don\'s HAVE to DJ but I get to DJ."',
+ identity:['278 full-time solo + 63 full-time multi-op + 380 part-time multi-ops on the way up','Talks in numbers: 50–500 weddings/yr, $2K/event, 6–7 figures, "multi-op" (40 mentions)','Uses DJ Event Planner (91) or HoneyBook (65) — and complains about both','Wears every hat: "I\'m the DJ, the marketer, the scheduler, the tech support"'],
+ pains:['Marketing & leads: "Lead services have been a joke and I\'ve wasted tons of money on them"','Cheap DJs undercutting: "Any DJ charging less than $2,000 for a gig is killing the industry"','Hiring: "Finding, hiring, and keeping awesome DJs"','Consistency across a team — needs systems, not vibes'],
+ dreams:['"10 full time DJs, company making 7 figures"','Move upmarket: "Perform at the SUPER high end events"','"Pick and choose the events I want to do personally"','One system: "Basically, I would like Serato, CrateHackers and DJ event pro as one system."'],
+ objection:'"Do I really need it?" (pride) → position as the SOP that makes any hired DJ perform like the owner.',
+ hooks:['"Your second DJ is only as good as your crates."','"The wedding cake made more than the DJ." (their rage, verbatim)','"Stop being the engine. Start being the owner."'],
+ channels:'Meta + Google Search (high intent: "DJ music organization", "wedding DJ software"); LinkedIn-adjacent podcasts; DJX/conference sponsorship.'},
+{emoji:'🎮', pct:'~10-13%', name:'The Joy Protector', tag:'Hobbyist / bedroom / beginner DJ · no empire plans · protects the fun',
+ one:'"Been at this 40 years. No real goals anymore, pure enjoyment."',
+ identity:['133 bedroom/hobbyist + 61 beginner + big overlap with "Just a Hobby" events (253)','Buys gear guilt-free-ish: "book enough gigs to not feel guily buying more gear"','Some are retirees; some just love the craft','Zero tolerance for hustle-bro messaging'],
+ pains:['Confidence: "I WANT TO BE COFIDENT ENOUGH TO DO A LIVE EVENT"','Overwhelm: "as someone with adhd, i need someone else to organize my music"','"I\'m new and have absolutely no fucking clue what I\'m doing"','Fear of the ask: "when someone says \'hey your a dj, can you spin my party?\', I almost always decline."'],
+ dreams:['"Just to make people happy with my muisc"','Play one live event with no fear','"Enough to scratch the itch, but not enough to wear me out"'],
+ objection:'"quite expensive as I only do 1 event per month" → monthly flexibility + "cancel anytime, crates stay."',
+ hooks:['"More music, less homework."','"Say yes next time someone asks you to spin their party."','"Organized crates. Zero grind. All the fun."'],
+ channels:'TikTok + IG Reels (entertainment-first creative); YouTube beginner-DJ content; low-price entry offers.'},
+{emoji:'🔥', pct:'~10%', name:'The Open-Format Dreamer', tag:'Club/bar DJ · skews younger · festivals, energy arcs, deep cuts · Rekordbox rising',
+ one:'"i just wanna play at EDC"',
+ identity:['482 club + 464 bar DJs (multi-select); 63 PT + 50 FT club by business type','Festival dream is alive at every age: Ibiza, Red Rocks, Boiler Room (104 "festival" mentions)','Wants energy-driven crates, not genre folders: "give me 1) opening 2) early peak 3) peak 4) overdrive..."','Cultural specialists live here too: Latin, Caribbean, Afrobeats — vocal and underserved'],
+ pains:['Stale sets: "I got stuck in ruts... playing the same stuff over and over"','Losing the floor: "What a mess when you see the dance floor empty out."','Crates too US-Top-40: "Improve your afrobeat and latin crates they\'re terrible"','Long-set fatigue: "I usually DJ 7-12hrs! my brain gets pretty empty"'],
+ dreams:['Main stage / residency / touring','"Rock a club again"','Real-time next-song intelligence: "song suggestions in real time in case of mental block"'],
+ objection:'"Didn\'t want to have the same crate as the next DJ." → "starting point, not a script" — it amplifies YOUR taste.',
+ hooks:['"Your next 3 songs, already loaded."','"Energy arcs, not genre folders."','"The crowd doesn\'t wait while you scroll."'],
+ channels:'TikTok primary (native mixing content); IG Reels; YouTube shorts; genre-specific creators (Latin/Caribbean/Afrobeats).'}
+];
+const avgrid=document.getElementById('avgrid'), detail=document.getElementById('detail');
+avatars.forEach((a,i)=>{
+  const d=document.createElement('div'); d.className='avatar';
+  d.innerHTML=`<div class="pct">${a.pct}</div><div class="emoji">${a.emoji}</div><h3>${a.name}</h3><div class="tag">${a.tag}</div><div class="one">${a.one}</div><div class="cta">Open dossier ↓</div>`;
+  d.onclick=()=>showAvatar(i); avgrid.appendChild(d);
+});
+function showAvatar(i){
+  const a=avatars[i];
+  detail.classList.add('open');
+  detail.innerHTML=`<h3>${a.emoji} ${a.name} <span class="small">· ${a.pct} of buyers</span></h3>
+  <div class="small" style="margin-top:4px">${a.tag}</div>
+  <div class="cols">
+    <div>
+      <h4>Identity</h4><ul>${a.identity.map(x=>`<li>${x}</li>`).join('')}</ul>
+      <h4>Pains (verbatim)</h4>${a.pains.map(x=>`<div class="q">${x}</div>`).join('')}
+    </div>
+    <div>
+      <h4>Dreams</h4><ul>${a.dreams.map(x=>`<li>${x}</li>`).join('')}</ul>
+      <h4>Key objection & answer</h4><div class="q">${a.objection}</div>
+      <h4>Ready-to-run hooks</h4>${a.hooks.map(x=>`<div class="q" style="border-color:var(--gold)"><b></b>${x}</div>`).join('')}
+      <h4>Channels</h4><div class="small" style="font-size:13px;color:#c9d1e0">${a.channels}</div>
+    </div>
+  </div>`;
+  detail.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ================= CHARTS ================= */
+function bar(id,labels,data,color,horiz=true){
+  new Chart(document.getElementById(id),{type:'bar',
+   data:{labels,datasets:[{data,backgroundColor:color,borderRadius:5,barThickness:14}]},
+   options:{indexAxis:horiz?'y':'x',plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid}},y:{grid:{display:false}}}}});
+}
+bar('cAge',['Teens','20s','30s','40s','50s','60s','70s'],[18,173,372,544,435,83,4],C.gold,false);
+bar('cBiz',['PT Mobile (solo)','PT Multi-Op (day job)','FT Mobile (solo)','Bedroom/Hobbyist','PT Club','FT Multi-Op','Beginner','FT Club','Streaming'],[894,380,278,133,63,63,61,50,43],C.cyan);
+bar('cYrs',['0-2 yrs','3-5 yrs','6-10 yrs','11-20 yrs','20+ yrs'],[207,237,264,384,474],C.purp,false);
+bar('cSw',['Serato','VirtualDJ','Rekordbox','djay Pro','Engine/Denon','Traktor'],[1308,272,216,69,50,43],C.hot);
+bar('cEv',['Weddings','Private Parties','Corporate','Bars','Clubs','Hobby','Festivals','Streaming','Karaoke','Radio'],[895,840,686,673,606,253,228,191,176,133],C.gold);
+bar('cSrc',['Facebook Ad','Instagram Ad','YouTube Video','Word of Mouth','YouTube Ad','DJ Playlist Group','Google Search','TikTok Ad'],[169,141,80,36,36,26,18,18],C.green);
+bar('cPool',['BPM Supreme','NONE ⚠️','DJ City','Beatsource','Heavy Hits','DMS','MyMp3Pool','Club Killers','Promo Only'],[643,487,450,341,275,214,177,156,138],C.purp);
+bar('cGigs',['Just starting','1-10','11-25','26-50','51-100','101-200','200+'],[97,119,86,77,47,37,21],C.cyan,false);
+
+/* ================= PAIN VEINS ================= */
+const pains=[
+{t:'"My library is a MESS / all over the place" — chaos & shame',p:33,c:'hot',s:'Disaster imagery: bombs, spider webs, rats\' nests. Shame attached.',q:['"its a mess, like a bomb went off."','"After 20 years my crates and library look like a rats nest of insanity, or a messy room of a genius."','"all of it, shit is everywhere, who does this?"','"4TB of Music... collections inside of collections of folders, mislabeled and mistaged... feeling panicked for time.."','"My crate organization SUCKS!! I\'ve been saying for years that I\'m going to do better, but .... SMH!!!!"']},
+{t:'The mid-set freeze — "Serato Face", scrolling in terror',p:22,c:'hot',s:'The moment-of-truth pain. 57 explicit "Serato face" mentions. Dramatize this.',q:['"My Serato face is worse than my regular made for radio face."','"There have been a few times where I failed and would have that dead silence, which in turned killed the crowds grove and left me feeling hot, flushed and frustrated.."','"My #1 challenge is finding that one song to blend in when the dance floor is full... sheer panic!"','"I do more searching for songs than I DJ sometimes."','"I know the song, but cant find it fast enough due to the size of my library"']},
+{t:'Too much music — the hoarder\'s paradox',p:20,c:'gold',s:'Huge numbers (30k–700k tracks) + the killer insight: they play a tiny fraction.',q:['"i find myself playing the same 500 songs out of a library of 50,000"','"Having over 200000 songs isn\'t a benefit if you don\'y know what you have"','"I am a music whore. I like to download lots of music. Thinking that I will be able to play it all."','"MY HARDRIVE HAS TOO MUCH MUSIC!"','"I thought more music more options. But then I still find myself playing the same stuff"']},
+{t:'Duplicates everywhere',p:12,c:'gold',s:'223 mentions — the most concrete, nameable pain.',q:['"Duplicates, duplicates, DUPLICATES."','"Apparently I have over 10 thousand duplicates"','"I removed 1.7 TB of duplicates and I still have them."','"like \'Fire\' and then \'Fire2\' or \'Fire good\'"','"Five different versions of one song... I don\'t know what version to play or what works."']},
+{t:'No time — day job + family + prep grind',p:14,c:'cyan',s:'The core identity: 40-something, 9-to-5, wife and kids. Prep eats the joy.',q:['"Im spending too much time looking for music and curating crates. By the time im done I don\'t feel like dj\'ing anymore."','"Some of my playlists are 70 hours long we\'re talking days of work. With multiple hustles and kids and life I just couldn\'t get it done"','"it\'s just so mentally and physically draining... So when I heard about crate hackers I literally sighed for relief."','"Music all over the place. Prepping for events is a CHORE."']},
+{t:'Stuck playing the same songs — stale & predictable',p:8,c:'cyan',s:'Disorganization forces them onto the safe 500. They know it. It bores them.',q:['"I keep playing the same stuff...it\'s safe...it works...but I\'d like to keep fresh"','"I got stuck in ruts with sounding like a broken record (no pun intended)"','"My sets have gotten a bit too predictable."']},
+{t:'The emotional toll — anxiety, lost confidence, wanting to quit',p:7,c:'purp',s:'Highest-empathy ad material in the corpus.',q:['"...it has made me feel inadequate... complete anxiety when someone says \'hey your a dj, can you spin my party?\', I almost always decline."','"I was scared to go to my bookings because I was not organized"','"It has left me looking unorganized and, kills my confidence as a DJ."','"kinda makes me want to give up."','"I\'m getting OLD and I have NO idea what to play, but I don\'t want to quit."']},
+{t:'Losing the dance floor / killing the vibe',p:6,c:'purp',s:'The business consequence of the freeze.',q:['"The bride and groom were giving me the slit throat signal when I was playing songs."','"What a mess when you see the dance floor empty out."','"everyone on the dance floor was staring at me. Was not my best moment."','"Not having the music that they ask for it\'s embarrassing"']},
+{t:'Keeping up with new music — the aging DJ falling behind',p:5,c:'green',s:'Median age 44 shows up hard.',q:['"Keeping up with the latest music as I\'m 53 yrs old"','"make it easy on myself for finding music for todays kids i\'m old"','"I feel like I know the bangers of the past, but I\'m lost with the music of the last 5-8 years or so."']},
+{t:'Catastrophic loss — crashes, thefts, migrations',p:4,c:'green',s:'Low frequency, maximum drama. Prime trigger-event story ads.',q:['"This is where my world shatters... now I\'m starting over with my heart sunk trying to rebuild some how and I bumped into you guys. End of story."','"I actually had my laptop stolen. Had all my music backed up but the crates I\'ve worked years on were gine"','"Recordbox renamed about 60,000 of my music files when it upgraded to 7 last year and it\'s been a hot mess since."']},
+{t:'The client-playlist grind — Spotify → Serato by hand',p:5,c:'green',s:'Brides send Spotify playlists; DJs match song-by-song for hours. Named buying trigger.',q:['"Sitting down with my phone in one hand and computer in the other trying to match my spotify playlist to crates in serato was taking sooooooo much time."','"I was given a list of 55 songs... using crate hackers I knocked that list out in about 20 minutes."','"Getting spotify palylist from client and spending hours searching each song one by one"']},
+{t:'The event-crate trap — "Susie\'s Sweet 16" graveyard',p:4,c:'green',s:'A new crate per gig, forever. Nobody else names this. Own it.',q:['"I\'m always finding myself having \'Susie\'s Sweet 16\' or \'Doug\'s Birthday\' crates instead of \'90\'s hip-hop\' or \'2020\'s Pop\' crates."','"organizing by event isn\'t really a \'organizing\' its just... piling."','"I had nearly 100 folders because I often make a folder for each event"']},
+];
+const painBox=document.getElementById('pains');
+pains.forEach(v=>{
+  const d=document.createElement('div'); d.className='vein';
+  d.innerHTML=`<div class="top"><h3>${v.t}</h3><span class="freq">~${v.p}%</span></div>
+  <div class="bar"><i style="width:${v.p*2.6}%;background:var(--${v.c})"></i></div>
+  <div class="small">${v.s} · click for verbatims</div>
+  <div class="body">${v.q.map(q=>`<div class="q">${q}</div>`).join('')}</div>`;
+  d.querySelector('.top').onclick=()=>d.classList.toggle('open');
+  d.querySelector('.small').onclick=()=>d.classList.toggle('open');
+  painBox.appendChild(d);
+});
+
+/* ================= DREAM VEINS ================= */
+const dreams=[
+{t:'Go full-time / quit the day job',p:12,c:'gold',s:'"full time" = 157 mentions. The #1 identity-level dream.',q:['"I want to quit my day job and dj for a living"','"Quit my IT job and become a full time DJ"','"for people to know who i am and be able to make enough money to not work this stupid 9-5 job"','"I would likely keep working my day job, but at that point, I\'m choosing to stay."']},
+{t:'The big stage — festivals, Ibiza, Red Rocks',p:11,c:'hot',s:'The rockstar dream is alive in 44-year-old wedding DJs.',q:['"i just wanna play at EDC"','"Im a local DJ in Denver with hopes of scoring a Red Rocks slot. That would be all time."','"Organization, and one day play a boiler room. Help me get there guys!"']},
+{t:'More gigs / booked solid',p:10,c:'gold',s:'Named quotas: 40 jobs, 4 weddings a weekend, booked every weekend.',q:['"TO BE BOOKED EVERY WEEKEND AND IM ALMOST THERE"','"Getting to at least 50 weddings a year (right now I\'m at round about 30)"','"Fill my weekends with gigs!"']},
+{t:'Money goals with real numbers',p:9,c:'green',s:'$100K is the magic number. Figures cluster: $50K, $100K, $200K, 6-7 figures.',q:['"I want make $100k a year doing corporate gigs, festivals, and private events"','"I want to be making $5-10k at every event and only work 4 times a month."','"Honestly, $1k a month from gigs... Currently paying to be in the industry with nothing to show for it :("']},
+{t:'Move upmarket — luxury weddings & corporate',p:9,c:'cyan',s:'Not more gigs — better gigs.',q:['"the money is in the private event space"','"Less Weddings / More Money"','"Book higher tier couples and events, for more money. Ultimately working less, but higher quality events."']},
+{t:'Be THE go-to name in my area',p:7,c:'purp',s:'From chasing gigs to being chased.',q:['"I want to go from what seems like begging for gigs to being sought out for the gigs."','"be the number 1 wedding dj in KS/MO/OK area"','"anytime they see my name on the flyer they\'re like oh yeah I got to go there Big Mike is playing"']},
+{t:'Confidence — walk into any gig ready',p:6,c:'cyan',s:'The bridge belief: organized library → confidence → everything else.',q:['"I\'d love to be able to walk into any type of party genre, Cold... and rock it like I\'ve hand picked every track leading up to the event for years."','"i want to be able to just pick up my laptop to go without worrying if i have a song to rock the party."','"to play for large crowds with no FEAR!!!"']},
+{t:'Scale to a multi-op / build the empire',p:6,c:'hot',s:'"multi-op" (40 mentions) — stop being the labor, become the brand.',q:['"I want to run a business where I don\'s HAVE to DJ but I get to DJ."','"10 full time DJs, company making 7 figures"','"Two to Three teams out per weekend, I have more inquires than I can book!"']},
+{t:'Joy & the love of the game',p:6,c:'green',s:'Big segment with zero empire ambitions. They buy to protect the fun.',q:['"BUT the real goal is simple: I have to still be having fun."','"Just keep doing what we are doing. 30 to 50 gigs a year. I don\'t want it to become a job."','"Create joy. That\'s the gig."']},
+{t:'Retirement runway — DJ as act two',p:3,c:'purp',s:'45 "retire" mentions, dual meaning: retire FROM the job, TO the decks.',q:['"DJ will be my retirement hustle"','"RETIREMENT! I\'m 61... I\'ve still got the skills, I still love what I do but physically this is a young man\'s job."','"I want to retire and just DJ."']},
+];
+const dreamBox=document.getElementById('dreams');
+dreams.forEach(v=>{
+  const d=document.createElement('div'); d.className='vein';
+  d.innerHTML=`<div class="top"><h3>${v.t}</h3><span class="freq">~${v.p}%</span></div>
+  <div class="bar"><i style="width:${v.p*2.6}%;background:var(--${v.c})"></i></div>
+  <div class="small">${v.s} · click for verbatims</div>
+  <div class="body">${v.q.map(q=>`<div class="q" style="border-color:var(--green)">${q}</div>`).join('')}</div>`;
+  d.querySelector('.top').onclick=()=>d.classList.toggle('open');
+  dreamBox.appendChild(d);
+});
+
+/* ================= ENEMY MAP ================= */
+const enemies=[
+['⏰ The clock / day job','"Time is my enemy" · "a slave to the government I work for" · "drained after work" — biggest by far (~25-30%)'],
+['🪞 Themselves','"Myself" is the #2 single-word answer. "I\'m my own worst enemy" · "I NEED a boss" · "so its gotta be me, right?!"'],
+['💸 Cheap / fake DJs','"Cheap ass djs ripping the industry down" · "push button djs" · "TikTok DJ posers" · "a dollar a minute" — the tribal villain, most rage-loaded'],
+['🗂️ The chaos library','"chipping away at mount Everest with a pick-axe" · "50+ versions of a song" · "Its exhausting!" — the mechanism enemy CH kills'],
+['🚪 Gatekeepers','"the good ole boy network" · "who you know sometimes matter more than your skill level" · "clubs are loyal to their DJs"'],
+['🧾 Cheap clients & Spotify','"the wedding cake made more than the DJ" · "think we just show up and press play" · "hired the Pizza Hut manager for $150"'],
+['📉 Lead platforms & algorithms','"Lead services have been a joke and I\'ve wasted tons of money" · "$500 to Google, saw absolutely no results"'],
+['👶 The younger generation','"these young bucks are getting the gigs you want" · "10 year olds on TikTok scratching better than I probably ever will"'],
+];
+document.getElementById('enemy').innerHTML=enemies.map(e=>`<div class="e"><h4>${e[0]}</h4><p>${e[1]}</p></div>`).join('');
+
+/* ================= OBJECTIONS ================= */
+const objections=[
+{t:'Price / subscription fatigue',p:40,c:'hot',s:'Raw sticker shock + "another subscription" stacking + international FX pain. The discount ladder ($15 first month, lifetime) is doing heavy lifting.',q:['"Cost....we have to sign up for DJ software, Record pools, buy equipment... all at a huge cost"','"Another subscription...lol... i got too many of those"','"I HATE MONTHLY SUBSCRIPTIONS. I Saved the money and waited to buy the lifetime license"','"Monthly pricing when DJing events is seasonal"','ANSWER: time-ROI anchoring ("one gig pays for a year"), seasonal pause, lifetime for sub-haters.']},
+{t:'"Will it work for ME?" / "Do I really need it?"',p:16,c:'gold',s:'Doubt about fit (genre, workflow, gig volume) + pride ("I can do this myself").',q:['"There are a lot of DJ tools out there that overpromise and underdeliver"','"I thought I could organize my music myself but I was wrong"','"I\'m still skeptical on how well this will work with the latin genres that I work with"','"the feeling of cheating. I feel like I\'m taking the easy route."','ANSWER: situation-specific demos; reframe as leverage — "outsource the grunt work, not your taste."']},
+{t:'Scam / "too good to be true"',p:10,c:'gold',s:'Driven by ad saturation and funnel aggression.',q:['"Thought it was fake and too good to be true"','"Saw ads all over the place, did not know if it was legit"','"i thought it was a gimic until another dj told me to purchuse"','ANSWER: raw screen-recorded demos, named-DJ testimonials, visible reviews, plain guarantee.']},
+{t:'Confusion — "what even IS it?"',p:9,c:'cyan',s:'Category confusion: is it a record pool? Do I need to own music?',q:['"Not being a Dj pool is what originally turned me off"','"didn\'t know I had to own music to use it"','"since I didn\'t understand WHAT you did, I didn\'t understand that I was the one who needed it the most"','ANSWER: one-sentence category definition above the fold. This is the category-design mandate.']},
+{t:'Tried before / bugs / old version',p:5,c:'cyan',s:'Win-back gold: many respondents are re-joiners.',q:['"it used to be riddled with bugs"','"I used your old format and didn\'t like it. Seeing some of your new updates is more enticing"','ANSWER: "we rebuilt it" narrative, v11 before/after.']},
+{t:'Learning curve / "another tool I won\'t use"',p:5,c:'purp',s:'Median age 44 — respect low tech-confidence without condescension.',q:['"it just seems like another softwear i jave to learn"','"I hate technology"','ANSWER: "working in 10 minutes — if you can paste a Spotify link, you can use this."']},
+{t:'"I\'ll sound like every other DJ"',p:4,c:'purp',s:'Identity-level fear from the best DJs in the audience.',q:['"Didn\'t want to have the same crate as the next DJ."','"not sure how you can pick better songs than I can"','ANSWER: "starting point, not a script."']},
+{t:'Pushy funnel / upsell fatigue',p:3,c:'green',s:'Small but venomous — a funnel fix, not a copy fix.',q:['"having to skip the \'but wait, there\'s more\' pitch 7 or 9 times is awful. I\'ve shot a man for less"','"the god awful trap page trying to pressure me into an annual or lifetime payment even after i entered my card info."','ANSWER: tone down stacking near the buy button; "no gimmicks, one price, cancel anytime."']},
+];
+const objBox=document.getElementById('objections');
+objections.forEach(v=>{
+  const d=document.createElement('div'); d.className='vein';
+  d.innerHTML=`<div class="top"><h3>${v.t}</h3><span class="freq">~${v.p}%</span></div>
+  <div class="bar"><i style="width:${v.p*2.2}%;background:var(--${v.c})"></i></div>
+  <div class="small">${v.s} · click for verbatims + the answer</div>
+  <div class="body">${v.q.map(q=>`<div class="q" style="border-color:var(--purp)">${q}</div>`).join('')}</div>`;
+  d.querySelector('.top').onclick=()=>d.classList.toggle('open');
+  objBox.appendChild(d);
+});
+
+/* ================= VOCAB ================= */
+const vocab=[
+['all over the place',124,'hot'],['duplicates / doubles',223,'hot'],['a mess / hot mess',128,'hot'],['unorganized / disorganized',196,'hot'],
+['too much music',174,'hot'],['Serato face',57,'gold'],['the next song',81,'gold'],['scrolling / doom scrolling',61,'gold'],
+['time consuming / takes forever',85,'gold'],['folders upon folders',114,'gold'],['bangers',65,'cyan'],['crates',447,'cyan'],
+['full time',157,'cyan'],['confidence / confident',116,'cyan'],['multi-op',40,'cyan'],['quit my day job / 9-5',34,'cyan'],
+['dance floor',60,'green'],['vibe',39,'green'],['read the crowd',22,'green'],['on the fly',25,'green'],
+['must plays',41,'green'],['do not play list',18,'green'],['wing it / winging it',23,'purp'],['night before',13,'purp'],
+['hoarder / hoarding',29,'purp'],['keep up / staying current',55,'purp'],['imposter syndrome',17,'purp'],['not good enough',27,'purp'],
+['brain fart / brain lock / go blank',28,'purp'],['worth it',15,'gold'],['another subscription',10,'gold'],['at my fingertips',6,'green'],
+];
+document.getElementById('vocab').innerHTML=vocab.map(v=>`<span class="pill ${v[2]}">${v[0]} <b style="opacity:.7">×${v[1]}</b></span>`).join('');
+
+/* ================= CHANNELS ================= */
+const channels=[
+{n:'Meta (Facebook + Instagram) — the workhorse. ~60% of stated discovery.',rows:[
+['Audience','Weekend Warrior + Comeback Kid + Empire Builder. Interests: Serato, BPM Supreme, DJ Times, mobile-DJ groups; LAL on buyer list.'],
+['Lead angles','Pain-first UGC: the Serato-face moment, the "same 500 songs" confession, the Spotify-playlist grind. Story ads for the Comeback Kid (crashed drive → rebuilt in a weekend).'],
+['Formats','Talking-head DJ testimonials (they bought because "another dj told me"), raw screen-recorded demos (top demanded proof), before/after crate screenshots.'],
+['Landing','One-sentence category definition above the fold: "Not a record pool — it turns the music you ALREADY own into gig-ready crates." Kill the 7-step upsell chain.'],
+['Watch-outs','Ad saturation is breeding scam-suspicion ("Saw ads all over the place"). Rotate creators; drop "corny" high-hype tone for the 40+ core.']]},
+{n:'Google (Search + YouTube) — intent capture + proof engine. YouTube alone = 23% of stated discovery.',rows:[
+['Search themes','Category: "dj music organization software", "organize serato crates", "spotify playlist to serato", "remove duplicate songs dj library", "how to prep for a wedding gig". Competitor-adjacent: Lexicon, Mixed In Key, Vibo.'],
+['YouTube','Long-form live demos ("a video of a dj using it live" — verbatim ask), tutorial pre-roll on Serato/wedding-DJ content, win-back retargeting with "we rebuilt it" message.'],
+['PMax/Demand Gen','Feed the buyer email list; creative = demo clips + testimonial cuts.'],
+['Proof gap','Buyers searched and found thin reviews ("lack of reviews and information from youtube"). Seed honest third-party reviews — it directly closes the #3 objection.']]},
+{n:'TikTok — the growth bet. Only 3% of discovery today = whitespace, and "TikTok DJ posers" live there.',rows:[
+['Audience','Open-Format Dreamer + Joy Protector (younger, club/bar). Also comedy-angle reach into the 40+ core — Serato-face humor is inherently visual.'],
+['Angles','POV: the dance floor is full and your song ends in 20 seconds. "Rating my 100 event-named crates: Susie\'s Sweet 16 edition." Duet/stitch bait: "show me your library, hoarder."'],
+['Creators','Genre specialists (Latin, Caribbean, Afrobeats) — underserved segments that are loudly asking for crates and offering to co-create.'],
+['Do NOT','Hustle-bro tone. This audience self-describes with ADHD, imposter syndrome, family guilt — humor + empathy converts, hype reads as scam.']]},
+{n:'Beyond paid — the moat channels.',rows:[
+['Email/SMS','They literally asked: "keep texting me videos showing me how to get the most out of the software... HELP ME SAVE TIME!" Lifecycle: gig-season triggers (prom, wedding season, NYE crates).'],
+['Community','Hackathons are loved ("Continue having hack-a-tons"). Regional + genre hackathons (Canadian, Latin, Caribbean) directly answer the loudest feature complaint.'],
+['Partnerships','487 buyers belong to NO record pool → bundle deal whitespace ("crate hackers team up with dj pools to offer packaged subscription" — verbatim ask). Vibo/DJEP/HoneyBook integrations were begged for repeatedly.'],
+['Referral','NPS +43 with 58% promoters and "another dj told me" as a proven conversion trigger = formalize a DJ-to-DJ referral program with crate-credit rewards.'],
+['Podcast/YouTube OG','Word of mouth + YouTube videos = 116 stated discoveries with zero spend. Double down on Joe Bunn / DJ CEE B / Fatman Scoop-style endorsements — named repeatedly as the trust trigger.']]},
+];
+document.getElementById('channels').innerHTML=channels.map(c=>`<div class="chan"><h3>${c.n}</h3><table>${c.rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table></div>`).join('');
+
+/* ================= TABS + LTV CHARTS ================= */
+let ltvInit=false, execInit=false;
+function switchTab(n){
+  for(const i of [1,2,3]){
+    document.getElementById('tab'+i).style.display = n===i?'block':'none';
+    document.getElementById('btnTab'+i).classList.toggle('on',n===i);
+  }
+  if(n===2 && !ltvInit){ ltvInit=true; initLtvCharts(); }
+  if(n===3 && !execInit){ execInit=true; initExecCharts(); }
+  window.scrollTo({top:0});
+}
+const TIERS=['Whale $1K+','Core $250-1K','Mid $50-250','Kicker $0-50','Ghost $0'];
+const TCOL=['#f5b942','#3dd6d0','#8b94a7','#9b7bff','#ff5470'];
+function tierBar(id,data,suffix=''){
+  new Chart(document.getElementById(id),{type:'bar',
+   data:{labels:TIERS,datasets:[{data,backgroundColor:TCOL,borderRadius:5,barThickness:26}]},
+   options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+suffix}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:C.grid}}}}});
+}
+function initLtvCharts(){
+  new Chart(document.getElementById('cDist'),{type:'bar',
+   data:{labels:['$0/neg','$0-5','$5-20','$20-50','$50-100','$100-250','$250-500','$500-1K','$1K+'],
+    datasets:[{data:[5577,200,4859,5571,4478,6622,4103,3115,2104],backgroundColor:['#ff5470','#ff5470','#9b7bff','#9b7bff','#8b94a7','#8b94a7','#3dd6d0','#3dd6d0','#f5b942'],borderRadius:5}]},
+   options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid}}}}});
+  new Chart(document.getElementById('cShare'),{type:'doughnut',
+   data:{labels:['Whale 35.9%','Core 43.8%','Mid 17.2%','Kicker 3.1%','Ghost 0%'],
+    datasets:[{data:[35.9,43.8,17.2,3.1,0.1],backgroundColor:TCOL,borderColor:'#0d0f14',borderWidth:2}]},
+   options:{plugins:{legend:{position:'right'}}}});
+  tierBar('gAge',[48.5,46,45,42,40],' yrs old (median)');
+  tierBar('gYrs',[22,17,13,10,10],' yrs DJing (median)');
+  tierBar('gOF',[72.1,61.1,53.3,51.2,48.6],'% open format');
+  new Chart(document.getElementById('gWC'),{type:'bar',
+   data:{labels:TIERS,datasets:[
+    {label:'Wedding+Corporate share',data:[34.6,28.1,23.9,21.4,21.6],backgroundColor:'#f5b942',borderRadius:4},
+    {label:'Club share',data:[5.3,10.4,12.3,13.1,14.6],backgroundColor:'#ff5470',borderRadius:4}]},
+   options:{plugins:{legend:{labels:{color:'#c9d1e0'}}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid}}}}});
+  tierBar('gTrial',[19,35,46,63,58],'% started on trial');
+  tierBar('gNPS',[58,58,38,44,22],' NPS');
+  new Chart(document.getElementById('gGoal'),{type:'bar',
+   data:{labels:TIERS,datasets:[
+    {label:'"multi-op / hire / team"',data:[11,8,3,2,1],backgroundColor:'#f5b942',borderRadius:4},
+    {label:'"festival / EDC / Ibiza"',data:[1,4,7,7,9],backgroundColor:'#ff5470',borderRadius:4}]},
+   options:{plugins:{legend:{labels:{color:'#c9d1e0'}}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid},title:{display:true,text:'% of tier goal answers'}}}}});
+  tierBar('gAddon',[27,10,5,2,2],'% buy add-ons');
+}
+
+/* ================= EXEC SCORECARD ================= */
+function initExecCharts(){
+const LBL=["2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"];
+const REV=[19934,19220,54633,28406,36362,113404,39752,57417,85286,70167,79640,54652,67550,49575,84373,83565,101826,131633,94687,108206,120941,97761,160285,89896,110495,118637,143615,134825,141564,164915,184747,153978,159973,130417,236019,171569,135265,119955,145271,142154,151816,161907,133306,140365,122434,106764,203109,144313,115524,98232,120805,115785,145661,147523,159472,162034,141249,122842,322963,175123,119812,104290,122760,128701,167064,200661];
+const REF=[458,187,3202,1168,647,6842,2849,1067,7409,6288,3791,2375,2639,2727,4916,2363,6014,8933,6542,4127,5575,5796,7920,8441,11037,10927,13360,13151,13240,12628,12193,16598,12917,10635,12328,10082,11724,7957,9313,10032,13934,10017,8077,5992,7719,7723,25593,19990,10005,5190,6610,5589,12422,6216,7802,10658,6347,7988,29703,18814,11147,6592,9666,9244,11556,18044];
+const FAIL=[192,139,138,174,199,258,389,279,246,589,584,472,473,459,552,408,501,966,887,916,933,872,859,816,985,937,1143,1231,1313,1289,1307,1303,1515,1439,1225,1363,1470,1147,1192,1099,1176,1171,1280,1024,853,864,1292,1564,1612,1383,1170,979,1114,1293,1454,1614,1572,1687,1667,1726,1405,1153,1398,1347,1536,2006];
+const NEW=[10,20,373,27,226,797,37,103,993,517,311,152,212,150,284,359,724,443,472,341,373,316,344,450,585,784,812,664,614,627,635,795,716,641,844,884,445,378,457,631,626,479,398,531,491,514,616,575,370,402,413,476,649,732,809,781,620,633,716,511,485,515,527,707,1094,1085];
+const WLBL=["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"];
+const WMRR=[147963,141039,142617,146100,152560,149694,143435,138757,130411,127374,131446,139401,141199,130061,132602,131527,139807,138246,145175,151882,147219,153245,148408,141629,138531,133218,136392,137040,143346,144771];
+const WNEW=[11947,10494,13745,17572,19588,14279,9880,9770,9522,9400,7452,8700,4962,5875,8616,8738,16214,13790,15855,16246,10996,14258,9736,7455,8678,9652,8470,11452,12800,12578];
+const WCH=[15487,13571,13578,14742,16984,16278,13878,13289,11728,10326,10686,11408,10804,7779,9050,9552,13059,12714,14198,16000,11841,14182,13586,10738,11229,10087,10084,10220,null,null];
+const lineOpts={plugins:{legend:{labels:{color:'#c9d1e0'}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}},y:{grid:{color:C.grid}}}};
+new Chart(document.getElementById('eRev'),{type:'line',data:{labels:LBL,datasets:[
+ {label:'Net revenue',data:REV,borderColor:C.gold,backgroundColor:'rgba(245,185,66,.12)',fill:true,tension:.3,pointRadius:0,borderWidth:2},
+ {label:'Refunds',data:REF,borderColor:C.hot,tension:.3,pointRadius:0,borderWidth:1.5}]},options:lineOpts});
+new Chart(document.getElementById('eMRR'),{type:'line',data:{labels:WLBL,datasets:[
+ {label:'MRR (normalized)',data:WMRR,borderColor:C.cyan,backgroundColor:'rgba(61,214,208,.10)',fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
+ options:{...lineOpts,scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10}},y:{grid:{color:C.grid},min:0}}}});
+new Chart(document.getElementById('eWF'),{type:'bar',data:{labels:WLBL,datasets:[
+ {label:'New MRR',data:WNEW,backgroundColor:C.green,borderRadius:3},
+ {label:'Churned MRR',data:WCH.map(v=>v==null?null:-v),backgroundColor:C.hot,borderRadius:3}]},
+ options:{plugins:{legend:{labels:{color:'#c9d1e0'}}},scales:{x:{stacked:true,grid:{display:false},ticks:{maxTicksLimit:12}},y:{stacked:true,grid:{color:C.grid}}}}});
+const cohX=['Mo 1','Mo 3','Mo 6','Mo 12','Mo 24','Mo 36','Mo 48'];
+const cohorts={'2020':[73,98,125,200,308,425,516],'2021':[82,107,135,203,292,357,408],'2022':[85,111,139,206,276,322,389],'2023':[75,97,120,172,220,275,null],'2024':[61,78,96,140,193,null,null],'2025':[60,76,92,106,null,null,null],'2026':[46,61,null,null,null,null,null]};
+const cohColors={'2020':'#4a5568','2021':'#8b94a7','2022':'#9b7bff','2023':'#3dd6d0','2024':'#4ade80','2025':'#f5b942','2026':'#ff5470'};
+new Chart(document.getElementById('eCoh'),{type:'line',data:{labels:cohX,
+ datasets:Object.entries(cohorts).map(([y,d])=>({label:y,data:d,borderColor:cohColors[y],tension:.25,pointRadius:2.5,borderWidth:2,spanGaps:false}))},
+ options:{plugins:{legend:{labels:{color:'#c9d1e0'}}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid},title:{display:true,text:'cumulative $/buyer'}}}}});
+new Chart(document.getElementById('eLtv12'),{type:'bar',data:{labels:['2020','2021','2022','2023','2024','2025'],
+ datasets:[{data:[200,203,206,172,140,106],backgroundColor:['#4a5568','#8b94a7','#9b7bff','#3dd6d0','#4ade80','#ff5470'],borderRadius:5}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid},title:{display:true,text:'12-mo LTV $/buyer'}}}}});
+new Chart(document.getElementById('eEntry'),{type:'bar',data:{labels:['Trial/Disc','Monthly Full','Annual','Lifetime'],
+ datasets:[{data:[45,90,297,527],backgroundColor:['#ff5470','#8b94a7','#3dd6d0','#f5b942'],borderRadius:5}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid},title:{display:true,text:'median LTV $'}}}}});
+new Chart(document.getElementById('eWhale'),{type:'bar',data:{labels:['Trial/Disc','Monthly Full','Annual','Lifetime'],
+ datasets:[{data:[0.3,7.5,14.7,4.6],backgroundColor:['#ff5470','#8b94a7','#3dd6d0','#f5b942'],borderRadius:5}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:C.grid},title:{display:true,text:'% reaching $1K+ LTV'}}}}});
+new Chart(document.getElementById('eNew'),{type:'bar',data:{labels:LBL,datasets:[{label:'New buyers',data:NEW,backgroundColor:C.purp,borderRadius:2}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}},y:{grid:{color:C.grid}}}}});
+new Chart(document.getElementById('eFail'),{type:'bar',data:{labels:LBL,datasets:[{label:'Failed events',data:FAIL,backgroundColor:C.hot,borderRadius:2}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}},y:{grid:{color:C.grid}}}}});
+new Chart(document.getElementById('eRef'),{type:'bar',data:{labels:LBL,datasets:[{label:'Refund $',data:REF,backgroundColor:'#e879a0',borderRadius:2}]},
+ options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}},y:{grid:{color:C.grid}}}}});
+// CAC calculator: 2025-26 blended cohort curve for payback
+const curve=[[1,53],[3,68],[6,92],[12,106],[24,193],[36,275]];
+function cacCalc(){
+  const meta=parseFloat(document.getElementById('metaSpend').value)||0;
+  const cac=(45499+meta)/1085;
+  document.getElementById('cacOut').textContent='$'+cac.toFixed(0)+' / buyer';
+  let pb='not reached by month 36';
+  for(const [m,v] of curve){ if(v>=cac){ pb='~month '+m; break; } }
+  document.getElementById('paybackOut').textContent=pb+' (at recent-cohort value curve)';
+}
+document.getElementById('metaSpend').addEventListener('input',cacCalc);
+cacCalc();
+}
+</script>
+</body>
+</html>

@@ -45,6 +45,7 @@ $$(".tab").forEach((btn) => {
 const DASHBOARDS = {
   "exec-summary": { title: "Executive Summary", url: "/dashboards/exec-summary.html" },
   "weekly-health": { title: "Weekly Health", url: "/dashboards/weekly-health.html" },
+  "ltv-intelligence": { title: "LTV Intelligence", url: "/dashboards/ltv-intelligence.html" },
 };
 function openDash(key) {
   const d = DASHBOARDS[key];
