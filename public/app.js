@@ -1002,6 +1002,7 @@ function renderSaleReport(d) {
   const frontEnd = byId.pp8 || { count: 0, revenue: 0 };   // $2.50 first month
   const upgrade  = byId.pp39 || { count: 0, revenue: 0 };  // $148.50 annual upgrade (OTO)
   const bogo     = byId.pp34 || { count: 0, revenue: 0 };  // $250 BOGO annual
+  const oto597   = byId.pp597 || { count: 0, revenue: 0 }; // $597 OTO offer
   const upgradeRate = frontEnd.count ? upgrade.count / frontEnd.count : 0;
   const aov = t.count ? t.revenue / t.count : 0;
 
@@ -1021,6 +1022,7 @@ function renderSaleReport(d) {
     { label: "$2.50 first month",      count: frontEnd.count, revenue: frontEnd.revenue, color: "#3b82f6" },
     { label: "$148.50 annual upgrade", count: upgrade.count,  revenue: upgrade.revenue,  color: "#a855f7" },
     { label: "$250 BOGO annual",       count: bogo.count,     revenue: bogo.revenue,     color: "#22c55e" },
+    { label: "$597 OTO offer",         count: oto597.count,   revenue: oto597.revenue,   color: "#FF7722" },
   ];
   if (d.other && d.other.count) rows.push({ label: "Other CH sales", count: d.other.count, revenue: d.other.revenue, color: "#5f6478" });
   const maxCount = Math.max(1, ...rows.map((r) => r.count));

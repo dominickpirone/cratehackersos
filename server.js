@@ -1328,6 +1328,7 @@ const server = http.createServer(async (req, res) => {
           { id: "pp8", label: "$2.50 first month (PP8)", lo: 2.0, hi: 3.75, count: 0, revenue: 0 },
           { id: "pp39", label: "$148.50 annual — OTO (PP39)", lo: 140, hi: 156, count: 0, revenue: 0 },
           { id: "pp34", label: "$250 BOGO annual (PP34)", lo: 240, hi: 262, count: 0, revenue: 0 },
+          { id: "pp597", label: "$597 OTO offer (oto-july26)", lo: 585, hi: 610, count: 0, revenue: 0 },
         ];
         let otherCount = 0, otherRev = 0; const byDay = {}; const totals = { count: 0, revenue: 0 };
         for (const r of rows) {
