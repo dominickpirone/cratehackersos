@@ -76,6 +76,7 @@ function loadConfig() {
     testEmail: cfg.testEmail || process.env.TEST_EMAIL || "dom@cratehackers.com",
     testPhone: cfg.testPhone || process.env.TEST_PHONE || "",
     groqApiKey: cfg.groqApiKey || process.env.GROQ_API_KEY || "",
+    adIngestToken: cfg.adIngestToken || process.env.AD_INGEST_TOKEN || "",
   };
 }
 function saveConfig(patch) {
@@ -1238,6 +1239,33 @@ const server = http.createServer(async (req, res) => {
     // /t.gif?e=view|cta|conv&v=<a|b|c>&tier=<monthly|annual|lifetime>&f=level11
     if (p === "/t.gif") return trackPixel(req, res, u);
 
+    // ----- public ad-ingest endpoint for the Chrome extension (token-auth + CORS) -----
+    if (p === "/api/ingest/ad") {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
+      if (req.method !== "POST") return send(res, 405, { error: "POST only" });
+      const cfg = loadConfig();
+      if (!cfg.adIngestToken) return send(res, 400, { error: "Ad ingest token not set on the server (AD_INGEST_TOKEN)." });
+      const tok = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+      if (tok !== cfg.adIngestToken) return send(res, 401, { error: "Bad token." });
+      if (!cfg.groqApiKey) return send(res, 400, { error: "Groq key not set on the server." });
+      const b = await readBody(req);
+      let transcript = (b.transcript || "").trim();
+      if (!transcript && (b.mediaUrl || "").trim()) {
+        try { transcript = await groqTranscribeUrl(cfg, (b.mediaUrl || "").trim()); }
+        catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
+      }
+      if (!transcript) return send(res, 400, { error: "No transcript/caption or media URL provided." });
+      let analysis;
+      try { analysis = await analyzeAd(cfg, { transcript, sourceUrl: (b.sourceUrl || "").trim(), notes: (b.notes || "").trim() }); }
+      catch (e) { return send(res, 400, { error: "Analysis failed: " + ((e && e.message) || e) }); }
+      const ad = { id: "ad_" + Date.now(), created: new Date().toISOString(), sourceUrl: (b.sourceUrl || "").trim(), mediaUrl: (b.mediaUrl || "").trim(), notes: (b.notes || "").trim(), transcript, ...analysis };
+      const list = loadAds(); list.unshift(ad); saveAds(list);
+      return send(res, 200, { ok: true, id: ad.id, summary: ad.summary });
+    }
+
     // ----- auth gate -----
     if (p.startsWith("/auth/")) return auth.handleAuthRoute(req, res, u);
     const user = auth.requireUser(req, res, { isApi: p.startsWith("/api/") });
@@ -1383,7 +1411,7 @@ const server = http.createServer(async (req, res) => {
         const b = await readBody(req);
         const patch = {};
         for (const k of ["fromEmail", "fromName", "stream", "replyTo", "testEmail", "paypalEnv",
-          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey",
+          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken",
           "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber"]) if (k in b) patch[k] = b[k];
         if (b.postmarkToken) patch.postmarkToken = b.postmarkToken.trim();
         if (b.mailgunApiKey) patch.mailgunApiKey = b.mailgunApiKey.trim();
