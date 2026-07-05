@@ -41,6 +41,7 @@
       <button class="tab" data-tab="funnel"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Funnel</span></button>
       <button class="tab" data-tab="dashboards"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Dashboards</span></button>
       <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
+      <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -484,6 +485,27 @@
         </div>
         <div id="fpTotals"></div>
         <div id="fpTable" style="margin-top:18px"></div>
+      </section>
+
+      <!-- ===== AD LIBRARY ===== -->
+      <section id="ad-library" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Swipe file</span>
+          <h1>Ad Library</h1>
+          <p>Save ads you love → transcribe → turn them into Crate Hackers scripts. Paste a transcript/caption (or a <b>direct</b> .mp4/.mp3 URL to auto-transcribe with Groq Whisper); the AI breaks down why it works and rewrites it for DJs. <span id="adConfigNote" class="muted"></span></p>
+        </div>
+        <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
+          <div class="card" style="flex:1;min-width:320px;max-width:420px">
+            <h3>Add an ad</h3>
+            <div class="field"><span class="lab">Ad URL <span class="muted">(FB/IG/YouTube/page — reference)</span></span><input id="adSourceUrl" type="url" placeholder="https://…" /></div>
+            <div class="field"><span class="lab">Direct media URL <span class="muted">(optional — .mp4/.mp3 auto-transcribes)</span></span><input id="adMediaUrl" type="url" placeholder="https://…/video.mp4" /></div>
+            <div class="field"><span class="lab">Transcript / caption <span class="muted">(paste if you have it)</span></span><textarea id="adTranscript" rows="5" placeholder="Paste the ad's script, captions, or what's said…"></textarea></div>
+            <div class="field"><span class="lab">Notes <span class="muted">(what you love about it)</span></span><input id="adNotes" type="text" placeholder="e.g. killer pattern-interrupt hook" /></div>
+            <button id="adAdd" class="btn btn-primary block">Analyze &amp; save →</button>
+            <div id="adMsg" class="muted small" style="margin-top:8px"></div>
+          </div>
+          <div style="flex:2;min-width:340px"><div id="adList"></div></div>
+        </div>
       </section>
 
       <section id="settings" class="panel">

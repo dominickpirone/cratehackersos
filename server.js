@@ -75,6 +75,7 @@ function loadConfig() {
     quoFromNumber: cfg.quoFromNumber || process.env.QUO_FROM_NUMBER || "",
     testEmail: cfg.testEmail || process.env.TEST_EMAIL || "dom@cratehackers.com",
     testPhone: cfg.testPhone || process.env.TEST_PHONE || "",
+    groqApiKey: cfg.groqApiKey || process.env.GROQ_API_KEY || "",
   };
 }
 function saveConfig(patch) {
@@ -416,6 +417,55 @@ async function aggregateFailedPayments(cfg, days) {
 }
 function loadFailedPaymentsCache() {
   try { return JSON.parse(fs.readFileSync(FAILED_PAYMENTS_CACHE, "utf8")); } catch { return null; }
+}
+
+// ---------- ad library (spy → transcribe → Crate Hackers script) ----------
+const ADS_FILE = path.join(DATA, "ads.json");
+function loadAds() { try { return JSON.parse(fs.readFileSync(ADS_FILE, "utf8")); } catch { return []; } }
+function saveAds(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(ADS_FILE, JSON.stringify(list, null, 2)); } catch {} }
+async function groqTranscribeUrl(cfg, mediaUrl) {
+  const mr = await fetch(mediaUrl, { redirect: "follow" });
+  if (!mr.ok) throw new Error("couldn't fetch media (" + mr.status + ")");
+  const buf = Buffer.from(await mr.arrayBuffer());
+  if (buf.length > 24 * 1024 * 1024) throw new Error("media too large (>24MB) — trim it or paste the transcript");
+  const fd = new FormData();
+  fd.append("file", new Blob([buf]), (mediaUrl.split("?")[0].split("/").pop() || "audio.mp4"));
+  fd.append("model", "whisper-large-v3");
+  fd.append("response_format", "text");
+  const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST", headers: { Authorization: "Bearer " + cfg.groqApiKey }, body: fd,
+  });
+  if (!r.ok) throw new Error("Groq transcribe " + r.status + ": " + (await r.text()).slice(0, 180));
+  return (await r.text()).trim();
+}
+async function groqChat(cfg, messages, maxTokens) {
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST", headers: { Authorization: "Bearer " + cfg.groqApiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", temperature: 0.6, max_tokens: maxTokens || 1600, messages }),
+  });
+  if (!r.ok) throw new Error("Groq chat " + r.status + ": " + (await r.text()).slice(0, 180));
+  const j = await r.json();
+  return (j.choices && j.choices[0] && j.choices[0].message.content) || "";
+}
+function firstJson(s) { const a = s.indexOf("{"), b = s.lastIndexOf("}"); if (a < 0 || b < 0) return null; try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; } }
+async function analyzeAd(cfg, { transcript, sourceUrl, notes }) {
+  const prompt = `You are a direct-response ad strategist for CRATE HACKERS — software + community for working DJs. Brand voice: confident, irreverent, DJ-to-DJ, anti-corporate, a little funny. Core value: stop wasting hours crate-digging; the app preps your music for you.
+
+Analyze the ad below and adapt it for Crate Hackers.
+${sourceUrl ? "Ad source: " + sourceUrl + "\n" : ""}${notes ? "My notes: " + notes + "\n" : ""}AD CONTENT / TRANSCRIPT:
+"""${(transcript || "").slice(0, 6000)}"""
+
+Return ONLY a JSON object (no prose) with:
+{
+  "summary": "1-2 sentences on what this ad is and does",
+  "hook": "the opening hook it uses",
+  "structure": ["beat 1", "beat 2", "..."],
+  "why_it_works": "the persuasion mechanics that make it convert",
+  "ch_script": "a 30-45 second Crate Hackers VIDEO AD SCRIPT reusing this ad's structure + psychology but for DJs — spoken lines / shot directions, in the Crate Hackers voice",
+  "ch_hooks": ["3 alternative scroll-stopping opening hooks for the Crate Hackers version"]
+}`;
+  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2000);
+  return firstJson(raw) || { summary: "", hook: "", structure: [], why_it_works: "", ch_script: raw, ch_hooks: [] };
 }
 
 // ---------- PayPal ----------
@@ -1282,6 +1332,32 @@ const server = http.createServer(async (req, res) => {
         writeSegmentFromMap(label, map);
         return send(res, 200, { segment: slugify(label), count: map.size });
       }
+      // ad library
+      if (p === "/api/ads" && req.method === "GET") {
+        return send(res, 200, { configured: !!loadConfig().groqApiKey, ads: loadAds() });
+      }
+      if (p === "/api/ads" && req.method === "POST") {
+        const cfg = loadConfig();
+        if (!cfg.groqApiKey) return send(res, 400, { error: "Add your Groq API key in Settings first." });
+        const b = await readBody(req);
+        let transcript = (b.transcript || "").trim();
+        if (!transcript && (b.mediaUrl || "").trim()) {
+          try { transcript = await groqTranscribeUrl(cfg, (b.mediaUrl || "").trim()); }
+          catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
+        }
+        if (!transcript) return send(res, 400, { error: "Paste the ad's transcript/caption, or give a direct media URL (mp4/mp3) to auto-transcribe." });
+        let analysis;
+        try { analysis = await analyzeAd(cfg, { transcript, sourceUrl: (b.sourceUrl || "").trim(), notes: (b.notes || "").trim() }); }
+        catch (e) { return send(res, 400, { error: "Analysis failed: " + ((e && e.message) || e) }); }
+        const ad = { id: "ad_" + Date.now(), created: new Date().toISOString(), sourceUrl: (b.sourceUrl || "").trim(), mediaUrl: (b.mediaUrl || "").trim(), notes: (b.notes || "").trim(), transcript, ...analysis };
+        const list = loadAds(); list.unshift(ad); saveAds(list);
+        return send(res, 200, { ad });
+      }
+      if (p.startsWith("/api/ads/") && req.method === "DELETE") {
+        const id = p.slice("/api/ads/".length);
+        saveAds(loadAds().filter((a) => a.id !== id));
+        return send(res, 200, { ok: true });
+      }
       // settings
       if (p === "/api/settings" && req.method === "GET") {
         const c = loadConfig();
@@ -1307,7 +1383,7 @@ const server = http.createServer(async (req, res) => {
         const b = await readBody(req);
         const patch = {};
         for (const k of ["fromEmail", "fromName", "stream", "replyTo", "testEmail", "paypalEnv",
-          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl",
+          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey",
           "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber"]) if (k in b) patch[k] = b[k];
         if (b.postmarkToken) patch.postmarkToken = b.postmarkToken.trim();
         if (b.mailgunApiKey) patch.mailgunApiKey = b.mailgunApiKey.trim();

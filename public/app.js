@@ -35,6 +35,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "funnel") loadFunnel();
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "failed-payments") loadFailedPayments();
+    if (btn.dataset.tab === "ad-library") loadAds();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -1124,6 +1125,52 @@ if ($("#fpRecover")) $("#fpRecover").onclick = async () => {
   if ($("#html")) $("#html").value = tpl.html;
   const ct = document.querySelector('.tab[data-tab="compose"]'); if (ct) ct.click();
   toast(`Audience "${r.segment}" (${fmt(r.count)}) + "${tpl.name}" email loaded. Pick the audience, swap in your billing link, review, send.`, "ok");
+};
+
+// ---------- ad library ----------
+let AD_LIST = [];
+async function loadAds() {
+  if (!$("#adList")) return;
+  const d = await api("/api/ads");
+  if ($("#adConfigNote")) $("#adConfigNote").textContent = d.configured ? "" : "⚠ Add your Groq API key in Settings (or Render env) to enable transcription + rewrites.";
+  AD_LIST = d.ads || [];
+  renderAds();
+}
+function adCard(a) {
+  const beats = (a.structure || []).map((s) => `<li>${esc(s)}</li>`).join("");
+  const hooks = (a.ch_hooks || []).map((h) => `<li>${esc(h)}</li>`).join("");
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:10px">
+      <div><b>${esc(a.summary || "(ad)")}</b>${a.sourceUrl ? ` · <a href="${esc(a.sourceUrl)}" target="_blank" rel="noopener" style="color:#FF7722">source ↗</a>` : ""}</div>
+      <button class="btn btn-ghost sm ad-del" data-id="${esc(a.id)}">✕</button>
+    </div>
+    ${a.hook ? `<p class="muted small" style="margin:6px 0 0">Hook: ${esc(a.hook)}</p>` : ""}
+    ${a.why_it_works ? `<p style="margin:10px 0 0;font-size:13px"><b>Why it works:</b> ${esc(a.why_it_works)}</p>` : ""}
+    ${beats ? `<details style="margin-top:8px"><summary class="muted small">Structure</summary><ol style="margin:6px 0 0 18px;font-size:13px">${beats}</ol></details>` : ""}
+    <div style="margin-top:12px;background:#0e1018;border:1px solid #242838;border-radius:10px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;color:#FF7722">Crate Hackers script</span><button class="btn btn-ghost sm ad-copy" data-id="${esc(a.id)}">Copy</button></div>
+      <pre style="white-space:pre-wrap;font:inherit;font-size:13px;margin:8px 0 0">${esc((a.ch_script || "").trim())}</pre>
+    </div>
+    ${hooks ? `<details style="margin-top:8px"><summary class="muted small">Alt hooks</summary><ul style="margin:6px 0 0 18px;font-size:13px">${hooks}</ul></details>` : ""}
+  </div>`;
+}
+function renderAds() {
+  if (!AD_LIST.length) { $("#adList").innerHTML = `<p class="muted">No ads yet. Add one on the left — the AI breaks it down and writes your Crate Hackers version.</p>`; return; }
+  $("#adList").innerHTML = AD_LIST.map(adCard).join("");
+  $$(".ad-del").forEach((b) => b.onclick = async () => { if (!confirm("Delete this ad?")) return; await fetch("/api/ads/" + b.dataset.id, { method: "DELETE" }); AD_LIST = AD_LIST.filter((a) => a.id !== b.dataset.id); renderAds(); });
+  $$(".ad-copy").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) { navigator.clipboard.writeText(a.ch_script || ""); toast("Script copied.", "ok"); } });
+}
+if ($("#adAdd")) $("#adAdd").onclick = async () => {
+  const body = { sourceUrl: $("#adSourceUrl").value.trim(), mediaUrl: $("#adMediaUrl").value.trim(), transcript: $("#adTranscript").value.trim(), notes: $("#adNotes").value.trim() };
+  if (!body.transcript && !body.mediaUrl) return toast("Paste a transcript/caption or a direct media URL.", "err");
+  $("#adAdd").disabled = true;
+  $("#adMsg").textContent = (body.mediaUrl && !body.transcript) ? "Transcribing + analyzing… (can take a bit)" : "Analyzing…";
+  const r = await post("/api/ads", body);
+  $("#adAdd").disabled = false; $("#adMsg").textContent = "";
+  if (r.error) return toast(r.error, "err");
+  AD_LIST.unshift(r.ad); renderAds();
+  $("#adSourceUrl").value = $("#adMediaUrl").value = $("#adTranscript").value = $("#adNotes").value = "";
+  toast("Ad analyzed + Crate Hackers script ready.", "ok");
 };
 
 // opener message: persist per browser, default to a friendly intro
