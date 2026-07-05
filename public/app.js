@@ -42,6 +42,16 @@ $$(".tab").forEach((btn) => {
   };
 });
 
+// deep-link: opening /#funnel, /#failed-payments, etc. jumps straight to that tab
+function openTabFromHash() {
+  const name = decodeURIComponent(location.hash.slice(1));
+  if (!name) return;
+  const btn = $$(".tab").find((b) => b.dataset.tab === name);
+  if (btn) btn.onclick();
+}
+window.addEventListener("hashchange", openTabFromHash);
+openTabFromHash();
+
 // ---------- dashboards ----------
 const DASHBOARDS = {
   "exec-summary": { title: "Executive Summary", url: "/dashboards/exec-summary.html" },
