@@ -902,6 +902,7 @@ const funBar = (label, val, max, color) => {
 };
 const FUNNELS = {
   level11: { title: "Level 11 Funnel", desc: 'Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.', lead: false },
+  "july4-sale": { title: "🎆 July 4 Sale", desc: 'Live Kartra sales for the 4th-of-July funnel (<b>/home-july4-26 → /oto-july26</b>), broken out by price point. Pulled from your sales ledger (near-live, ~2-min cache).', saleReport: true },
   "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
   chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
   chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
@@ -918,6 +919,8 @@ async function loadFunnel() {
   const m = funMeta();
   if ($("#funTitle")) $("#funTitle").textContent = m.title;
   if ($("#funDesc")) $("#funDesc").innerHTML = m.desc;
+  if (m.saleReport) return loadSaleReport(m);
+  if ($("#funVariantsHead")) $("#funVariantsHead").innerHTML = 'By variant <span class="muted" style="font-weight:400;text-transform:none">— winner = highest earnings per visitor (EPC)</span>';
   if ($("#funTierWrap")) $("#funTierWrap").style.display = m.lead ? "none" : "";
   if ($("#funNote")) $("#funNote").style.display = m.lead ? "none" : "";
   $("#funMsg").textContent = "Loading…";
@@ -965,6 +968,35 @@ function renderFunnel(d, m) {
     $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
       tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
   }
+}
+async function loadSaleReport(m) {
+  if ($("#funTierWrap")) $("#funTierWrap").style.display = "none";
+  if ($("#funNote")) $("#funNote").style.display = "none";
+  if ($("#funVariantsHead")) $("#funVariantsHead").textContent = "By price point";
+  $("#funMsg").textContent = "Loading…";
+  const qs = new URLSearchParams();
+  if ($("#funFrom").value) qs.set("from", $("#funFrom").value);
+  if ($("#funTo").value) qs.set("to", $("#funTo").value);
+  let d; try { d = await api("/api/sale-report?" + qs.toString()); } catch { $("#funMsg").textContent = "Couldn't load."; return; }
+  $("#funMsg").textContent = d.connected ? "" : "";
+  renderSaleReport(d);
+}
+function renderSaleReport(d) {
+  if (!d.connected) {
+    $("#funTotals").innerHTML = `<div class="card" style="max-width:560px">Connect your <b>sales ledger</b> (Settings → Sales ledger CSV URL) to see live sale numbers.${d.error ? ` <span class="muted">(${esc(d.error)})</span>` : ""}</div>`;
+    $("#funVariants").innerHTML = ""; return;
+  }
+  const t = d.totals;
+  $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
+    ${funMetric("Total sales", fmt(t.count))}${funMetric("Total revenue", fmtMoney(t.revenue))}
+    ${d.buckets.map((b) => funMetric(b.label.replace(/\s*\(.*\)/, ""), fmt(b.count))).join("")}</div>`;
+  const cards = d.buckets.map((b) => `<div style="flex:1;min-width:220px;background:#151823;border:1px solid #242838;border-radius:14px;padding:16px">
+      <div style="font-size:14px;font-weight:800;margin-bottom:8px">${esc(b.label)}</div>
+      <div style="display:flex;gap:16px"><div><div style="font-size:11px;color:#8b93a7">Sales</div><div style="font-weight:800;font-size:22px">${fmt(b.count)}</div></div>
+      <div><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700;font-size:22px;color:#FF7722">${fmtMoney(b.revenue)}</div></div></div></div>`).join("");
+  const other = d.other && d.other.count ? `<div style="flex:1;min-width:200px;background:#151823;border:1px dashed #242838;border-radius:14px;padding:16px"><div style="font-size:14px;font-weight:700;margin-bottom:8px;color:#8b93a7">Other CH sales</div><div style="display:flex;gap:16px"><div><div style="font-size:11px;color:#8b93a7">Sales</div><div style="font-weight:800;font-size:22px">${fmt(d.other.count)}</div></div><div><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700;font-size:22px">${fmtMoney(d.other.revenue)}</div></div></div></div>` : "";
+  const day = (d.byDay && d.byDay.length) ? `<h3 style="margin:24px 0 10px">By day</h3><div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:8px 14px;max-width:520px">${d.byDay.map((x) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1c2030"><span>${esc(x.date)}</span><span>${fmt(x.count)} sales · <b style="color:#FF7722">${fmtMoney(x.revenue)}</b></span></div>`).join("")}</div>` : "";
+  $("#funVariants").innerHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap">${cards}${other}</div>${day}`;
 }
 if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
 $$(".fun-preset").forEach((b) => b.onclick = () => {

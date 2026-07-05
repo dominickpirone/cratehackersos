@@ -1220,6 +1220,36 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, result);
       }
+      // sale report: Kartra-ledger sales bucketed by price point (by amount) + by day.
+      if (p === "/api/sale-report" && req.method === "GET") {
+        const cfg = loadConfig();
+        const empty = { connected: false, buckets: [], other: { count: 0, revenue: 0 }, byDay: [], totals: { count: 0, revenue: 0 } };
+        if (!cfg.salesLedgerCsvUrl) return send(res, 200, empty);
+        const from = u.searchParams.get("from") || "2026-07-04";
+        const to = u.searchParams.get("to") || "";
+        let rows; try { rows = await fetchLedger(cfg.salesLedgerCsvUrl); } catch (e) { return send(res, 200, { ...empty, error: String((e && e.message) || e) }); }
+        const inRange = (dd) => (!from || dd >= from) && (!to || dd <= to);
+        const buckets = [
+          { id: "pp8", label: "$2.50 first month (PP8)", lo: 2.0, hi: 3.75, count: 0, revenue: 0 },
+          { id: "pp39", label: "$148.50 annual — OTO (PP39)", lo: 140, hi: 156, count: 0, revenue: 0 },
+          { id: "pp34", label: "$250 BOGO annual (PP34)", lo: 240, hi: 262, count: 0, revenue: 0 },
+        ];
+        let otherCount = 0, otherRev = 0; const byDay = {}; const totals = { count: 0, revenue: 0 };
+        for (const r of rows) {
+          if (r.type !== "sale" || !/crate\s*hackers/i.test(r.product)) continue;
+          if (!inRange(r.date) || !(r.amount > 0)) continue;
+          let hit = false;
+          for (const b of buckets) { if (r.amount >= b.lo && r.amount <= b.hi) { b.count++; b.revenue += r.amount; hit = true; break; } }
+          if (!hit) { otherCount++; otherRev += r.amount; }
+          totals.count++; totals.revenue += r.amount;
+          const day = byDay[r.date] || (byDay[r.date] = { count: 0, revenue: 0 });
+          day.count++; day.revenue += r.amount;
+        }
+        buckets.forEach((b) => b.revenue = Math.round(b.revenue * 100) / 100);
+        totals.revenue = Math.round(totals.revenue * 100) / 100;
+        const byDayArr = Object.keys(byDay).sort().map((dd) => ({ date: dd, count: byDay[dd].count, revenue: Math.round(byDay[dd].revenue * 100) / 100 }));
+        return send(res, 200, { connected: true, from, to, buckets, other: { count: otherCount, revenue: Math.round(otherRev * 100) / 100 }, byDay: byDayArr, totals });
+      }
       // failed payments (dunning / recovery) — Phase 1: visibility
       if (p === "/api/failed-payments" && req.method === "GET") {
         const cfg = loadConfig();
