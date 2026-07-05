@@ -998,37 +998,62 @@ function renderSaleReport(d) {
     $("#funVariants").innerHTML = ""; return;
   }
   const t = d.totals;
-  const COLORS = { pp8: "#3b82f6", pp39: "#a855f7", pp34: "#FF7722" };
-  const segs = d.buckets.map((b) => ({ short: b.label.replace(/\s*\(.*\)/, ""), count: b.count, revenue: b.revenue, color: COLORS[b.id] || "#5f6478" }));
-  if (d.other && d.other.count) segs.push({ short: "Other CH sales", count: d.other.count, revenue: d.other.revenue, color: "#5f6478" });
-  const totalRev = Math.max(1, t.revenue);
-  const maxCount = Math.max(1, ...segs.map((s) => s.count));
+  const byId = {}; (d.buckets || []).forEach((b) => (byId[b.id] = b));
+  const frontEnd = byId.pp8 || { count: 0, revenue: 0 };   // $2.50 first month
+  const upgrade  = byId.pp39 || { count: 0, revenue: 0 };  // $148.50 annual upgrade (OTO)
+  const bogo     = byId.pp34 || { count: 0, revenue: 0 };  // $250 BOGO annual
+  const upgradeRate = frontEnd.count ? upgrade.count / frontEnd.count : 0;
+  const aov = t.count ? t.revenue / t.count : 0;
 
-  const headline = `<div style="flex:1;min-width:190px;background:linear-gradient(135deg,#2a1b0d,#151823);border:1px solid #3a2a15;border-radius:14px;padding:18px">
-      <div style="font-size:11px;color:#8b93a7;text-transform:uppercase;letter-spacing:.06em">Revenue booked</div>
-      <div style="font-size:34px;font-weight:800;color:#FF7722;line-height:1.1;margin-top:2px">${fmtMoney(t.revenue)}</div>
-      <div style="font-size:13px;color:#8b93a7;margin-top:2px">${fmt(t.count)} sales</div></div>`;
-  const mixBar = segs.filter((s) => s.revenue > 0).map((s) => `<div title="${esc(s.short)}: ${fmtMoney(s.revenue)}" style="width:${(s.revenue / totalRev * 100).toFixed(1)}%;background:${s.color}"></div>`).join("");
-  const legend = segs.filter((s) => s.revenue > 0).map((s) => `<span style="font-size:12px;color:#c9cdd8;white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.color};margin-right:5px"></span>${esc(s.short)} · ${Math.round(s.revenue / totalRev * 100)}%</span>`).join("");
-  const mix = `<div style="flex:2;min-width:300px;background:#151823;border:1px solid #242838;border-radius:14px;padding:18px">
-      <div style="font-size:11px;color:#8b93a7;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Where the money came from</div>
-      <div style="display:flex;height:26px;border-radius:6px;overflow:hidden;background:#0e1018">${mixBar}</div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px">${legend}</div></div>`;
-  const cards = segs.slice().sort((a, b) => b.revenue - a.revenue).map((s) => `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:12px 14px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><b>${esc(s.short)}</b><span><b style="font-size:19px">${fmt(s.count)}</b> <span class="muted" style="font-size:12px">sales</span> · <b style="color:#FF7722">${fmtMoney(s.revenue)}</b></span></div>
-      <div style="height:8px;border-radius:4px;background:#0e1018;overflow:hidden"><div style="width:${(s.count / maxCount * 100).toFixed(1)}%;height:100%;background:${s.color}"></div></div></div>`).join("");
+  // ---- top metric strip (mirrors the Level 11 totals row) ----
+  const cells = [
+    funMetric("Sales", fmt(t.count)),
+    funMetric("Revenue", fmtMoney(t.revenue)),
+    funMetric("AOV", fmtMoney(aov)),
+    funMetric("Upgrade rate", fmtPct(upgradeRate)),
+  ];
+  $("#funTotals").innerHTML =
+    `<div style="display:flex;gap:12px;flex-wrap:wrap">${cells.join("")}</div>
+     <p class="muted small" style="margin-top:8px"><b>Upgrade rate</b> = $2.50 first-month buyers who took the $148.50 annual upgrade — <b>${fmt(upgrade.count)}</b> of <b>${fmt(frontEnd.count)}</b>.</p>`;
+
+  // ---- Conversions by price point (styled like Conversions-by-tier) ----
+  const rows = [
+    { label: "$2.50 first month",      count: frontEnd.count, revenue: frontEnd.revenue, color: "#3b82f6" },
+    { label: "$148.50 annual upgrade", count: upgrade.count,  revenue: upgrade.revenue,  color: "#a855f7" },
+    { label: "$250 BOGO annual",       count: bogo.count,     revenue: bogo.revenue,     color: "#22c55e" },
+  ];
+  if (d.other && d.other.count) rows.push({ label: "Other CH sales", count: d.other.count, revenue: d.other.revenue, color: "#5f6478" });
+  const maxCount = Math.max(1, ...rows.map((r) => r.count));
+  const tierBars = rows.map((r) =>
+    `<div style="margin-bottom:13px">
+       <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px"><span>${esc(r.label)}</span><span><b style="font-size:16px">${fmt(r.count)}</b> <span class="muted">· ${fmtMoney(r.revenue)}</span></span></div>
+       <div style="height:9px;border-radius:5px;background:#0e1018;overflow:hidden"><div style="width:${(r.count / maxCount * 100).toFixed(1)}%;height:100%;background:${r.color}"></div></div>
+     </div>`).join("");
+
+  // ---- where the money came from (revenue-share bar) ----
+  const totalRev = Math.max(1, t.revenue);
+  const mixSegs = rows.filter((r) => r.revenue > 0);
+  const mixBar = mixSegs.map((s) => `<div title="${esc(s.label)}: ${fmtMoney(s.revenue)}" style="width:${(s.revenue / totalRev * 100).toFixed(1)}%;background:${s.color}"></div>`).join("");
+  const legend = mixSegs.map((s) => `<span style="font-size:12px;color:#c9cdd8;white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.color};margin-right:5px"></span>${esc(s.label)} · ${Math.round(s.revenue / totalRev * 100)}%</span>`).join("");
+  const mixBlock = `<h3 style="margin:24px 0 10px">Where the money came from</h3>
+     <div style="max-width:660px"><div style="display:flex;height:26px;border-radius:6px;overflow:hidden;background:#0e1018">${mixBar}</div>
+     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px">${legend}</div></div>`;
+
+  // ---- by day ----
   let dayBlock = "";
   if (d.byDay && d.byDay.length) {
     const maxDay = Math.max(1, ...d.byDay.map((x) => x.revenue));
-    dayBlock = `<h3 style="margin:22px 0 10px">By day</h3><div style="display:flex;flex-direction:column;gap:8px;max-width:660px">${d.byDay.map((x) => `<div style="display:flex;align-items:center;gap:10px">
+    dayBlock = `<h3 style="margin:24px 0 10px">By day</h3><div style="display:flex;flex-direction:column;gap:8px;max-width:660px">${d.byDay.map((x) => `<div style="display:flex;align-items:center;gap:10px">
         <span style="width:92px;font-size:12px;color:#8b93a7">${esc(x.date)}</span>
         <div style="flex:1;height:24px;border-radius:5px;background:#0e1018;position:relative;overflow:hidden"><div style="width:${(x.revenue / maxDay * 100).toFixed(1)}%;height:100%;background:#FF7722;opacity:.85"></div><span style="position:absolute;left:9px;top:4px;font-size:12px;font-weight:600">${fmt(x.count)} sales · ${fmtMoney(x.revenue)}</span></div></div>`).join("")}</div>`;
   }
-  $("#funTotals").innerHTML = `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">${headline}${mix}</div>
-    <h3 style="margin:22px 0 10px">By price point <span class="muted" style="font-weight:400;text-transform:none">— bar = share of sales, sorted by revenue</span></h3>
-    <div style="display:flex;flex-direction:column;gap:10px;max-width:660px">${cards}</div>
-    ${dayBlock}`;
-  $("#funVariants").innerHTML = "";
+
+  $("#funVariants").innerHTML =
+    `<h3 style="margin:24px 0 10px">Conversions by price point <span class="muted" style="font-weight:400;text-transform:none">— what they bought</span></h3>
+     <div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:16px 18px;max-width:560px">${tierBars}</div>
+     ${mixBlock}
+     ${dayBlock}
+     <p class="muted small" style="margin-top:18px">The July 4 sale runs on <b>Kartra</b> pages (<b>/home-july4-26 → /oto-july26</b>), so page <b>visitors</b> and <b>checkout clicks</b> aren't captured by our lander pixel — those live in Kartra's own stats. Everything above is real, pulled live from your sales ledger. Price points: <b>$2.50</b> first month → <b>$148.50</b> annual upgrade → <b>$250</b> BOGO annual.</p>`;
 }
 if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
 $$(".fun-preset").forEach((b) => b.onclick = () => {
