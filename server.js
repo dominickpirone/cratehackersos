@@ -424,13 +424,10 @@ function loadFailedPaymentsCache() {
 const ADS_FILE = path.join(DATA, "ads.json");
 function loadAds() { try { return JSON.parse(fs.readFileSync(ADS_FILE, "utf8")); } catch { return []; } }
 function saveAds(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(ADS_FILE, JSON.stringify(list, null, 2)); } catch {} }
-async function groqTranscribeUrl(cfg, mediaUrl) {
-  const mr = await fetch(mediaUrl, { redirect: "follow" });
-  if (!mr.ok) throw new Error("couldn't fetch media (" + mr.status + ")");
-  const buf = Buffer.from(await mr.arrayBuffer());
+async function groqTranscribeBuffer(cfg, buf, filename) {
   if (buf.length > 24 * 1024 * 1024) throw new Error("media too large (>24MB) — trim it or paste the transcript");
   const fd = new FormData();
-  fd.append("file", new Blob([buf]), (mediaUrl.split("?")[0].split("/").pop() || "audio.mp4"));
+  fd.append("file", new Blob([buf]), filename || "audio.mp4");
   fd.append("model", "whisper-large-v3");
   fd.append("response_format", "text");
   const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
@@ -439,16 +436,38 @@ async function groqTranscribeUrl(cfg, mediaUrl) {
   if (!r.ok) throw new Error("Groq transcribe " + r.status + ": " + (await r.text()).slice(0, 180));
   return (await r.text()).trim();
 }
-async function groqChat(cfg, messages, maxTokens) {
+async function groqTranscribeUrl(cfg, mediaUrl) {
+  const mr = await fetch(mediaUrl, { redirect: "follow" });
+  if (!mr.ok) throw new Error("couldn't fetch media (" + mr.status + ")");
+  return groqTranscribeBuffer(cfg, Buffer.from(await mr.arrayBuffer()), (mediaUrl.split("?")[0].split("/").pop() || "audio.mp4"));
+}
+// Resolve a transcript from a request body: pasted transcript > uploaded file > media URL.
+async function transcriptFromBody(cfg, b) {
+  let transcript = (b.transcript || "").trim();
+  if (!transcript && b.fileBase64) {
+    const raw = String(b.fileBase64).replace(/^data:[^;]+;base64,/, "");
+    transcript = await groqTranscribeBuffer(cfg, Buffer.from(raw, "base64"), b.fileName || "upload.mp4");
+  }
+  if (!transcript && (b.mediaUrl || "").trim()) transcript = await groqTranscribeUrl(cfg, (b.mediaUrl || "").trim());
+  return transcript;
+}
+async function groqChat(cfg, messages, maxTokens, jsonMode) {
+  const payload = { model: "llama-3.3-70b-versatile", temperature: 0.6, max_tokens: maxTokens || 1600, messages };
+  if (jsonMode) payload.response_format = { type: "json_object" };
   const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST", headers: { Authorization: "Bearer " + cfg.groqApiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "llama-3.3-70b-versatile", temperature: 0.6, max_tokens: maxTokens || 1600, messages }),
+    body: JSON.stringify(payload),
   });
   if (!r.ok) throw new Error("Groq chat " + r.status + ": " + (await r.text()).slice(0, 180));
   const j = await r.json();
   return (j.choices && j.choices[0] && j.choices[0].message.content) || "";
 }
-function firstJson(s) { const a = s.indexOf("{"), b = s.lastIndexOf("}"); if (a < 0 || b < 0) return null; try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; } }
+function firstJson(s) {
+  s = String(s).replace(/```json\s*/gi, "").replace(/```/g, "");
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a < 0 || b < 0) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
+}
 async function analyzeAd(cfg, { transcript, sourceUrl, notes }) {
   const prompt = `You are a direct-response ad strategist for CRATE HACKERS — software + community for working DJs. Brand voice: confident, irreverent, DJ-to-DJ, anti-corporate, a little funny. Core value: stop wasting hours crate-digging; the app preps your music for you.
 
@@ -465,7 +484,7 @@ Return ONLY a JSON object (no prose) with:
   "ch_script": "a 30-45 second Crate Hackers VIDEO AD SCRIPT reusing this ad's structure + psychology but for DJs — spoken lines / shot directions, in the Crate Hackers voice",
   "ch_hooks": ["3 alternative scroll-stopping opening hooks for the Crate Hackers version"]
 }`;
-  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2000);
+  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2000, true);
   return firstJson(raw) || { summary: "", hook: "", structure: [], why_it_works: "", ch_script: raw, ch_hooks: [] };
 }
 
@@ -1252,12 +1271,10 @@ const server = http.createServer(async (req, res) => {
       if (tok !== cfg.adIngestToken) return send(res, 401, { error: "Bad token." });
       if (!cfg.groqApiKey) return send(res, 400, { error: "Groq key not set on the server." });
       const b = await readBody(req);
-      let transcript = (b.transcript || "").trim();
-      if (!transcript && (b.mediaUrl || "").trim()) {
-        try { transcript = await groqTranscribeUrl(cfg, (b.mediaUrl || "").trim()); }
-        catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
-      }
-      if (!transcript) return send(res, 400, { error: "No transcript/caption or media URL provided." });
+      let transcript;
+      try { transcript = await transcriptFromBody(cfg, b); }
+      catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
+      if (!transcript) return send(res, 400, { error: "No transcript/caption, file, or media URL provided." });
       let analysis;
       try { analysis = await analyzeAd(cfg, { transcript, sourceUrl: (b.sourceUrl || "").trim(), notes: (b.notes || "").trim() }); }
       catch (e) { return send(res, 400, { error: "Analysis failed: " + ((e && e.message) || e) }); }
@@ -1368,12 +1385,10 @@ const server = http.createServer(async (req, res) => {
         const cfg = loadConfig();
         if (!cfg.groqApiKey) return send(res, 400, { error: "Add your Groq API key in Settings first." });
         const b = await readBody(req);
-        let transcript = (b.transcript || "").trim();
-        if (!transcript && (b.mediaUrl || "").trim()) {
-          try { transcript = await groqTranscribeUrl(cfg, (b.mediaUrl || "").trim()); }
-          catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
-        }
-        if (!transcript) return send(res, 400, { error: "Paste the ad's transcript/caption, or give a direct media URL (mp4/mp3) to auto-transcribe." });
+        let transcript;
+        try { transcript = await transcriptFromBody(cfg, b); }
+        catch (e) { return send(res, 400, { error: "Transcription failed: " + ((e && e.message) || e) }); }
+        if (!transcript) return send(res, 400, { error: "Paste the transcript/caption, upload a video, or give a direct media URL." });
         let analysis;
         try { analysis = await analyzeAd(cfg, { transcript, sourceUrl: (b.sourceUrl || "").trim(), notes: (b.notes || "").trim() }); }
         catch (e) { return send(res, 400, { error: "Analysis failed: " + ((e && e.message) || e) }); }

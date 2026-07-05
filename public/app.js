@@ -1161,15 +1161,24 @@ function renderAds() {
   $$(".ad-copy").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) { navigator.clipboard.writeText(a.ch_script || ""); toast("Script copied.", "ok"); } });
 }
 if ($("#adAdd")) $("#adAdd").onclick = async () => {
+  const file = $("#adFile") && $("#adFile").files && $("#adFile").files[0];
   const body = { sourceUrl: $("#adSourceUrl").value.trim(), mediaUrl: $("#adMediaUrl").value.trim(), transcript: $("#adTranscript").value.trim(), notes: $("#adNotes").value.trim() };
-  if (!body.transcript && !body.mediaUrl) return toast("Paste a transcript/caption or a direct media URL.", "err");
+  if (!body.transcript && !body.mediaUrl && !file) return toast("Paste a transcript/caption, upload a video, or add a media URL.", "err");
+  if (file && file.size > 24 * 1024 * 1024) return toast("That video is over 24MB — trim it or paste the transcript.", "err");
   $("#adAdd").disabled = true;
-  $("#adMsg").textContent = (body.mediaUrl && !body.transcript) ? "Transcribing + analyzing… (can take a bit)" : "Analyzing…";
+  $("#adMsg").textContent = (file || (body.mediaUrl && !body.transcript)) ? "Transcribing + analyzing… (uploads can take a bit)" : "Analyzing…";
+  try {
+    if (file) {
+      body.fileName = file.name;
+      body.fileBase64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+    }
+  } catch { $("#adAdd").disabled = false; $("#adMsg").textContent = ""; return toast("Couldn't read that file.", "err"); }
   const r = await post("/api/ads", body);
   $("#adAdd").disabled = false; $("#adMsg").textContent = "";
   if (r.error) return toast(r.error, "err");
   AD_LIST.unshift(r.ad); renderAds();
   $("#adSourceUrl").value = $("#adMediaUrl").value = $("#adTranscript").value = $("#adNotes").value = "";
+  if ($("#adFile")) $("#adFile").value = "";
   toast("Ad analyzed + Crate Hackers script ready.", "ok");
 };
 
