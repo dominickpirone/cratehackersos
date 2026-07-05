@@ -1234,6 +1234,24 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { configured: true, ...result });
       }
+      // export the current failed-payment list (optionally filtered by reason) as an audience segment
+      if (p === "/api/failed-payments/export" && req.method === "POST") {
+        const cfg = loadConfig();
+        if (!cfg.stripeKey) return send(res, 400, { error: "Connect Stripe first." });
+        const b = await readBody(req);
+        const reason = (b.reason || "").trim();
+        const days = Math.min(90, Math.max(1, parseInt(b.days, 10) || 30));
+        let result = loadFailedPaymentsCache();
+        if (!result || result.days !== days) { try { result = await aggregateFailedPayments(cfg, days); } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); } }
+        let rows = result.rows || [];
+        if (reason === "dead_card_repeat") rows = rows.filter((r) => r.attempts >= 3);
+        else if (reason) rows = rows.filter((r) => r.reason === reason);
+        const map = new Map();
+        for (const r of rows) if (r.email) map.set(r.email, (r.name || "").split(" ")[0] || "");
+        const label = "failed-" + (reason || "all") + "-" + result.days + "d";
+        writeSegmentFromMap(label, map);
+        return send(res, 200, { segment: slugify(label), count: map.size });
+      }
       // settings
       if (p === "/api/settings" && req.method === "GET") {
         const c = loadConfig();

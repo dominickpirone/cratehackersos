@@ -1028,6 +1028,17 @@ function renderFailedPayments() {
 if ($("#fpRefresh")) $("#fpRefresh").onclick = () => loadFailedPayments(true);
 if ($("#fpDays")) $("#fpDays").onchange = () => loadFailedPayments(false);
 if ($("#fpReason")) $("#fpReason").onchange = renderFailedPayments;
+if ($("#fpExport")) $("#fpExport").onclick = async () => {
+  const reason = ($("#fpReason") && $("#fpReason").value) || "";
+  const days = ($("#fpDays") && $("#fpDays").value) || "30";
+  const nice = reason ? (FP_REASON_LABEL[reason] || reason) : "all failed";
+  if (!confirm(`Export the "${nice}" failed-payment list (${days}d) as an audience segment?\nYou can then email it from Compose — nothing sends automatically.`)) return;
+  $("#fpMsg").textContent = "Exporting…";
+  const r = await post("/api/failed-payments/export", { reason, days: +days });
+  if (r.error) { $("#fpMsg").textContent = ""; return toast(r.error, "err"); }
+  $("#fpMsg").textContent = "";
+  toast(`Exported ${fmt(r.count)} to audience "${r.segment}" — pick it in Compose.`, "ok");
+};
 
 // opener message: persist per browser, default to a friendly intro
 const OUTREACH_MSG_KEY = "ch_outreachOpener";
