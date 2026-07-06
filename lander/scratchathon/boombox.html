@@ -6,12 +6,12 @@
 <!-- Google Tag Manager -->
 <script>!function(){"use strict";function l(e){for(var t=e,r=0,n=document.cookie.split(";");r<n.length;r++){var o=n[r].split("=");if(o[0].trim()===t)return o[1]}}function s(e){return localStorage.getItem(e)}function u(e){return window[e]}function A(e,t){e=document.querySelector(e);return t?null==e?void 0:e.getAttribute(t):null==e?void 0:e.textContent}var e=window,t=document,r="script",n="dataLayer",o="https://www.cratehackers.com/metrics",a="https://load.gtm.cratehackers.com",i="2ifskwxsoim",c="k=BA1SNCw6RkZeOVsiMDBNBVBbQUJeEwVOGh4YXRsFCgcIAQ4QExIZAEMKAB5eBAQDUEYCFgwFAhAe",g="cookie",v="CHCookie",E="",d=!1;try{var d=!!g&&(m=navigator.userAgent,!!(m=new RegExp("Version/([0-9._]+)(.*Mobile)?.*Safari.*").exec(m)))&&16.4<=parseFloat(m[1]),f="stapeUserId"===g,I=d&&!f?function(e,t,r){void 0===t&&(t="");var n={cookie:l,localStorage:s,jsVariable:u,cssSelector:A},t=Array.isArray(t)?t:[t];if(e&&n[e])for(var o=n[e],a=0,i=t;a<i.length;a++){var c=i[a],c=r?o(c,r):o(c);if(c)return c}else console.warn("invalid uid source",e)}(g,v,E):void 0;d=d&&(!!I||f)}catch(e){console.error(e)}var m=e,g=(m[n]=m[n]||[],m[n].push({"gtm.start":(new Date).getTime(),event:"gtm.js"}),t.getElementsByTagName(r)[0]),v=I?"&bi="+encodeURIComponent(I):"",E=t.createElement(r),f=(d&&(i=8<i.length?i.replace(/([a-z]{8}$)/,"kp$1"):"kp"+i),!d&&a?a:o);E.async=!0,E.src=f+"/"+i+".js?"+c+v,null!=(e=g.parentNode)&&e.insertBefore(E,g)}();</script>
 <!-- End Google Tag Manager -->
-<title>The Scratchathon &mdash; Dangerous DJs Edition | Build the crate. Then learn to cut it up.</title>
+<title>The Scratchathon — Build the crate. Then learn to cut it up. | Crate Hackers × Dangerous DJs</title>
 <meta name="description" content="Free live Scratchathon, Tue July 7 on Twitch. Build the ultimate '80s hip-hop crate — you vote every track — then DJ Ragoza teaches you to crab scratch it. Free. Keep the crate.">
 
 <!-- Open Graph / social link preview (Facebook, iMessage, text, FB groups) -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://lander.cratehackers.com/scratchathon/dangerous-djs.html">
+<meta property="og:url" content="https://lander.cratehackers.com/scratchathon">
 <meta property="og:title" content="The Scratchathon — Live with DJ Ragoza of Dangerous DJs">
 <meta property="og:description" content="Free · Tue July 7 · 8PM ET on Twitch. Build the ultimate '80s hip-hop crate — you vote every track — then DJ Ragoza teaches you to crab scratch it. RSVP free, keep the crate.">
 <meta property="og:image" content="https://lander.cratehackers.com/scratchathon/scratchathon-share.jpg">
@@ -71,20 +71,20 @@
    THE SCRATCHATHON — '80s Brooklyn boombox. Scoped under .bx-root
    ============================================================ */
 .bx-root{
-  --bg:#0b0607; --panel:#170d0f; --panel-2:#1f1113; --ink:#0a0405;
-  --gold:#f7f2ee; --orange:#e11d2a; --pink:#ff3b47; --cyan:#ff6b73;
+  --bg:#0b0b0d; --panel:#151517; --panel-2:#1c1c20; --ink:#08080a;
+  --gold:#f5c542; --orange:#ff6a00; --pink:#ff3d81; --cyan:#25d3d3;
   --chrome:#c9ccd1; --chrome-d:#7f8288;
-  --fg:#f8f5f3; --fg-2:#e6cfd0; --fg-3:#b1908f;
-  --line:#3a2226;
-  --cta:linear-gradient(180deg,#ff3b47 0%,#c00d1a 100%);
+  --fg:#f4f2ec; --fg-2:#c6c3cc; --fg-3:#8b8894;
+  --line:#2a2a30;
+  --cta:linear-gradient(180deg,#f5c542 0%,#ff6a00 100%);
 
   font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   color:var(--fg); line-height:1.55; position:relative; isolation:isolate; overflow:hidden;
   width:100vw; margin-left:calc(-50vw + 50%); margin-right:calc(-50vw + 50%);
   background:
-    radial-gradient(80% 55% at 8% 0%, rgba(225,29,42,.24), transparent 60%),
-    radial-gradient(80% 55% at 100% 2%, rgba(255,255,255,.06), transparent 58%),
-    linear-gradient(180deg,#160a0c 0%, #0b0607 42%, #0b0607 100%);
+    radial-gradient(80% 55% at 8% 0%, rgba(255,61,129,.16), transparent 60%),
+    radial-gradient(80% 55% at 100% 2%, rgba(37,211,211,.14), transparent 58%),
+    linear-gradient(180deg,#100f12 0%, #0b0b0d 40%, #0b0b0d 100%);
 }
 .bx-root *, .bx-root *::before, .bx-root *::after{ box-sizing:border-box; }
 .bx-root::before{ content:''; position:fixed; inset:0; background:var(--bg); z-index:-2; pointer-events:none; }
@@ -412,21 +412,6 @@
   .bx-h1{ font-size:clamp(46px,15vw,64px); }
   .bx-cd-cell{ min-width:0; }
 }
-
-/* ============================================================
-   DANGEROUS DJs — red / white overrides (structure unchanged)
-   ============================================================ */
-.bx-topbar .trk{ color:#fff; }
-.bx-topbar .trk .s{ color:rgba(255,255,255,.7); }
-.bx-datebadge{ color:#fff; }
-.bx-optin .rib{ color:#fff; }
-.bx-optin .ch-optin button[type="submit"],
-.bx-optin .ch-optin .submit_button_e1e32e235eee1f970470a3a6658dfdd5,
-.bx-btn{ color:#fff; }
-.bx-card .n{ color:#fff; }
-.bx-hero-photo .badge{ color:#fff; }
-.bx-slot.two .time{ color:var(--pink); }
-.bx-h1 .tag{ text-shadow:5px 5px 0 var(--pink); }
 </style>
 
 <div class="bx-root" data-live="0">
