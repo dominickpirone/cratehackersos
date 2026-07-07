@@ -1050,30 +1050,39 @@ function renderSaleReport(d) {
         <div style="flex:1;height:24px;border-radius:5px;background:#0e1018;position:relative;overflow:hidden"><div style="width:${(x.revenue / maxDay * 100).toFixed(1)}%;height:100%;background:#FF7722;opacity:.85"></div><span style="position:absolute;left:9px;top:4px;font-size:12px;font-weight:600">${fmt(x.count)} sales · ${fmtMoney(x.revenue)}</span></div></div>`).join("")}</div>`;
   }
 
-  // ---- spend vs sales (live Meta spend vs REAL ledger sales) ----
-  let spendBlock = "";
+  // ---- spend vs sales (live Meta spend when a token is set, else your saved number) ----
   const ad = d.adSpend;
-  if (ad && typeof ad.spend === "number") {
-    const spend = ad.spend;
+  const isLive = ad && ad.source === "meta" && typeof ad.spend === "number";
+  const spendVal = ad && typeof ad.spend === "number" ? ad.spend : null;
+  const spendCards = (spend) => {
     const roas = spend ? t.revenue / spend : 0;
     const net = t.revenue - spend;
     const cps = t.count ? spend / t.count : 0;
-    const camp = (ad.campaigns && ad.campaigns[0] && ad.campaigns[0].name) || "campaign";
-    const more = ad.campaigns && ad.campaigns.length > 1 ? ` +${ad.campaigns.length - 1} more` : "";
-    const cardsHtml = [
-      funMetric("Ad spend (Meta)", fmtMoney(spend)),
+    return [
+      funMetric("Ad spend", fmtMoney(spend)),
       funMetric("Sales", fmtMoney(t.revenue)),
       funMetric("ROAS", (roas ? roas.toFixed(2) : "0") + "×"),
       funMetric("Net", (net >= 0 ? "+" : "−") + fmtMoney(Math.abs(net))),
       funMetric("Cost / sale", fmtMoney(cps)),
     ].join("");
+  };
+  let spendBlock;
+  if (isLive) {
+    const camp = (ad.campaigns && ad.campaigns[0] && ad.campaigns[0].name) || "campaign";
+    const more = ad.campaigns && ad.campaigns.length > 1 ? ` +${ad.campaigns.length - 1} more` : "";
     spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales <span class="muted" style="font-weight:400;text-transform:none">— live Meta spend vs real ledger sales</span></h3>
-       <div style="display:flex;gap:12px;flex-wrap:wrap">${cardsHtml}</div>
+       <div style="display:flex;gap:12px;flex-wrap:wrap">${spendCards(ad.spend)}</div>
        <p class="muted small" style="margin-top:8px">Spend is live from Meta (<b>${esc(camp)}</b>${more}). <b>ROAS uses your real Kartra sales</b> — Meta's own ROAS undercounts because its pixel can't see Kartra checkouts.</p>`;
-  } else if (ad && ad.error) {
-    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales</h3><div class="card" style="max-width:560px">Couldn't load Meta spend: <span class="muted">${esc(ad.error)}</span></div>`;
   } else {
-    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales</h3><div class="card" style="max-width:560px">Add a Meta access token (<b>META_ACCESS_TOKEN</b>) on the server to see <b>live ad spend vs sales</b> here. The sales side above is already live.</div>`;
+    const cur = spendVal != null ? spendVal : "";
+    spendBlock = `<h3 style="margin:24px 0 10px">Spend vs sales <span class="muted" style="font-weight:400;text-transform:none">— your ad spend vs real ledger sales</span></h3>
+       ${spendVal != null ? `<div style="display:flex;gap:12px;flex-wrap:wrap">${spendCards(spendVal)}</div>` : ""}
+       <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:${spendVal != null ? "12" : "0"}px">
+         <div class="field" style="margin:0;max-width:190px"><span class="lab">Ad spend so far</span><input id="spendInput" type="number" step="0.01" min="0" placeholder="e.g. 1588.27" value="${cur}"></div>
+         <button id="spendSave" class="btn btn-primary sm">Save</button>
+         <span id="spendMsg" class="muted small"></span>
+       </div>
+       <p class="muted small" style="margin-top:8px">Type your current ad spend — ROAS, net & cost-per-sale update against your <b>live sales</b>. ${ad && ad.error ? `<span class="muted">(Meta live pull errored: ${esc(ad.error)})</span> ` : ""}Add a Meta token later and this flips to fully automatic.</p>`;
   }
 
   $("#funVariants").innerHTML =
@@ -1083,6 +1092,14 @@ function renderSaleReport(d) {
      ${mixBlock}
      ${dayBlock}
      <p class="muted small" style="margin-top:18px">The July 4 sale runs on <b>Kartra</b> pages (<b>/home-july4-26 → /oto-july26</b>), so page <b>visitors</b> and <b>checkout clicks</b> aren't captured by our lander pixel — those live in Kartra's own stats. Everything above is real, pulled live from your sales ledger. Price points: <b>$2.50</b> first month → <b>$148.50</b> annual upgrade → <b>$250</b> BOGO annual.</p>`;
+  if ($("#spendSave")) $("#spendSave").onclick = async () => {
+    const v = parseFloat($("#spendInput").value);
+    if (!(v >= 0)) { $("#spendMsg").textContent = "Enter a number."; return; }
+    $("#spendMsg").textContent = "Saving…";
+    const r = await post("/api/sale-report/spend", { spend: v });
+    if (r && r.error) { $("#spendMsg").textContent = r.error; return; }
+    loadSaleReport(funMeta());
+  };
 }
 if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
 $$(".fun-preset").forEach((b) => b.onclick = () => {

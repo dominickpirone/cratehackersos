@@ -71,6 +71,9 @@ function loadConfig() {
     metaAccessToken: cfg.metaAccessToken || process.env.META_ACCESS_TOKEN || "",
     metaAdAccountId: cfg.metaAdAccountId || process.env.META_AD_ACCOUNT_ID || "706544896413478",
     metaCampaignFilter: cfg.metaCampaignFilter || process.env.META_CAMPAIGN_FILTER || "4th of july",
+    // manual ad-spend fallback (used until a Meta token is set); editable in the July 4 view
+    adSpendManual: (typeof cfg.adSpendManual === "number") ? cfg.adSpendManual
+      : (process.env.ADSPEND_MANUAL ? parseFloat(process.env.ADSPEND_MANUAL) : null),
     twilioAccountSid: cfg.twilioAccountSid || process.env.TWILIO_ACCOUNT_SID || "",
     twilioAuthToken: cfg.twilioAuthToken || process.env.TWILIO_AUTH_TOKEN || "",
     twilioFromNumbers: cfg.twilioFromNumbers || process.env.TWILIO_FROM_NUMBERS || "",
@@ -1380,10 +1383,20 @@ const server = http.createServer(async (req, res) => {
         buckets.forEach((b) => b.revenue = Math.round(b.revenue * 100) / 100);
         totals.revenue = Math.round(totals.revenue * 100) / 100;
         const byDayArr = Object.keys(byDay).sort().map((dd) => ({ date: dd, count: byDay[dd].count, revenue: Math.round(byDay[dd].revenue * 100) / 100 }));
-        let adSpend = null;
-        try { adSpend = await getMetaSpend(cfg, from, to); }
-        catch (e) { adSpend = { error: String((e && e.message) || e) }; }
+        let adSpend = null, metaErr = null;
+        try { const m = await getMetaSpend(cfg, from, to); if (m && typeof m.spend === "number") adSpend = { ...m, source: "meta" }; }
+        catch (e) { metaErr = String((e && e.message) || e); }
+        if (!adSpend && typeof cfg.adSpendManual === "number" && cfg.adSpendManual >= 0) adSpend = { spend: cfg.adSpendManual, manual: true };
+        if (!adSpend && metaErr) adSpend = { error: metaErr };
         return send(res, 200, { connected: true, from, to, buckets, other: { count: otherCount, revenue: Math.round(otherRev * 100) / 100 }, byDay: byDayArr, totals, adSpend });
+      }
+      // set the manual ad-spend value shown in the July 4 view (used until a Meta token is set)
+      if (p === "/api/sale-report/spend" && req.method === "POST") {
+        const b = await readBody(req);
+        const v = parseFloat(b.spend);
+        if (!(v >= 0)) return send(res, 400, { error: "Enter a spend amount (a number ≥ 0)." });
+        saveConfig({ adSpendManual: Math.round(v * 100) / 100 });
+        return send(res, 200, { ok: true, spend: Math.round(v * 100) / 100 });
       }
       // failed payments (dunning / recovery) — Phase 1: visibility
       if (p === "/api/failed-payments" && req.method === "GET") {
