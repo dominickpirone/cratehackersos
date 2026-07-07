@@ -1,736 +1,884 @@
-<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
 {
-  "name": "Crate Hackers Weekly Health V2",
+  "name": "Crate Hackers Weekly Health V3",
   "schemaVersion": 1,
-  "description": "Weekly health dashboard for Crate Hackers — MRR/ARR, weekly revenue, subscriber growth, churn, and failed payments over the last 13 weeks, split by product (Crate Hackers vs Banger Button)."
+  "description": "Crate Hackers Business Health Cockpit V3 — dark brand theme with light toggle, Daily/Weekly/Monthly/Yearly tabs, product switcher (CH/BB/LEVEL11/Hacker Hotel/Dangerous DJs), live search across 50 line charts. Weekly Kartra+CMO series, monthly QuickBooks P&L, fully-loaded CAC, Hormozi KPIs, MRR waterfall, modeled retention curve, reconciliation bridge, contribution table, cash/debt (Era), yearly 2025-vs-2026 view. Data reconciled through June 2026."
 }
 </script>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crate Hackers — Weekly Health</title>
+<title>Crate Hackers — Business Health</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <style>
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-body { margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: #f7f8fa; color: #1a1d23; line-height: 1.5; }
-.container { max-width: 1200px; margin: 0 auto; }
-header { margin-bottom: 24px; }
-h1 { font-size: 24px; margin: 0 0 4px 0; font-weight: 700; letter-spacing: -0.01em;}
-.subtitle { color: #5f6675; font-size: 14px; margin: 0; }
-.kpi-row { display: grid; gap: 12px; margin-bottom: 12px; }
-.kpi-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.kpi-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
-.kpi-row.cols-5 { grid-template-columns: repeat(5, 1fr); }
-.card { background: white; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.06), 0 0 0 1px rgba(16,24,40,0.04); }
-.kpi .label { font-size: 11px; font-weight: 600; color: #5f6675; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
-.kpi .value { font-size: 24px; font-weight: 700; color: #111827; margin: 6px 0 4px 0; letter-spacing: -0.01em; }
-.kpi .sub { font-size: 12px; color: #5f6675; margin: 0; }
-.kpi .delta { font-size: 12px; font-weight: 600; }
-.delta.up { color: #047857; } .delta.down { color: #b91c1c; } .delta.flat { color: #5f6675; }
-.section-title { font-size: 13px; font-weight: 700; color: #111827; text-transform: uppercase; letter-spacing: 0.06em; margin: 28px 0 10px 0; }
-.section-title.ltv { color: #5b21b6; }
-.section-title.cmo { color: #0e7490; border-top: 2px solid #e5e7eb; padding-top: 24px; margin-top: 36px;}
-.section-title.april { color: #047857; border-top: 2px solid #e5e7eb; padding-top: 24px; margin-top: 36px;}
-.subsection-title { font-size: 12px; font-weight: 600; color: #5f6675; text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 8px 0; }
-.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;}
-.chart-grid.full { grid-template-columns: 1fr; }
-.chart-card { background: white; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.06), 0 0 0 1px rgba(16,24,40,0.04);}
-.chart-card h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: #111827; }
-.chart-card .chart-sub { font-size: 12px; color: #5f6675; margin: 0 0 12px 0; }
-.chart-wrap { position: relative; height: 240px; }
-.chart-wrap.tall { height: 280px; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { text-align: right; font-weight: 600; color: #5f6675; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;}
-th:first-child, td:first-child { text-align: left; }
-td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; color: #1a1d23; }
-td.num { font-variant-numeric: tabular-nums; text-align: right;}
-tr.current td { background: #fef9c3; }
-.note { font-size: 11px; color: #5f6675; font-style: italic; margin-top: 6px; }
-.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fef9c3; color: #92400e; margin-left: 6px; }
-.ltv-card { background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%); border: 1px solid #e9d5ff; }
-.april-card { background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1px solid #86efac; }
-.progress-bar { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-top: 8px; }
-.progress-fill { height: 100%; border-radius: 999px; }
-.progress-fill.green { background: #10b981; }
-.progress-fill.yellow { background: #f59e0b; }
-.progress-fill.red { background: #ef4444; }
-.pending-banner { background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; margin: 8px 0 14px 0; font-size: 12px; color: #92400e; }
-@media (max-width: 800px) {
-  .kpi-row.cols-3, .kpi-row.cols-4, .kpi-row.cols-5, .chart-grid { grid-template-columns: 1fr 1fr; }
-  .chart-grid.full { grid-template-columns: 1fr; }
+:root{
+  --bg:#0A0A0A; --card:#141414; --card2:#1A1A1A; --border:#242424;
+  --text:#F5F5F5; --muted:#9CA3AF; --faint:#6B7280;
+  --accent:#FF7722; --accent-ink:#000000;
+  --amber:#F0A90A; --teal:#1BAF7A; --blue:#3987E5; --red:#E24B4A;
+  --grid:#222222; --good:#1BAF7A; --warn:#F0A90A; --bad:#E24B4A;
+  color-scheme:dark;
 }
+html[data-theme="light"]{
+  --bg:#f7f8fa; --card:#ffffff; --card2:#ffffff; --border:#e5e7eb;
+  --text:#111827; --muted:#6b7280; --faint:#9ca3af;
+  --grid:#eef0f2; color-scheme:light;
+}
+*{box-sizing:border-box;}
+body{margin:0;padding:22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;}
+.container{max-width:1200px;margin:0 auto;}
+header{margin-bottom:10px;}
+h1{font-size:23px;margin:0 0 4px 0;font-weight:800;letter-spacing:-0.01em;}
+h1 .brand{color:var(--accent);}
+.subtitle{color:var(--muted);font-size:13.5px;margin:0;}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0 4px;position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--border);}
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;}
+.tab{padding:6px 15px;border-radius:7px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;}
+.tab.on{background:var(--accent);color:var(--accent-ink);}
+.search{flex:1;min-width:180px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;outline:none;}
+.search:focus{border-color:var(--accent);}
+.chips{display:flex;gap:5px;flex-wrap:wrap;}
+.chip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.toggle{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;}
+.kpi-row{display:grid;gap:11px;margin-bottom:11px;}
+.kpi-row.cols-3{grid-template-columns:repeat(3,1fr);}
+.kpi-row.cols-4{grid-template-columns:repeat(4,1fr);}
+.kpi-row.cols-5{grid-template-columns:repeat(5,1fr);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:15px 17px;}
+.kpi .label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:0;}
+.kpi .value{font-size:22px;font-weight:800;color:var(--text);margin:5px 0 4px 0;letter-spacing:-0.01em;}
+.kpi .value.hot{color:var(--accent);}
+.kpi .sub{font-size:12px;color:var(--muted);margin:0;}
+.kpi.hot{border-left:4px solid var(--accent);}
+.kpi.good{border-left:4px solid var(--good);}
+.kpi.warn{border-left:4px solid var(--warn);}
+.kpi.bad{border-left:4px solid var(--bad);}
+.sec-title{font-size:12.5px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:0.06em;margin:26px 0 10px 0;padding-top:18px;border-top:1px solid var(--border);}
+.sec-title.hot{color:var(--accent);}
+.sec-title.bad{color:var(--bad);}
+.sub-title{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:16px 0 8px 0;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px;}
+.chart-grid.full{grid-template-columns:1fr;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:15px 17px;}
+.chart-card h3{margin:0 0 3px 0;font-size:13.5px;font-weight:700;color:var(--text);}
+.chart-card .chart-sub{font-size:12px;color:var(--muted);margin:0 0 12px 0;}
+.chart-wrap{position:relative;height:240px;}
+.chart-wrap.tall{height:280px;}
+.note{font-size:12.5px;color:var(--muted);margin:6px 0 0 0;}
+.fine{font-size:11.5px;color:var(--faint);margin:6px 0 0 0;}
+.banner{border:1px solid var(--border);border-left:4px solid var(--accent);background:var(--card2);border-radius:10px;padding:9px 14px;margin:6px 0 12px 0;font-size:12.5px;color:var(--text);}
+.banner strong{color:var(--accent);}
+.banner.warn{border-left-color:var(--warn);} .banner.warn strong{color:var(--warn);}
+.banner.bad{border-left-color:var(--bad);} .banner.bad strong{color:var(--bad);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:right;font-weight:600;color:var(--muted);padding:7px 9px;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;}
+th:first-child,td:first-child{text-align:left;}
+td{padding:7px 9px;border-bottom:1px solid var(--border);text-align:right;color:var(--text);}
+.bridge{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:15px 19px;margin-bottom:11px;}
+.bridge-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+.bridge-row:last-child{border-bottom:none;}
+.bridge-row .b-sub{color:var(--faint);font-size:11.5px;margin-left:8px;}
+.bridge-row .b-amt{font-weight:700;font-variant-numeric:tabular-nums;}
+.bridge-row.minus .b-amt{color:var(--bad);}
+.bridge-row.total .b-amt{color:var(--accent);font-size:16px;}
+.bridge-row.total{border-top:2px solid var(--border);padding-top:11px;}
+.progress-bar{height:7px;background:var(--card2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-top:8px;}
+.progress-fill{height:100%;border-radius:999px;background:var(--accent);}
+.hidden{display:none !important;}
+footer{margin-top:30px;padding-top:12px;border-top:1px solid var(--border);font-size:11.5px;color:var(--faint);}
+@media(max-width:800px){.kpi-row.cols-3,.kpi-row.cols-4,.kpi-row.cols-5,.chart-grid{grid-template-columns:1fr 1fr;}.chart-grid.full{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>Crate Hackers — Weekly Health</h1>
-    <p class="subtitle">As of <strong id="as-of"></strong> · Week ending Jun 28 closed at <strong>$38,682 total revenue / $35,799 net profit</strong> (CMO) — a lighter week as the 6-yr-anniversary rebill surge passed and ad spend was pulled back to ~$15K. MRR <strong>$174.2K</strong>, ARR <strong>$2.09M</strong>. Active CH+BB+LEVEL11 ~7,897. Net CAC <strong>+$1.64</strong> (still ~breakeven Day-1). June finished at <strong>$207.5K revenue / $190K net profit</strong>, beating the $200K target. All series now actuals through Jun 28.</p>
+    <h1><span class="brand">Crate Hackers</span> — Business Health Cockpit</h1>
+    <p class="subtitle">Reconciled through <strong>Jul 5, 2026</strong> · verified Jul 6 against QuickBooks, Adspirer, and the week-ending 07-05 Kartra exports · MRR <strong>$178.0K</strong> · ARR <strong>$2.14M</strong> · 8,050 active subs (+153 WoW) · June: $218.6K Kartra gross → $164,956 QuickBooks booked → <strong style="color:var(--bad);">−$7,985 net</strong> (still settling). Funnel/Net-CAC series update when the CMO sheet is filled for the new week. Tabs change time grain, chips focus one product, search finds any chart.</p>
   </header>
 
-  <h2 class="section-title april">June 2026 — Month-to-Date (through Jun 28)</h2>
-  <p class="subtitle" style="margin: -4px 0 12px 0;">3 of ~4.3 weeks closed (Jun 1–21). <strong>$168.8K = 84% of the $200K target</strong> with ~70% of the month elapsed — pace ≈ $241K full month, a non-holiday record.</p>
-  <div class="kpi-row cols-3">
-    <div class="card kpi april-card"><p class="label">June MTD Revenue (gross)</p><p class="value" id="apr-rev"></p><p class="sub" id="apr-rev-sub"></p><div class="progress-bar"><div class="progress-fill green" id="apr-rev-bar"></div></div></div>
-    <div class="card kpi april-card"><p class="label">June MTD Net Profit (CMO)</p><p class="value" id="apr-profit"></p><p class="sub" id="apr-profit-sub"></p><div class="progress-bar"><div class="progress-fill green" id="apr-profit-bar"></div></div></div>
-    <div class="card kpi april-card"><p class="label">June MTD Ad Spend</p><p class="value" id="apr-spend"></p><p class="sub">$53,688 Meta + $9,717 Google · pacing ~$91K full month</p></div>
-  </div>
-  <div class="kpi-row cols-4">
-    <div class="card kpi april-card"><p class="label">New customers (June MTD)</p><p class="value" id="apr-new"></p><p class="sub" id="apr-new-sub"></p></div>
-    <div class="card kpi april-card"><p class="label">Blended CAC (June)</p><p class="value" id="apr-cac"></p><p class="sub">$63,405 ÷ 1,370 customers</p></div>
-    <div class="card kpi april-card"><p class="label">LTV : CAC (June)</p><p class="value" id="apr-ltvcac"></p><p class="sub">Published $168.84 ÷ blended CAC</p></div>
-    <div class="card kpi april-card"><p class="label">Active subs (as of Jun 28)</p><p class="value" id="apr-active"></p><p class="sub" id="apr-active-sub"></p></div>
-  </div>
-
-  <h2 class="section-title ltv">Lifetime value &amp; member duration (refreshed May 18)</h2>
-  <div class="kpi-row cols-5">
-    <div class="card kpi ltv-card"><p class="label">12-mo LTV — cohort blended</p><p class="value" id="ltv-cohort-blend"></p><p class="sub">5,775 customers · empirical · CH+BB</p></div>
-    <div class="card kpi ltv-card"><p class="label">12-mo LTV — formula blended</p><p class="value" id="ltv-formula-blend"></p><p class="sub" id="ltv-formula-blend-sub">ARPU $22.78 / 13.6% monthly churn</p></div>
-    <div class="card kpi ltv-card"><p class="label">Published LTV (CMO sheet)</p><p class="value" id="ltv-blend"></p><p class="sub">Prior reference figure</p></div>
-    <div class="card kpi ltv-card"><p class="label">Avg CH sub life — implied</p><p class="value" id="avg-life-implied"></p><p class="sub">1 / monthly churn (13.3%)</p></div>
-    <div class="card kpi ltv-card"><p class="label">Avg CH cancelled tenure</p><p class="value" id="avg-cancel-tenure"></p><p class="sub" id="avg-cancel-tenure-sub">All-time mean of churned subs</p></div>
-  </div>
-  <div class="kpi-row cols-5" style="margin-top:4px;">
-    <div class="card kpi ltv-card"><p class="label">ARPU (CH only)</p><p class="value" id="arpu"></p><p class="sub">MRR ÷ active CH subs</p></div>
-    <div class="card kpi ltv-card"><p class="label">12-mo LTV — formula (CH)</p><p class="value" id="ltv-formula"></p><p class="sub" id="ltv-formula-sub"></p></div>
-    <div class="card kpi ltv-card"><p class="label">12-mo LTV — cohort (CH)</p><p class="value" id="ltv-cohort"></p><p class="sub">First-12-mo revenue per customer</p></div>
-    <div class="card kpi ltv-card"><p class="label">12-mo LTV — cohort (BB)</p><p class="value" id="ltv-cohort-bb"></p><p class="sub">BB too new for 12-mo cohort (launched Mar 26)</p></div>
-    <div class="card kpi ltv-card"><p class="label">Avg CH cancelled tenure — recent cohorts</p><p class="value" id="avg-recent-cancel"></p><p class="sub">Subs that started in 2024 or later</p></div>
-  </div>
-  <p class="note" style="margin-top:8px;">Methodology: <strong>Cohort blended</strong> = 5,775 customers whose first CH/BB sub started May 2024–May 2025, summing their first-12-month revenue and averaging. <strong>Formula blended</strong> = ARPU × (1 − (1−churn)^12) / churn, using current blended monthly churn (13.6%). Distribution is heavily right-skewed: 43% of new CH subs cancel inside 35 days, while currently-active customers have averaged 24+ months of tenure.</p>
-
-
-  <h2 class="section-title" style="color:#0e7490; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Fully-loaded CAC — from QuickBooks</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Monthly customer acquisition cost using all marketing &amp; sales spend from QuickBooks. <strong>True Loaded CAC</strong> adds merch fulfillment (Printful hats + USB necklaces + shipping) on top of Fully-loaded, since those are acquisition incentives for annual/PP39 buyers (currently parked in COGS).</p>
-  <div class="pending-banner">Through April 2026 — May QuickBooks numbers will land with your Google Sheet refresh.</div>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">Apr Fully-loaded CAC</p><p class="value" id="qb-apr-cac"></p><p class="sub" id="qb-apr-cac-sub"></p></div>
-    <div class="card kpi"><p class="label">Apr True Loaded CAC (+ merch)</p><p class="value" id="qb-apr-true-cac"></p><p class="sub" id="qb-apr-true-cac-sub"></p></div>
-    <div class="card kpi"><p class="label">4-mo Avg True Loaded CAC</p><p class="value" id="qb-avg-cac"></p><p class="sub" id="qb-avg-cac-sub">Jan-Apr 2026 blended (incl. merch)</p></div>
-    <div class="card kpi"><p class="label">LTV : True Loaded CAC</p><p class="value" id="qb-ltv-cac"></p><p class="sub">Cohort $105 / true-loaded CAC</p></div>
-  </div>
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Strict vs Fully-loaded vs True Loaded CAC</h3>
-      <p class="chart-sub">Strict = direct ads + affiliate + other. Fully-loaded adds Marketing Mgmt. <strong>True Loaded</strong> also adds Printful + USB + shipping fulfillment (gift cost for annual/PP39 buyers).</p>
-      <div class="chart-wrap"><canvas id="qb-cac-chart"></canvas></div>
+  <div class="controls">
+    <div class="tabs" id="time-tabs">
+      <span class="tab" data-t="daily">Daily</span>
+      <span class="tab on" data-t="weekly">Weekly</span>
+      <span class="tab" data-t="monthly">Monthly</span>
+      <span class="tab" data-t="yearly">Yearly</span>
     </div>
-    <div class="chart-card">
-      <h3>Marketing spend breakdown by category</h3>
-      <p class="chart-sub">Stacked monthly view including merch fulfillment (Printful + USB + shipping).</p>
-      <div class="chart-wrap"><canvas id="qb-spend-chart"></canvas></div>
+    <input class="search" id="q" type="search" placeholder="Search 30+ charts &amp; metrics…">
+    <div class="chips" id="prod-chips">
+      <span class="chip on" data-p="all">All</span>
+      <span class="chip" data-p="ch">Crate Hackers</span>
+      <span class="chip" data-p="bb">Banger Button</span>
+      <span class="chip" data-p="l11">LEVEL11</span>
+      <span class="chip" data-p="hh">Hacker Hotel</span>
+      <span class="chip" data-p="ddj">Dangerous DJs</span>
     </div>
+    <button class="toggle" id="theme-btn">☀️ Light</button>
   </div>
 
+  <!-- ======================= SNAPSHOT (all grains) ======================= -->
+  <section class="sec">
+  <h2 class="sec-title hot" style="border-top:none;padding-top:6px;">Current snapshot</h2>
+  <div class="blk kpi-row cols-4" data-time="all" data-kw="mrr arr active subscribers snapshot revenue">
+    <div class="card kpi hot"><p class="label">Current MRR</p><p class="value hot" id="mrr"></p><p class="sub" id="mrr-sub"></p></div>
+    <div class="card kpi hot"><p class="label">Current ARR</p><p class="value" id="arr"></p><p class="sub">MRR × 12</p></div>
+    <div class="card kpi"><p class="label">Active subscribers</p><p class="value" id="active"></p><p class="sub" id="active-sub"></p></div>
+    <div class="card kpi"><p class="label">Last week net revenue</p><p class="value" id="lastrev"></p><p class="sub" id="lastrev-sub"></p></div>
+  </div>
+  </section>
 
-  <h2 class="section-title" style="color:#b45309; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Hormozi top-5 KPIs</h2>
-  <p class="subtitle" style="margin-bottom:8px;">The metrics Alex Hormozi says actually drive decisions. Replaces "LTV" with LT <em>Gross Profit</em> (LTV × gross margin). <strong>Net CAC and Payback now match your CMO sheet's Day-1 cash formula</strong> — counts first-charge revenue against ad spend.</p>
-  <div class="pending-banner">Net CAC / payback / P-L on Ad Spend last updated week ending May 10 (await Google Sheet for May 11–17 refresh).</div>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">LTGP — blended (cohort)</p><p class="value" id="hz-ltgp"></p><p class="sub" id="hz-ltgp-sub"></p></div>
-    <div class="card kpi"><p class="label">LTGP : CAC (fully-loaded)</p><p class="value" id="hz-ltgp-cac"></p><p class="sub" id="hz-ltgp-cac-sub"></p></div>
-    <div class="card kpi"><p class="label">Net CAC (out-of-pocket per cust)</p><p class="value" id="hz-netcac"></p><p class="sub" id="hz-netcac-sub"></p></div>
-    <div class="card kpi"><p class="label">CAC Payback (weeks)</p><p class="value" id="hz-payback-weeks"></p><p class="sub" id="hz-payback-weeks-sub"></p></div>
+  <!-- ======================= DAILY ======================= -->
+  <section class="sec">
+  <h2 class="sec-title">Daily grain</h2>
+  <div class="blk banner" data-time="daily" data-kw="daily kartra live july 4 sale mtd">
+    <strong>Live — last 45 days from the Jul 6 all-time transactions export.</strong> July MTD (Jul 1–5): <strong>$39.0K gross · $35.7K net</strong> · the $2.50 July-4th sale spiked new-sale volume (109 sale transactions on Jul 4 alone, the best day since the anniversary).
   </div>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">Gross Margin</p><p class="value" id="hz-gm"></p><p class="sub">From QuickBooks (Q1+Apr 2026)</p></div>
-    <div class="card kpi"><p class="label">P/L on Ad Spend (last week)</p><p class="value" id="hz-pl-week"></p><p class="sub" id="hz-pl-week-sub"></p></div>
-    <div class="card kpi"><p class="label">Plus/Loss MTD May</p><p class="value" id="hz-pl-mtd"></p><p class="sub">First-charge revenue minus ad spend (thru May 10)</p></div>
-    <div class="card kpi"><p class="label">Recurring payback (months)</p><p class="value" id="hz-payback"></p><p class="sub" id="hz-payback-sub"></p></div>
+  <div class="blk chart-grid full" data-time="daily" data-product="all ch bb l11 hh" data-kw="daily net revenue by product">
+    <div class="chart-card"><h3>Daily net revenue by product</h3><p class="chart-sub">Sale + Rebill − refunds/chargebacks per day. Jun 11 &amp; Jun 17 spikes = LEVEL11 launch days; Jul 2–5 lift = July-4th sale + weekly rebill rhythm.</p><div class="chart-wrap tall"><canvas id="d-rev"></canvas></div></div>
   </div>
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>0–30 Day Cash per New Customer</h3>
-      <p class="chart-sub">Front-end + upsell cash collected within 30 days of signup ÷ cohort size. The "client-financed acquisition" dial. Apr is partial — most subs don't yet have 30 days observed.</p>
-      <div class="chart-wrap"><canvas id="hz-cash30"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Annual Upsell Take Rate</h3>
-      <p class="chart-sub">% of new CH customers who started on annual term (vs monthly). Fastest lever to raise LTGP and shorten payback.</p>
-      <div class="chart-wrap"><canvas id="hz-upsell"></canvas></div>
-    </div>
+  <div class="blk chart-grid" data-time="daily" data-kw="daily new sales customers moving average failed payments">
+    <div class="chart-card"><h3>Daily new-sale transactions + 7-day average</h3><p class="chart-sub">Count of Sale transactions per day (all products). Jul 4 = 109 — the sale is pulling volume.</p><div class="chart-wrap"><canvas id="d-sales"></canvas></div></div>
+    <div class="chart-card"><h3>Daily failed-payment $</h3><p class="chart-sub">Attempted rebill dollars that failed. Elevated since the Jun 11 anniversary migration; Jul 4 ($5.0K) is aging-card rebills, not the sale.</p><div class="chart-wrap"><canvas id="d-fail"></canvas></div></div>
   </div>
-  <div class="chart-grid full">
-    <div class="chart-card">
-      <h3>Net CAC by week — out-of-pocket cost per customer</h3>
-      <p class="chart-sub">From your CMO sheet's "Net CAC" formula: (Ad Spend − First-week revenue from new subs) ÷ new customers. <strong>Negative = customers pay for their own acquisition on Day 1.</strong> You've been net-negative most weeks since mid-April. <strong>Jun 21: −$13.93 / −3.22 wk</strong> — the strongest Day-1 economics of the year, driven by the LEVEL11 ($99/mo) and annual mix. Current through Jun 21 from the CMO sheet.</p>
-      <div class="chart-wrap"><canvas id="hz-netcac-chart"></canvas></div>
-    </div>
-  </div>
+  <p class="blk fine" data-time="daily" data-kw="daily notes voluntary involuntary">Voluntary-vs-involuntary churn split lands when dunning tags are added. Daily series refreshes with each weekly Kartra export.</p>
+  </section>
 
+  <!-- ======================= WEEKLY ======================= -->
+  <section class="sec">
+  <h2 class="sec-title">June 2026 — closed month (CMO sheet)</h2>
+  <div class="blk kpi-row cols-3" data-time="weekly monthly" data-kw="june revenue target profit ad spend month">
+    <div class="card kpi good"><p class="label">June Revenue (gross, CMO)</p><p class="value">$207,504</p><p class="sub">104% of $200K target — beat plan</p><div class="progress-bar"><div class="progress-fill" style="width:100%;"></div></div></div>
+    <div class="card kpi good"><p class="label">June Net (CMO top-line)</p><p class="value">$190,032</p><p class="sub">revenue − refunds only — <strong>not</strong> accounting profit (see bridge)</p></div>
+    <div class="card kpi warn"><p class="label">June Ad Spend (platform-actual)</p><p class="value">$81,758</p><p class="sub">Meta $70,383 + Google $11,375 (Adspirer) · split: CH $48.3K · BB $25.7K · L11 $5.8K · HH $1.2K · DDJ $0.9K · Hyros/CMO shows $78.3K (tracking undercount ~4%)</p></div>
+  </div>
+  <div class="blk kpi-row cols-4" data-time="weekly monthly" data-kw="new customers cac ltv active june">
+    <div class="card kpi"><p class="label">New customers (June)</p><p class="value">1,708</p><p class="sub">982 CH · 726 BB · 145 trials (pp 9/13/25/35)</p></div>
+    <div class="card kpi"><p class="label">Blended CAC (June)</p><p class="value">$45.86</p><p class="sub">CMO $78.3K ÷ 1,708 · $47.86 on platform-actual $81.8K</p></div>
+    <div class="card kpi"><p class="label">LTV : CAC (June)</p><p class="value">3.76x</p><p class="sub">published $168.84 LTV ÷ blended CAC</p></div>
+    <div class="card kpi"><p class="label">Active subs (Jun 28)</p><p class="value">7,870</p><p class="sub">5,877 CH Pro · 1,357 BB · +370 in 2 weeks</p></div>
+  </div>
+  </section>
 
-  <h2 class="section-title" style="color:#0e7490; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">P&amp;L — Revenue vs Expenses (QuickBooks)</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Monthly revenue, expenses, and net profit pulled directly from QuickBooks. 18 months (Jan 2025 — Jun 2026; Jun = MTD through the 15th). May set a non-holiday revenue record ($157.9K) but only $4.8K net — heavy ad reinvestment.</p>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">Apr 2026 Revenue</p><p class="value" id="pl-apr-rev"></p><p class="sub" id="pl-apr-rev-sub"></p></div>
-    <div class="card kpi"><p class="label">Apr 2026 Net Profit</p><p class="value" id="pl-apr-ni"></p><p class="sub" id="pl-apr-margin"></p></div>
-    <div class="card kpi"><p class="label">L12M Net Profit</p><p class="value" id="pl-l12m-ni"></p><p class="sub" id="pl-l12m-sub"></p></div>
-    <div class="card kpi"><p class="label">YTD 2026 Net Profit</p><p class="value" id="pl-ytd-ni"></p><p class="sub" id="pl-ytd-sub"></p></div>
+  <section class="sec">
+  <h2 class="sec-title">Revenue — weekly</h2>
+  <div class="blk banner" data-time="weekly" data-kw="week ending jul 5 july 4 sale new week">
+    <strong>Week ending Jul 5: $44,871 net (+24% WoW)</strong> — the $2.50 July-4th sale drove 440 new subs (326 CH · 114 BB) at just <strong>$12.9K platform ad spend</strong> (Meta $11,221 + Google $1,637 via Adspirer) → ~$29 blended CAC, LTV:CAC ~5.8. Failed payments rose to $23.0K as the anniversary rebill wave continues. Watch the sale cohort at its first $30 rebill (early August) — that's where the 44% intro→full-price number gets tested at scale.
   </div>
-  <div class="chart-grid full">
-    <div class="chart-card">
-      <h3>Monthly Revenue vs Expenses</h3>
-      <p class="chart-sub">Green bars = revenue · red bars = total expenses (incl. COGS) · purple line = net profit. When green &gt; red, you're profitable.</p>
-      <div class="chart-wrap tall"><canvas id="pl-chart"></canvas></div>
-    </div>
+  <div class="blk chart-grid full" data-time="weekly" data-product="all ch bb" data-kw="weekly net revenue product sale rebill refund">
+    <div class="chart-card"><h3>Weekly net revenue by product</h3><p class="chart-sub">Sale + Rebill, less refunds and chargebacks. Note: the "Crate Hackers" series includes LEVEL11 + Hacker Hotel (verified to the dollar against the Jul 4 all-time export). Jun 14 &amp; 21 were back-to-back ~$55K weeks (anniversary rebill surge); Jun 28 stepped down as it rolled off.</p><div class="chart-wrap tall"><canvas id="w-revenue"></canvas></div></div>
   </div>
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h3>Net profit margin by month</h3>
-      <p class="chart-sub">Net income ÷ revenue. Above 0% = profitable.</p>
-      <div class="chart-wrap"><canvas id="pl-margin-chart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Net profit $ by month</h3>
-      <p class="chart-sub">Absolute dollar profit per month. Nov-Dec 2025 set the records.</p>
-      <div class="chart-wrap"><canvas id="pl-ni-chart"></canvas></div>
-    </div>
-  </div>
+  </section>
 
-  <h2 class="section-title">Current snapshot</h2>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">Current MRR</p><p class="value" id="mrr"></p><p class="sub" id="mrr-sub"></p></div>
-    <div class="card kpi"><p class="label">Current ARR</p><p class="value" id="arr"></p><p class="sub">MRR × 12</p></div>
-    <div class="card kpi"><p class="label">Active subscribers (CH+BB)</p><p class="value" id="active"></p><p class="sub" id="active-sub"></p></div>
-    <div class="card kpi"><p class="label">Last week net revenue</p><p class="value" id="lastrev"></p><p class="sub"><span id="lastrev-delta" class="delta"></span> <span id="lastrev-context"></span></p></div>
+  <section class="sec">
+  <h2 class="sec-title">Subscribers — weekly</h2>
+  <div class="blk chart-grid" data-time="weekly" data-product="all ch bb" data-kw="active subscribers end of week new signups cancellations">
+    <div class="chart-card"><h3>Active subscribers at end of week</h3><p class="chart-sub">Active + pending-cancellation. Dual axis: CH (left) vs BB (right).</p><div class="chart-wrap"><canvas id="w-active"></canvas></div></div>
+    <div class="chart-card"><h3>New sign-ups vs cancellations</h3><p class="chart-sub">All products combined — the weekly leaky bucket.</p><div class="chart-wrap"><canvas id="w-flow"></canvas></div></div>
   </div>
+  <div class="blk chart-grid" data-time="weekly" data-product="all ch bb" data-kw="churn rate weekly crate hackers banger button">
+    <div class="chart-card" data-product="ch"><h3>Weekly churn rate — Crate Hackers</h3><p class="chart-sub">Cancellations ÷ active at start of week. Holding 2.5–3.5%.</p><div class="chart-wrap"><canvas id="w-churn-ch"></canvas></div></div>
+    <div class="chart-card" data-product="bb"><h3>Weekly churn rate — Banger Button</h3><p class="chart-sub">Clean (PP3 funnel-upgrades stripped) vs raw. Axis capped at 30% — the first weeks are off-scale (200%/33%) from a tiny sub base. Bug-fix release drove the May recovery.</p><div class="chart-wrap"><canvas id="w-churn-bb"></canvas></div></div>
+  </div>
+  <div class="blk chart-grid" data-time="weekly" data-product="all ch bb" data-kw="net new subscribers bb cancellations clean raw pp3">
+    <div class="chart-card"><h3>Net new subscribers</h3><p class="chart-sub">New minus cancellations, by product.</p><div class="chart-wrap"><canvas id="w-netnew"></canvas></div></div>
+    <div class="chart-card" data-product="bb"><h3>BB cancellations — clean vs PP3 upgrades</h3><p class="chart-sub">The gap = monthly→annual conversions miscounted as churn.</p><div class="chart-wrap"><canvas id="w-bbcancel"></canvas></div></div>
+  </div>
+  </section>
 
-  <h2 class="section-title">Revenue</h2>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>Weekly net revenue by product</h3><p class="chart-sub">Sale + Rebill, less refunds and chargebacks. Stacked. <strong>May 17 = $42,069 — first $40K+ week since December 2025.</strong></p><div class="chart-wrap tall"><canvas id="chart-revenue"></canvas></div></div>
+  <section class="sec">
+  <h2 class="sec-title">Acquisition &amp; efficiency — weekly</h2>
+  <p class="blk fine" data-time="weekly" data-kw="adspirer platform actual pending cmo">Jul 05 points for ad spend / CAC / LTV:CAC are platform-actual (Adspirer); earlier points are CMO/Hyros. Net-CAC and funnel series extend when the CMO sheet is filled for the new week.</p>
+  <div class="blk chart-grid" data-time="weekly" data-kw="ad spend new sales cac cost per subscriber">
+    <div class="chart-card"><h3>Weekly ad spend vs new-sales revenue</h3><p class="chart-sub">When orange (new sales) runs above blue (spend), the front end is self-funding.</p><div class="chart-wrap tall"><canvas id="w-adspend"></canvas></div></div>
+    <div class="chart-card"><h3>CAC — cost per new subscriber</h3><p class="chart-sub">Weekly ad spend ÷ new sign-ups.</p><div class="chart-wrap tall"><canvas id="w-cac"></canvas></div></div>
   </div>
+  <div class="blk chart-grid full" data-time="weekly" data-kw="ltv cac ratio benchmark">
+    <div class="chart-card"><h3>LTV : CAC ratio</h3><p class="chart-sub">Blended LTV ÷ weekly CAC. ≥3 healthy, ≥5 great.</p><div class="chart-wrap"><canvas id="w-ltvcac"></canvas></div></div>
+  </div>
+  <div class="blk chart-grid full" data-time="weekly" data-kw="net cac out of pocket hormozi day 1 payback">
+    <div class="chart-card"><h3>Net CAC by week — out-of-pocket cost per customer</h3><p class="chart-sub">(Ad spend − first-week revenue from new subs) ÷ new customers. <strong>Below zero = customers pay for their own acquisition on Day 1.</strong> Jun 21 (−$13.93) was the strongest Day-1 economics of the year.</p><div class="chart-wrap"><canvas id="w-netcac"></canvas></div></div>
+  </div>
+  </section>
 
-  <h2 class="section-title">Subscribers</h2>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Active subscribers at end of week</h3><p class="chart-sub">Active + pending-cancellation subs. Dual y-axis. <strong>Note:</strong> per CMO sheet (Active-only), CH Pro grew +61 to 5,579 and BB grew +142 to 689 this week. The Active+Pending series below dropped slightly only because more subs entered the pending-cancellation queue.</p><div class="chart-wrap"><canvas id="chart-active"></canvas></div></div>
-    <div class="chart-card"><h3>New sign-ups vs cancellations</h3><p class="chart-sub">All products combined.</p><div class="chart-wrap"><canvas id="chart-flow"></canvas></div></div>
+  <section class="sec">
+  <h2 class="sec-title bad">Failed payments &amp; dunning — weekly</h2>
+  <div class="blk banner bad" data-time="weekly" data-kw="failed payments anniversary stripe voluntary involuntary">
+    <strong>June's spike is partly by design:</strong> the 6-yr anniversary (Jun 11) fires rebills from very old cohorts and some are <em>intended</em> to fail so customers re-enter on the new Stripe (~98% of June failures hit the old Stripe). The recoverable kind is <strong>involuntary churn</strong> — aging/expired cards — fixed by dunning + card-updater, not ads.
   </div>
+  <div class="blk chart-grid" data-time="weekly" data-product="all ch bb" data-kw="failed payment dollars recovery rate">
+    <div class="chart-card"><h3>Weekly failed-payment $ by product</h3><p class="chart-sub">Total, CH, and BB. Peak $24.0K (Jun 21) easing to $17.4K.</p><div class="chart-wrap"><canvas id="w-fail"></canvas></div></div>
+    <div class="chart-card"><h3>14-day recovery rate</h3><p class="chart-sub">% of failed rebills recovered within 14 days (~16–24%). Jun 21+ blank — needs 14 days to mature.</p><div class="chart-wrap"><canvas id="w-recovery"></canvas></div></div>
+  </div>
+  </section>
 
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Weekly churn rate — Crate Hackers</h3><p class="chart-sub">Cancellations ÷ active subs at start of week. Holding 2.5–3.5% range.</p><div class="chart-wrap"><canvas id="chart-churn"></canvas></div></div>
-    <div class="chart-card"><h3>Weekly churn rate — Banger Button</h3><p class="chart-sub">PP 3 funnel-upgrades stripped (those are monthly→annual conversions, not true churn). Bug-fix release drove the recovery in May.</p><div class="chart-wrap"><canvas id="chart-bb-churn"></canvas></div></div>
+  <section class="sec">
+  <h2 class="sec-title">Payment processing — weekly</h2>
+  <div class="blk chart-grid full" data-time="weekly" data-kw="processing volume fees weekly stripe paypal">
+    <div class="chart-card"><h3>Weekly volume processed vs fees</h3><p class="chart-sub">Gross processed (Stripe+PayPal, left) · est. fees at blended 4.33% (right).</p><div class="chart-wrap"><canvas id="w-procfees"></canvas></div></div>
   </div>
+  </section>
 
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Net new subscribers</h3><p class="chart-sub">New sign-ups minus cancellations, by product.</p><div class="chart-wrap"><canvas id="chart-netnew"></canvas></div></div>
-    <div class="chart-card"><h3>BB cancellations — clean vs raw</h3><p class="chart-sub">Raw count vs count after stripping PP3 funnel-upgrade auto-cancels. The gap shows how much "churn" was actually monthly→annual conversions.</p><div class="chart-wrap"><canvas id="chart-bb-cancel"></canvas></div></div>
+  <section class="sec" data-p="l11">
+  <h2 class="sec-title hot">🚀 LEVEL11 tracker (launched Jun 11)</h2>
+  <div class="blk kpi-row cols-5" data-time="weekly monthly" data-product="l11" data-kw="level11 premium tier subs mrr signups">
+    <div class="card kpi hot"><p class="label">Active subs</p><p class="value">48</p><p class="sub">49 at Jun 28; 1 cancel since · first rebills land ~Jul 11</p></div>
+    <div class="card kpi hot"><p class="label">MRR added</p><p class="value">$3,989</p><p class="sub">~$47.9K ARR run-rate</p></div>
+    <div class="card kpi hot"><p class="label">Sign-ups since launch</p><p class="value">55</p><p class="sub">7 cancelled so far</p></div>
+    <div class="card kpi hot"><p class="label">Cumulative revenue</p><p class="value">$11,897</p><p class="sub">collected since Jun 11</p></div>
+    <div class="card kpi hot"><p class="label">Price</p><p class="value">$99/mo</p><p class="sub">or $891/yr</p></div>
   </div>
+  <p class="blk note" data-time="weekly monthly" data-product="l11" data-kw="level11 rebill july retention">First rebill cohort lands mid-July — that's the retention test. At $85 ARPU, LEVEL11 recovers CAC in under a month (LTV directional — only 6 churned subs so far).</p>
+  </section>
 
-  <h2 class="section-title">Ad spend &amp; efficiency</h2>
-  <div class="pending-banner">May 17 ad-spend / CAC / LTV:CAC points are null — refresh when the Google Sheet is in.</div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Weekly ad spend vs new sales revenue</h3><p class="chart-sub">Purple = total ad spend · Green = new-sales revenue same week.</p><div class="chart-wrap tall"><canvas id="chart-adspend"></canvas></div></div>
-    <div class="chart-card"><h3>CAC — cost per new subscriber</h3><p class="chart-sub">Weekly ad spend ÷ new sign-ups.</p><div class="chart-wrap"><canvas id="chart-cac"></canvas></div></div>
+  <section class="sec" data-p="ddj">
+  <h2 class="sec-title">Dangerous DJs</h2>
+  <div class="blk kpi-row cols-3" data-time="weekly monthly" data-product="ddj" data-kw="dangerous djs acquired brand">
+    <div class="card kpi"><p class="label">June ad spend</p><p class="value">$870</p><p class="sub">Google "DD | PMax | USA" · 2.2× ROAS · ~34 conversions (Adspirer-verified)</p></div>
+    <div class="card kpi"><p class="label">Revenue tracking</p><p class="value" style="font-size:15px;">In Kartra "other" bucket</p><p class="sub">per-product split lands when DDJ products get tagged in the export</p></div>
+    <div class="card kpi"><p class="label">Status</p><p class="value" style="font-size:15px;">Incubating</p><p class="sub">separate product line — watch CAC before scaling spend</p></div>
   </div>
+  </section>
 
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>LTV : CAC ratio</h3><p class="chart-sub">Blended LTV (cohort $105) ÷ weekly CAC. ≥3 healthy, ≥5 great.</p><div class="chart-wrap tall"><canvas id="chart-ltvcac"></canvas></div></div>
-  </div>
+  <!-- ======================= CMO SHEET — WEEKLY ======================= -->
+  <section class="sec">
+  <h2 class="sec-title">CMO Dashboard series — Jan 7 → Jun 28 (26 weeks)</h2>
+  <p class="blk note" data-time="weekly" data-kw="cmo sheet google sheet weekly" style="margin:0 0 10px;">Pulled from the CMO Dashboard Google Sheet. Labels are week-ending Sundays; rightmost point = Jun 28.</p>
 
-  <h2 class="section-title">Failed payments &amp; dunning</h2>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Failed payment $ at risk</h3><p class="chart-sub">Total amount of failed rebill attempts. <strong>May 17: $13,922 (−17% WoW).</strong></p><div class="chart-wrap"><canvas id="chart-fail-amt"></canvas></div></div>
-    <div class="chart-card"><h3>14-day recovery rate</h3><p class="chart-sub">% of failed rebills that successfully recovered within 14 days. Filled through Jun 14 (~16–24% range); the Jun 21 week is blank because recovery needs a full 14 days to mature.</p><div class="chart-wrap"><canvas id="chart-recovery"></canvas></div></div>
+  <h3 class="sub-title">Revenue &amp; profit health</h3>
+  <div class="blk chart-grid" data-time="weekly" data-kw="total revenue net profit rebills recurring">
+    <div class="chart-card"><h3>Total Revenue &amp; Net Profit (CMO)</h3><p class="chart-sub">"Net profit" here = revenue − refunds (Kartra top-line), not accounting profit.</p><div class="chart-wrap"><canvas id="m-revprofit"></canvas></div></div>
+    <div class="chart-card"><h3>Rebills (whole funnel)</h3><p class="chart-sub">Recurring billing revenue per week.</p><div class="chart-wrap"><canvas id="m-rebills"></canvas></div></div>
   </div>
-
-  <h2 class="section-title" style="color:#b45309; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">🚀 LEVEL11 — new product (launched Jun 11, 2026)</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Premium high-ticket tier — <strong>$99/mo</strong> or <strong>$891/yr</strong>. <span id="l11-days"></span> days live, launched alongside the 6-year anniversary.</p>
-  <div class="kpi-row cols-5">
-    <div class="card kpi" style="border-left:4px solid #f59e0b;"><p class="label">Active subs</p><p class="value" id="l11-subs"></p><p class="sub" id="l11-subs-sub"></p></div>
-    <div class="card kpi" style="border-left:4px solid #f59e0b;"><p class="label">MRR added</p><p class="value" id="l11-mrr"></p><p class="sub" id="l11-arr-sub"></p></div>
-    <div class="card kpi" style="border-left:4px solid #f59e0b;"><p class="label">Revenue (wk 6/21)</p><p class="value" id="l11-wkrev"></p><p class="sub">net of refunds (CMO)</p></div>
-    <div class="card kpi" style="border-left:4px solid #f59e0b;"><p class="label">Sign-ups since launch</p><p class="value" id="l11-signups"></p><p class="sub" id="l11-signups-sub"></p></div>
-    <div class="card kpi" style="border-left:4px solid #f59e0b;"><p class="label">Cumulative revenue</p><p class="value" id="l11-cum"></p><p class="sub">collected since Jun 11</p></div>
+  <div class="blk chart-grid" data-time="weekly" data-kw="new sales home page sales">
+    <div class="chart-card"><h3>New Sales $</h3><p class="chart-sub">Gross new-sale revenue per week.</p><div class="chart-wrap"><canvas id="m-newsales"></canvas></div></div>
+    <div class="chart-card" data-product="ch"><h3>Home Page Sales</h3><p class="chart-sub">Revenue from CrateHackers.com home/sales page.</p><div class="chart-wrap"><canvas id="m-homesales"></canvas></div></div>
   </div>
-
-  <h2 class="section-title" style="color:#b91c1c; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Failed payments — weekly trend</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Weekly failed-payment dollars by product. <strong>The June spike is partly by design:</strong> the 6-year anniversary (Jun 11) triggers rebills from very old cohorts, and a chunk of those are <em>intended</em> to fail so customers re-enter on the new Stripe account. June: ~1,360 failed txns, ~$63K, 98% on the old Stripe. Expect this elevated through next month, then normalizing — but keep an eye on the 14-day recovery rate so genuinely-recoverable rebills still get retried.</p>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>Weekly failed-payment $ (line)</h3><p class="chart-sub">Total + Crate Hackers + Banger Button. Climbing with volume and the anniversary rebill wave.</p><div class="chart-wrap tall"><canvas id="fail-line"></canvas></div></div>
-  </div>
-
-  <h2 class="section-title" style="color:#0e7490; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Payment processing &amp; fees (Stripe + PayPal)</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Gross volume processed and processing fees. Effective rates from live transactions — Stripe <strong>4.20%</strong>, PayPal <strong>4.86%</strong> (small-ticket subs carry the fixed per-transaction fee heavily, so the blended ~4.3% runs above the 2.9% headline). Volume from the transaction export; fees = volume × effective rate.</p>
-  <div class="kpi-row cols-4">
-    <div class="card kpi"><p class="label">YTD 2026 Processed</p><p class="value" id="pf-ytd-vol"></p><p class="sub" id="pf-ytd-vol-sub"></p></div>
-    <div class="card kpi"><p class="label">YTD 2026 Processing Fees</p><p class="value" id="pf-ytd-fees" style="color:#b91c1c;"></p><p class="sub" id="pf-ytd-fees-sub"></p></div>
-    <div class="card kpi"><p class="label">Blended Fee Rate</p><p class="value" id="pf-rate"></p><p class="sub">Stripe 4.20% · PayPal 4.86%</p></div>
-    <div class="card kpi"><p class="label">Last Week Fees (Jun 28)</p><p class="value" id="pf-wk-fees" style="color:#b91c1c;"></p><p class="sub" id="pf-wk-fees-sub"></p></div>
-  </div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Weekly volume processed vs fees</h3><p class="chart-sub">Teal bars = gross processed (Stripe+PayPal) · red line = est. processing fees.</p><div class="chart-wrap"><canvas id="pf-weekly"></canvas></div></div>
-    <div class="chart-card"><h3>Monthly volume by processor + fees</h3><p class="chart-sub">Stacked Stripe vs PayPal volume · red line = est. fees. Jun = through the 21st.</p><div class="chart-wrap"><canvas id="pf-monthly"></canvas></div></div>
-  </div>
-
-  <h2 class="section-title" style="color:#1d4ed8; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Where sales come from — channel concentration</h2>
-  <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">Almost all new sales ride on paid ads today — efficient, but our single biggest risk. The plan is to diversify the top of the funnel.</p>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
-    <div style="background:#f9fafb;border-radius:12px;padding:16px 18px;"><p style="font-size:13px;color:#6b7280;margin:0 0 4px;">Paid ads drive</p><p style="font-size:34px;font-weight:700;line-height:1;margin:0;color:#1d4ed8;">~90%</p><p style="font-size:12px;color:#9ca3af;margin:4px 0 0;">of every new sale</p></div>
-    <div style="background:#f9fafb;border-radius:12px;padding:16px 18px;"><p style="font-size:13px;color:#6b7280;margin:0 0 4px;">Everything else</p><p style="font-size:34px;font-weight:700;line-height:1;margin:0;color:#111827;">~10%</p><p style="font-size:12px;color:#9ca3af;margin:4px 0 0;">YouTube/organic + affiliates</p></div>
-    <div style="background:#f9fafb;border-radius:12px;padding:16px 18px;"><p style="font-size:13px;color:#6b7280;margin:0 0 4px;">Spend vs sales</p><p style="font-size:34px;font-weight:700;line-height:1;margin:0;color:#b45309;">61%→90%</p><p style="font-size:12px;color:#9ca3af;margin:4px 0 0;">61% of spend, ~90% of sales</p></div>
-  </div>
-  <div style="display:flex;width:100%;height:38px;border-radius:8px;overflow:hidden;gap:2px;margin:0 0 10px;">
-    <div style="width:90%;background:#2a78d6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;">Paid ads · 90%</div>
-    <div style="width:7%;background:#1baf7a;" title="YouTube & organic ~7%"></div>
-    <div style="width:3%;background:#eda100;" title="Affiliates ~3%"></div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:#6b7280;margin-bottom:16px;">
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#2a78d6;"></span>Paid ads (Facebook + Google) · 90%</span>
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#1baf7a;"></span>YouTube &amp; organic · ~7%</span>
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#eda100;"></span>Affiliates · ~3%</span>
-  </div>
-  <div style="background:#fef3c7;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
-    <p style="margin:0;font-size:15px;color:#92400e;line-height:1.6;"><strong>Ads are 61% of spend but ~90% of sales.</strong> One ad-account ban or rising ad costs would hit almost all of revenue at once — which is exactly why we're building affiliates, YouTube/organic, and referrals.</p>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:8px;">
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;"><p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#111827;">Affiliates</p><p style="margin:0;font-size:13px;color:#6b7280;">Ramping now — scales without ad cost</p></div>
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;"><p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#111827;">YouTube &amp; organic</p><p style="margin:0;font-size:13px;color:#6b7280;">Already drives free trials — lean in</p></div>
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;"><p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#111827;">Referrals</p><p style="margin:0;font-size:13px;color:#6b7280;">Members bringing members — next to build</p></div>
-  </div>
-  <p style="font-size:12px;color:#9ca3af;margin:0 0 8px;">Channel split is a working estimate (~90% read), not attributed data. The GA4 funnel tracking now in GTM will turn this into real per-channel attribution next quarter.</p>
-
-  <h2 class="section-title" style="color:#5b21b6; border-top:2px solid #e5e7eb; padding-top:24px; margin-top:36px;">Where the money goes — operating spend (Era)</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Top spending vendors YTD 2026 from the Era connector. <strong>Facebook dominates</strong> (~$152K), then Google Ads, contractor/dev tooling. <span id="era-note-txt"></span></p>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>Top operating-spend vendors — YTD 2026</h3><p class="chart-sub">Excludes internal bank/credit-card transfers (Bluevine, Capital One, Amex).</p><div class="chart-wrap tall"><canvas id="era-chart"></canvas></div></div>
+  <div class="blk chart-grid" data-time="weekly" data-kw="hacker hotel revenue profit loss ad spend">
+    <div class="chart-card" data-product="hh"><h3>Hacker Hotel revenue</h3><p class="chart-sub">Episodic event/ticket revenue.</p><div class="chart-wrap"><canvas id="m-hh"></canvas></div></div>
+    <div class="chart-card"><h3>Profit / Loss on ad spend</h3><p class="chart-sub">Adjusted new sales − ad spend, weekly. Above zero = Day-1 profitable.</p><div class="chart-wrap"><canvas id="m-pl"></canvas></div></div>
   </div>
 
-  <h2 class="section-title cmo">CMO Dashboard metrics — Jan 7 to Jun 21 (25 weeks)</h2>
-  <p class="subtitle" style="margin-bottom:8px;">Pulled directly from your CMO Dashboard tabs. Labels show week-ending Sunday date. Rightmost data point = week ending Jun 21. <span class="pill">Updated from Google Sheet ✓</span></p>
-
-  <h3 class="subsection-title">Revenue &amp; profit health</h3>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Total Revenue &amp; Net Profit</h3><p class="chart-sub">All Crate Hackers products.</p><div class="chart-wrap"><canvas id="cmo-rev-profit"></canvas></div></div>
-    <div class="chart-card"><h3>Amount of Rebills (Whole Funnel)</h3><p class="chart-sub">Recurring billing revenue.</p><div class="chart-wrap"><canvas id="cmo-rebills"></canvas></div></div>
+  <h3 class="sub-title">Subscriber mix &amp; churn</h3>
+  <div class="blk chart-grid full" data-time="weekly" data-product="all ch bb" data-kw="active subscribers plan mix ch pro biz banger">
+    <div class="chart-card"><h3>Active subscribers by plan</h3><p class="chart-sub">CH Pro (left) · CH Biz + Banger Button (right).</p><div class="chart-wrap tall"><canvas id="m-mix"></canvas></div></div>
   </div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Amount of New Sales</h3><p class="chart-sub">Gross new-sale revenue per week.</p><div class="chart-wrap"><canvas id="cmo-newsales"></canvas></div></div>
-    <div class="chart-card"><h3>Home Page Sales</h3><p class="chart-sub">Revenue from CrateHackers.com home/sales page.</p><div class="chart-wrap"><canvas id="cmo-homesales"></canvas></div></div>
-  </div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Hacker Hotel Revenue</h3><p class="chart-sub">One-off event revenue.</p><div class="chart-wrap"><canvas id="cmo-hh"></canvas></div></div>
-    <div class="chart-card"><h3>Profit / Loss on Ad Spend</h3><p class="chart-sub">Adjusted new sales − ad spend.</p><div class="chart-wrap"><canvas id="cmo-pl"></canvas></div></div>
+  <div class="blk chart-grid" data-time="weekly" data-kw="total active subscribers churn cancellations">
+    <div class="chart-card"><h3>Total active subscribers (whole funnel)</h3><p class="chart-sub">All paying subs.</p><div class="chart-wrap"><canvas id="m-activetotal"></canvas></div></div>
+    <div class="chart-card"><h3>Churn rate &amp; cancellations</h3><p class="chart-sub">Churn % (left) · # cancellations (right).</p><div class="chart-wrap"><canvas id="m-churn"></canvas></div></div>
   </div>
 
-  <h3 class="subsection-title">Subscriber mix &amp; churn</h3>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>Active subscribers by plan</h3><p class="chart-sub">CH Pro, CH Biz Plan, and Banger Button. Dual y-axis.</p><div class="chart-wrap tall"><canvas id="cmo-mix"></canvas></div></div>
-  </div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Total Active Subscribers (Whole Funnel)</h3><p class="chart-sub">All paying subs.</p><div class="chart-wrap"><canvas id="cmo-active-total"></canvas></div></div>
-    <div class="chart-card"><h3>Churn rate &amp; cancellations</h3><p class="chart-sub">Churn % left axis · # cancellations right axis. Apr Wk 5 churn dropped to 1.82% (best of year).</p><div class="chart-wrap"><canvas id="cmo-churn"></canvas></div></div>
+  <h3 class="sub-title">Ad spend split &amp; new customers</h3>
+  <div class="blk chart-grid" data-time="weekly" data-kw="meta google ad spend split platform new customers">
+    <div class="chart-card"><h3>Meta vs Google ad spend</h3><p class="chart-sub">Meta carries ~85–90% of spend — platform concentration inside the channel concentration.</p><div class="chart-wrap"><canvas id="m-spendsplit"></canvas></div></div>
+    <div class="chart-card"><h3># New customers</h3><p class="chart-sub">Total new customers (CH + BB).</p><div class="chart-wrap"><canvas id="m-nnew"></canvas></div></div>
   </div>
 
-  <h3 class="subsection-title">Ad spend split &amp; new customers</h3>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Meta vs Google ad spend (lines)</h3><p class="chart-sub">Weekly spend by channel. Meta carries ~85–90% of spend. May 10 = biggest week ever ($11.3K total).</p><div class="chart-wrap"><canvas id="cmo-spend-split"></canvas></div></div>
-    <div class="chart-card"><h3># New Customers</h3><p class="chart-sub">Total new customers (CH + BB).</p><div class="chart-wrap"><canvas id="cmo-nnew"></canvas></div></div>
+  <h3 class="sub-title">Funnel &amp; traffic — CrateHackers.com</h3>
+  <div class="blk chart-grid" data-time="weekly" data-product="ch" data-kw="visitors traffic funnel home page ga4">
+    <div class="chart-card"><h3>Page visitors — all CH pages</h3><p class="chart-sub">Apr Wk 4 spike was bot traffic.</p><div class="chart-wrap"><canvas id="m-visitors"></canvas></div></div>
+    <div class="chart-card"><h3>Home / sales page visitors</h3><p class="chart-sub">CrateHackers.com home page.</p><div class="chart-wrap"><canvas id="m-homevisitors"></canvas></div></div>
+  </div>
+  <div class="blk chart-grid" data-time="weekly" data-product="ch" data-kw="conversion rate oto epc earnings per click">
+    <div class="chart-card"><h3>Conversion rates — home &amp; OTO</h3><p class="chart-sub">Home page and one-time-offer conversion %.</p><div class="chart-wrap"><canvas id="m-conv"></canvas></div></div>
+    <div class="chart-card"><h3>Earnings per click (EPC)</h3><p class="chart-sub">On the home/sales page.</p><div class="chart-wrap"><canvas id="m-epc"></canvas></div></div>
+  </div>
+  <div class="blk chart-grid full" data-time="weekly" data-product="ch" data-kw="trials 7 day 14 day signups">
+    <div class="chart-card"><h3># of intro-offer sign-ups ("trials")</h3><p class="chart-sub">Discounted-first-charge sign-ups per week (pp 9/13/25/35 — everyone pays; pp8 July-4 sale not yet counted).</p><div class="chart-wrap"><canvas id="m-trials"></canvas></div></div>
   </div>
 
-  <h3 class="subsection-title">Funnel &amp; traffic — CrateHackers.com</h3>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Page Visitors — All CH Pages</h3><p class="chart-sub">Apr Wk 4 spike was bot traffic; Wk 5 normalized.</p><div class="chart-wrap"><canvas id="cmo-visitors"></canvas></div></div>
-    <div class="chart-card"><h3>Home / Sales Page Visitors</h3><p class="chart-sub">CrateHackers.com home/sales page.</p><div class="chart-wrap"><canvas id="cmo-home-visitors"></canvas></div></div>
+  <h3 class="sub-title">Funnel &amp; traffic — BangerButton.com</h3>
+  <div class="blk chart-grid" data-time="weekly" data-product="bb" data-kw="banger button visitors epc traffic">
+    <div class="chart-card"><h3>BB page visitors &amp; home visitors</h3><p class="chart-sub">Banger Button traffic ramp.</p><div class="chart-wrap"><canvas id="m-bbvisitors"></canvas></div></div>
+    <div class="chart-card"><h3>BB earnings per click</h3><p class="chart-sub">EPC on BangerButton.com.</p><div class="chart-wrap"><canvas id="m-bbepc"></canvas></div></div>
   </div>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>Conversion rates (Home Page &amp; OTO)</h3><p class="chart-sub">Wk 5 home conv 4.28% — confirmed bot-bounce theory.</p><div class="chart-wrap"><canvas id="cmo-conv"></canvas></div></div>
-    <div class="chart-card"><h3>Earnings Per Click</h3><p class="chart-sub">EPC on the home/sales page.</p><div class="chart-wrap"><canvas id="cmo-epc"></canvas></div></div>
-  </div>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3># of 7 &amp; 14 Day Trials</h3><p class="chart-sub">Trial-tier sign-ups. Bouncing back: 15 → 14 → 22 in latest week.</p><div class="chart-wrap"><canvas id="cmo-trials"></canvas></div></div>
+  <div class="blk chart-grid full" data-time="weekly" data-product="bb" data-kw="banger button conversion oto home">
+    <div class="chart-card"><h3>BB conversion rates — home &amp; OTO</h3><p class="chart-sub">OTO conversion strong (10–38% range); home ~2.5–3.3%.</p><div class="chart-wrap"><canvas id="m-bbconv"></canvas></div></div>
   </div>
 
-  <h3 class="subsection-title">Funnel &amp; traffic — BangerButton.com</h3>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>BB Page Visitors &amp; Home Visitors</h3><p class="chart-sub">Banger Button traffic ramped up over April.</p><div class="chart-wrap"><canvas id="cmo-bb-visitors"></canvas></div></div>
-    <div class="chart-card"><h3>BB EPC</h3><p class="chart-sub">Earnings per click on BangerButton.com.</p><div class="chart-wrap"><canvas id="cmo-bb-epc"></canvas></div></div>
+  <h3 class="sub-title">Per-product economics — weekly</h3>
+  <div class="blk chart-grid" data-time="weekly" data-product="all ch bb" data-kw="cpa aov average order value cost per acquisition product">
+    <div class="chart-card"><h3>CPA by product</h3><p class="chart-sub">BB CPA rising as it scales.</p><div class="chart-wrap"><canvas id="m-cpa"></canvas></div></div>
+    <div class="chart-card"><h3>AOV by product</h3><p class="chart-sub">Average order value, CH vs BB.</p><div class="chart-wrap"><canvas id="m-aov"></canvas></div></div>
   </div>
-  <div class="chart-grid full">
-    <div class="chart-card"><h3>BB Conversion rates (Home Page &amp; OTO)</h3><p class="chart-sub">OTO conversion has stayed strong (18–38% range). Home page conv 2.6% in latest week.</p><div class="chart-wrap tall"><canvas id="cmo-bb-conv"></canvas></div></div>
-  </div>
+  </section>
 
-  <h3 class="subsection-title">Per-product economics</h3>
-  <div class="chart-grid">
-    <div class="chart-card"><h3>CPA — by product</h3><p class="chart-sub">BB CPA rising as we scale ($10.86 → $22.21).</p><div class="chart-wrap"><canvas id="cmo-cpa"></canvas></div></div>
-    <div class="chart-card"><h3>AOV — by product</h3><p class="chart-sub">CH AOV up to $45.63 (best of year). BB AOV jumped to $37.07.</p><div class="chart-wrap"><canvas id="cmo-aov"></canvas></div></div>
+  <!-- ======================= MONTHLY ======================= -->
+  <section class="sec">
+  <h2 class="sec-title hot">July forward book — scheduled rebills</h2>
+  <div class="blk kpi-row cols-4" data-time="weekly monthly" data-kw="forward book scheduled rebills july annual renewals record">
+    <div class="card kpi hot"><p class="label">Gross July rebill book</p><p class="value hot">$154K</p><p class="sub">$23.8K collected (Jul 1–5) + $130.5K scheduled across 3,621 subs · June collected $127.5K (prior record)</p></div>
+    <div class="card kpi good"><p class="label">Annual renewal wave</p><p class="value">$41.9K</p><p class="sub">146 yearly renewals @ ~$287 — the July '25 cohort renewing; $18.6K by Jul 12</p></div>
+    <div class="card kpi good"><p class="label">Expected collected</p><p class="value">~$133K</p><p class="sub">$125–140K after normal card-failure haircut · record at mid-range</p></div>
+    <div class="card kpi hot"><p class="label">LEVEL11 first rebills</p><p class="value">$3.5K</p><p class="sub">39 subs from ~Jul 11 · premium tier's first retention test</p></div>
   </div>
+  <div class="blk chart-grid full" data-time="weekly monthly" data-kw="scheduled rebills by week chart july">
+    <div class="chart-card"><h3>Scheduled rebills by week — July</h3><p class="chart-sub">From the Jul 6 subscription ledger (next payment date × amount, Active subs only; pending cancellations already $0). Every week beats June's weekly collected average (dashed). By product: CH $117.2K · BB $7.2K · L11 $3.5K · Biz $2.1K. The $2.50 July-4th cohort rebills in early August — no July risk.</p><div class="chart-wrap"><canvas id="mo-julybook"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title hot">SaaS growth health — monthly (June)</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly" data-kw="net new mrr grr nrr quick ratio trial paid retention">
+    <div class="card kpi warn"><p class="label">Net new MRR</p><p class="value" style="color:var(--warn);">+$2.1K</p><p class="sub">$31.2K new − $29.1K churned</p></div>
+    <div class="card kpi bad"><p class="label">GRR</p><p class="value">83.1%</p><p class="sub">every $100 of MRR on the 1st → $83 survives the month</p></div>
+    <div class="card kpi"><p class="label">NRR</p><p class="value">≈83%</p><p class="sub">≈GRR — expansion tracking turns on as LEVEL11 upgrade snapshots accrue</p></div>
+    <div class="card kpi warn"><p class="label">Quick ratio</p><p class="value" style="color:var(--warn);">1.07</p><p class="sub">new ÷ churned MRR · target 4+</p></div>
+  </div>
+  <div class="blk chart-grid" data-time="monthly" data-kw="mrr waterfall movement cohort retention curve">
+    <div class="chart-card"><h3>MRR movement — June</h3><p class="chart-sub">Start → new → churn → end. Net +$2.1K on $31.2K of new.</p><div class="chart-wrap"><canvas id="mo-mrrwf"></canvas></div></div>
+    <div class="chart-card"><h3>Cohort retention curve (modeled)</h3><p class="chart-sub">Orange = modeled from current 13.6% blended monthly churn. Red dot = the one <em>empirical</em> anchor: ~57% survive month 1 (43% cancel inside 35 days). Real cohort curves populate from the Kartra subscription export.</p><div class="chart-wrap"><canvas id="mo-retention"></canvas></div></div>
+  </div>
+  <div class="blk" data-time="monthly" data-product="ch" data-kw="trial paid conversion price point">
+    <p style="font-size:13.5px;font-weight:600;margin:12px 0 8px;">Intro offer → full price, by offer type (matured cohorts) · blended <strong style="color:var(--accent);">44%</strong></p>
+    <div id="trial-bars" style="display:flex;flex-direction:column;gap:7px;margin-bottom:6px;"></div>
+    <p class="fine">Kartra flags any discounted first charge as a "trial" — everyone pays ($1–$15 intro); this measures survival to the first full-price rebill. The $2.50 July 4th sale (pp8) isn't counted yet — add pp8 to the definition at the next refresh.</p>
+  </div>
+  <p class="blk note" data-time="monthly" data-kw="leaky bucket"><strong>The leaky bucket:</strong> ~$80K/mo of ads to net +$2.1K MRR. Lifting the intro-offer→full-price rate (44%) and GRR (83.1%) beats more ad spend — a 5-point GRR gain is worth ~$8.7K/mo of retained MRR, compounding.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title hot">June reconciliation — Kartra → QuickBooks</h2>
+  <div class="blk bridge" data-time="monthly" data-kw="reconciliation bridge kartra quickbooks refunds fees settlement">
+    <div class="bridge-row"><span>Kartra gross demand <span class="b-sub">Sales + Rebills (Jul 4 export)</span></span><span class="b-amt">$218,648</span></div>
+    <div class="bridge-row minus"><span>− Refunds &amp; chargebacks <span class="b-sub">254 refunds · 3 partials · 2 chargebacks</span></span><span class="b-amt">−$18,043</span></div>
+    <div class="bridge-row minus"><span>− Processing fees <span class="b-sub">blended ~4.3%</span></span><span class="b-amt">−$9,032</span></div>
+    <div class="bridge-row minus"><span>− Late-June deposits still settling <span class="b-sub">~2-week lag — May restated up +$8.4K the same way</span></span><span class="b-amt">−$26,617</span></div>
+    <div class="bridge-row total"><span><strong>QuickBooks booked revenue</strong></span><span class="b-amt">$164,956</span></div>
+    <div class="bridge-row minus"><span>− All real costs <span class="b-sub">~$96K marketing · ~$37K team · software/event/other (FB booked +$900 on Jul 6)</span></span><span class="b-amt">−$172,941</span></div>
+    <div class="bridge-row total"><span><strong>June net income (still settling)</strong></span><span class="b-amt" style="color:var(--bad);">−$7,985</span></div>
+  </div>
+  <p class="blk fine" data-time="monthly" data-kw="kartra net profit warning">Kartra's "Net Profit" ($200,604 per the Jul 4 export) = revenue − refunds only. It is never real profit — it excludes ads, payroll and fees.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">P&amp;L — monthly (QuickBooks)</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly yearly" data-kw="net income l12m ytd margin quickbooks">
+    <div class="card kpi bad"><p class="label">Jun 2026 Net Income</p><p class="value" style="color:var(--bad);">−$7,985</p><p class="sub">on $164,956 booked · −4.8% · revenue still settling upward ~$27K</p></div>
+    <div class="card kpi good"><p class="label">L12M Net Profit</p><p class="value">$261K</p><p class="sub">on $1.89M revenue (Jul '25–Jun '26) · 13.8%</p></div>
+    <div class="card kpi"><p class="label">YTD 2026 Net Profit</p><p class="value">$35.4K</p><p class="sub">on $811.3K revenue · 4.4% margin (QB verified Jul 6; Apr &amp; May restated up as deposits settled, Feb down −$4.0K)</p></div>
+    <div class="card kpi good"><p class="label">Gross margin</p><p class="value">93%</p><p class="sub">digital subscription model</p></div>
+  </div>
+  <div class="blk chart-grid full" data-time="monthly" data-kw="revenue expenses net profit monthly quickbooks">
+    <div class="chart-card"><h3>Monthly revenue vs expenses vs net profit</h3><p class="chart-sub">Orange = revenue · red = total costs (expenses + COGS) · teal = net profit. When orange runs above red, the month was profitable.</p><div class="chart-wrap tall"><canvas id="mo-pnl"></canvas></div></div>
+  </div>
+  <div class="blk chart-grid" data-time="monthly" data-kw="net margin percent profit dollars monthly">
+    <div class="chart-card"><h3>Net profit margin by month</h3><p class="chart-sub">Net income ÷ revenue.</p><div class="chart-wrap"><canvas id="mo-margin"></canvas></div></div>
+    <div class="chart-card"><h3>Net profit $ by month</h3><p class="chart-sub">Nov–Dec 2025 set the records; 2026 is the reinvestment year.</p><div class="chart-wrap"><canvas id="mo-ni"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Fully-loaded CAC — monthly (QuickBooks)</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly" data-kw="fully loaded cac true loaded merch ltv">
+    <div class="card kpi"><p class="label">Jun fully-loaded CAC</p><p class="value">$51.31</p><p class="sub">all marketing $95.3K ÷ 1,857 new customers</p></div>
+    <div class="card kpi"><p class="label">Jun true-loaded CAC</p><p class="value">$51.34</p><p class="sub">+ merch fulfillment (gift cost)</p></div>
+    <div class="card kpi"><p class="label">H1 avg true-loaded CAC</p><p class="value">$46.89</p><p class="sub">$344.9K true-loaded spend ÷ 7,355 new customers (Jan–Jun)</p></div>
+    <div class="card kpi warn"><p class="label">Cohort LTV : true CAC</p><p class="value">2.24x</p><p class="sub">conservative — cohort LTV $105 ÷ H1 true CAC</p></div>
+  </div>
+  <div class="blk chart-grid" data-time="monthly" data-kw="strict loaded true cac marketing spend category breakdown">
+    <div class="chart-card"><h3>Strict vs fully-loaded vs true-loaded CAC</h3><p class="chart-sub">Strict = ads + affiliate. Fully-loaded adds marketing mgmt. True adds merch fulfillment.</p><div class="chart-wrap"><canvas id="mo-cac"></canvas></div></div>
+    <div class="chart-card"><h3>Marketing spend by category</h3><p class="chart-sub">Monthly lines per category — Facebook dwarfs everything.</p><div class="chart-wrap"><canvas id="mo-mktspend"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title hot">Hormozi top-5 — monthly</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly" data-kw="hormozi ltgp gross profit cac payback">
+    <div class="card kpi"><p class="label">LTGP (blended, cohort)</p><p class="value">$97.67</p><p class="sub">cohort LTV $105 × 93.1% gross margin</p></div>
+    <div class="card kpi warn"><p class="label">LTGP : CAC (loaded)</p><p class="value">2.04x</p><p class="sub">strict 2.5x · 3x healthy, 5x great</p></div>
+    <div class="card kpi good"><p class="label">Net CAC (latest wk)</p><p class="value" style="color:var(--warn);">+$1.64</p><p class="sub">~breakeven Day-1 · was −$13.93 on Jun 21</p></div>
+    <div class="card kpi"><p class="label">Recurring payback</p><p class="value">2.1 mo</p><p class="sub">loaded CAC ÷ monthly gross profit per customer</p></div>
+  </div>
+  <div class="blk chart-grid" data-time="monthly" data-kw="0-30 day cash client financed acquisition annual upsell take rate">
+    <div class="chart-card"><h3>0–30 day cash per new customer</h3><p class="chart-sub">The client-financed-acquisition dial. Jun pending — cohort hasn't matured 30 days.</p><div class="chart-wrap"><canvas id="mo-cash30"></canvas></div></div>
+    <div class="chart-card"><h3>Annual upsell take rate</h3><p class="chart-sub">% of new CH customers starting on annual — fastest lever to raise LTGP and shorten payback.</p><div class="chart-wrap"><canvas id="mo-upsell"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title bad">Failed payments — monthly</h2>
+  <div class="blk chart-grid full" data-time="monthly" data-product="all ch bb" data-kw="failed payments 12 month trailing">
+    <div class="chart-card"><h3>Monthly failed-payment $ — trailing 12 months</h3><p class="chart-sub">Dec 2025 peak $121.7K (holiday rebill base). June = $84.6K / 2,006 attempts (Jul 4 export). Trailing 12 mo ≈ $862K attempted — attempted $, not lost revenue; dunning recovers ~16–24%.</p><div class="chart-wrap"><canvas id="mo-fail12"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Payment processing — monthly</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly" data-kw="processing volume fees ytd blended rate stripe paypal">
+    <div class="card kpi"><p class="label">YTD processed</p><p class="value">$901K</p><p class="sub">$720K Stripe · $181K PayPal</p></div>
+    <div class="card kpi bad"><p class="label">YTD fees</p><p class="value" style="color:var(--bad);">$39,017</p><p class="sub">$30.2K Stripe · $8.8K PayPal</p></div>
+    <div class="card kpi warn"><p class="label">Blended rate</p><p class="value">4.33%</p><p class="sub">Stripe 4.20% · PayPal 4.86%</p></div>
+    <div class="card kpi"><p class="label">Fee lever</p><p class="value" style="font-size:15px;">Steer to Stripe</p><p class="sub">PayPal costs 66bps more; negotiate at ~$1M/yr volume</p></div>
+  </div>
+  <div class="blk chart-grid full" data-time="monthly" data-kw="monthly volume processor fees stripe paypal">
+    <div class="chart-card"><h3>Monthly volume by processor + fees</h3><p class="chart-sub">Stripe &amp; PayPal volume (left) · fees (right, dashed red).</p><div class="chart-wrap"><canvas id="mo-proc"></canvas></div></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Expenses &amp; vendors — monthly</h2>
+  <div class="blk chart-grid" data-time="monthly" data-kw="expense breakdown june vendors era operating spend">
+    <div class="chart-card"><h3>Where June's $172.6K went</h3><p class="chart-sub">Category mix (bar — a line can't say this).</p><div class="chart-wrap"><canvas id="mo-exp"></canvas></div></div>
+    <div class="chart-card"><h3>Top vendors YTD (Era)</h3><p class="chart-sub">Excludes internal transfers (money movement, not spend).</p><div class="chart-wrap"><canvas id="mo-era"></canvas></div></div>
+  </div>
+  <p class="blk fine" data-time="monthly" data-kw="shopify gifts processing true cost">Excludes ~$9K processing fees netted from revenue pre-QuickBooks (true June cost-to-run ≈ $181.5K). Shopify/DJ.Style is a gift-delivery channel (~$427 collected vs ~$8.9K retail value given away) — a marketing cost of the offer, not missing income.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Per-product unit economics &amp; contribution — June</h2>
+  <div class="blk" data-time="monthly" data-kw="product cac arpu ltv payback contribution margin table" style="overflow-x:auto;margin-bottom:8px;">
+  <table>
+    <thead><tr><th>Product</th><th>New (Jun)</th><th>Ad spend</th><th>CAC</th><th>ARPU/mo</th><th>LTV</th><th>LTV:CAC</th><th>Payback</th><th>Contribution*</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600;">Crate Hackers</td><td>982</td><td>$48,264</td><td>$49.15</td><td>$24.91</td><td>$128.93</td><td style="color:var(--good);font-weight:700;">2.6×</td><td>~2.0 mo</td><td style="color:var(--good);font-weight:700;">+$94.0K</td></tr>
+      <tr><td style="font-weight:600;">Banger Button †</td><td>726</td><td>$25,685</td><td>$35.38</td><td>$8.39</td><td>$20.86†</td><td style="color:var(--warn);font-weight:700;">0.6×†</td><td>~4.2 mo</td><td style="color:var(--bad);font-weight:700;">−$1.2K</td></tr>
+      <tr><td style="font-weight:600;">LEVEL11 ‡</td><td>54</td><td>$5,777</td><td>$106.98</td><td>$85.17</td><td>~$215‡</td><td style="color:var(--warn);font-weight:700;">2.0×‡</td><td>~1.3 mo</td><td style="color:var(--good);font-weight:700;">+$8.7K</td></tr>
+      <tr><td style="font-weight:600;">Hacker Hotel</td><td>~212 passes</td><td>$1,162</td><td>—</td><td>—</td><td>—</td><td style="color:var(--good);font-weight:700;">9.6× ROAS</td><td>—</td><td style="color:var(--warn);font-weight:700;">+$9.6K**</td></tr>
+      <tr><td style="font-weight:600;">Dangerous DJs</td><td>—</td><td>$870</td><td>—</td><td>—</td><td>—</td><td style="color:var(--good);font-weight:700;">2.2× ROAS</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="blk fine" data-time="monthly" data-kw="contribution methodology footnotes">* Contribution ≈ June Kartra net revenue by product (CH $148.7K · BB $25.6K · L11 $15.1K · HH $11.2K, Jul 4 export) − product ad spend (CMO split, verified vs Adspirer: Meta $70,383 + Google $11,375) − 4.33% processing; excludes shared team/software. ** HH turns ~breakeven after the $9.8K event expense — a brand/retention play. † BB realized LTV is a floor (cohorts young) but June contribution was slightly negative — fix unit economics as it scales. ‡ LEVEL11 spend = Lock-In Challenge + launch ads ($5.8K CMO / $5.1K itemized on Meta); CAC ~$107, ~1.3-mo payback at $85 ARPU; LTV directional (6 churned subs). DDJ revenue lands in the CH bucket until its Kartra products are tagged.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title hot">Cash, debt &amp; runway (live · Jul 3)</h2>
+  <div class="blk kpi-row cols-3" data-time="monthly yearly" data-kw="cash runway debt bluevine amex capital one truist era">
+    <div class="card kpi warn"><p class="label">Operating cash (BlueVine)</p><p class="value">$23,326</p><p class="sub">thin vs ~$172K/mo cost base — rebills replenish continuously but one soft week matters</p></div>
+    <div class="card kpi bad"><p class="label">Card balances</p><p class="value">$76,667</p><p class="sub">Amex Business Gold $44,415 · Capital One Spark $32,252</p></div>
+    <div class="card kpi"><p class="label">Near-term inflow</p><p class="value">~$25K</p><p class="sub">late-June deposits settling in early July (see bridge)</p></div>
+  </div>
+  <p class="blk fine" data-time="monthly yearly" data-kw="truist legacy paypal">Truist not linked in Era — resync to include it. Also parked: the legacy PayPal (2020–Mar '23) still holds 409 active subscribers worth ~$113K/yr — with Jessica for recovery.</p>
+  </section>
+
+  <!-- ======================= YOY: JUNE vs JUNE ======================= -->
+  <section class="sec">
+  <h2 class="sec-title hot">June 2026 vs June 2025 — year over year</h2>
+  <div class="blk kpi-row cols-4" data-time="monthly yearly" data-kw="yoy year over year june comparison growth">
+    <div class="card kpi hot"><p class="label">Kartra gross demand</p><p class="value hot">$218.6K</p><p class="sub">vs $154.0K last June · <strong style="color:var(--good);">+42%</strong> · net after refunds $200.6K vs $147.7K (+36%)</p></div>
+    <div class="card kpi good"><p class="label">QuickBooks revenue</p><p class="value">$165.0K</p><p class="sub">vs $143.5K · <strong style="color:var(--good);">+15%</strong> booked (Jun '26 still settling upward ~$27K)</p></div>
+    <div class="card kpi warn"><p class="label">Net income</p><p class="value" style="color:var(--bad);">−$8.0K</p><p class="sub">vs <span style="color:var(--good);">+$19.9K</span> (13.9% margin) last June — margin deliberately traded for growth (June still settling)</p></div>
+    <div class="card kpi warn"><p class="label">Ad spend (FB + Google)</p><p class="value">$82.2K</p><p class="sub">vs $39.5K last June · <strong>+108%</strong> — the engine behind the +42% demand</p></div>
+  </div>
+  <div class="blk kpi-row cols-4" data-time="monthly yearly" data-kw="yoy sale transactions products subscribers portfolio">
+    <div class="card kpi"><p class="label">Sale transactions (Kartra)</p><p class="value">1,951</p><p class="sub">vs 990 last June · <strong style="color:var(--good);">+97%</strong> new-sale volume</p></div>
+    <div class="card kpi"><p class="label">Active subscribers</p><p class="value">7,897</p><p class="sub">vs ~5,714 last June · <strong style="color:var(--good);">+38%</strong></p></div>
+    <div class="card kpi hot"><p class="label">Revenue lines</p><p class="value">4</p><p class="sub">CH $148.7K + BB $25.6K + L11 $15.1K + HH $11.2K — last June was CH-only; $51.9K/mo of net revenue exists today that didn't a year ago</p></div>
+    <div class="card kpi"><p class="label">Failed payments</p><p class="value">$84.6K</p><p class="sub">vs $68.6K last June · +23%, slower than revenue growth (and partly the intentional Stripe migration)</p></div>
+  </div>
+  <p class="blk fine" data-time="monthly yearly" data-kw="yoy sources">Sources: Kartra all-time export (Jul 4) for both Junes · QuickBooks monthly P&amp;L (verified Jul 4). Full-month lines for every month of 2025 vs 2026 are in the two charts below.</p>
+  </section>
+
+  <!-- ======================= YEARLY ======================= -->
+  <section class="sec">
+  <h2 class="sec-title">Yearly view</h2>
+  <div class="blk kpi-row cols-4" data-time="yearly" data-kw="yearly annual revenue net income rule of 40 arr growth">
+    <div class="card kpi"><p class="label">2025 full year</p><p class="value">$1.81M</p><p class="sub">net income $269.0K · 14.8% margin</p></div>
+    <div class="card kpi"><p class="label">2026 YTD (Jan–Jun)</p><p class="value">$811K</p><p class="sub">net income $35.4K · 4.4% margin · reinvestment year</p></div>
+    <div class="card kpi hot"><p class="label">ARR run-rate</p><p class="value hot">$2.09M</p><p class="sub">vs ~$1.72M MRR-implied a year ago (est.)</p></div>
+    <div class="card kpi warn"><p class="label">Rule of 40</p><p class="value">≈15</p><p class="sub">H1'26 vs H1'25 revenue +10.8% + 4.4% net margin · target 40+ — churn is the drag</p></div>
+  </div>
+  <div class="blk chart-grid" data-time="yearly" data-kw="year over year revenue net income comparison">
+    <div class="chart-card"><h3>Revenue by month — 2025 vs 2026</h3><p class="chart-sub">2026 (orange) is beating 2025 (gray) every month so far; Nov–Dec is the seasonal peak to defend.</p><div class="chart-wrap tall"><canvas id="y-rev"></canvas></div></div>
+    <div class="chart-card"><h3>Net income by month — 2025 vs 2026</h3><p class="chart-sub">2026 trades margin for growth: revenue up, profit down. Make it a decision, not drift.</p><div class="chart-wrap tall"><canvas id="y-ni"></canvas></div></div>
+  </div>
+  </section>
+
+  <footer>
+    Sources: Kartra transaction &amp; subscription exports (through Jun 28–30) · QuickBooks P&amp;L through June (settling · refreshed Jul 2) · CMO Dashboard Google Sheet weekly series through Jun 28 · Stripe/PayPal effective rates from live transactions · Era connector (vendor spend + balances, Jul 3) · Meta/Google spend via Adspirer + Ads Manager export. Kartra "Net Profit" is never presented as profit; June QuickBooks revenue settles upward ~2 weeks into July. Weekly refresh: upload the two Kartra CSVs + refresh the CMO sheet, then ask Claude to update.
+  </footer>
 </div>
-
-<script id="dashboard-data" type="application/json">{"as_of":"2026-06-29","current":{"mrr_total":174188.88,"arr_total":2090266.56,"active_total":7897,"mrr_by_product":{"Banger Button":12458.52,"Crate Hackers":157642.03},"active_by_product":{"Banger Button":1490,"Crate Hackers":6358}},"labels":["Feb 15","Feb 22","Mar 01","Mar 08","Mar 15","Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"ch_net":[24832.0,28266.95,26037.45,31126.45,24984.5,28594.0,25314.3,34532.5,24592.5,27568.85,28060.85,29488.0,29118.0,35412.7,34811.45,26372.45,39052.0,48022.9,48467.0,32133.0],"bb_net":[9.99,699.84,969.75,259.92,259.92,310.87,490.78,139.86,1666.7,2026.39,2056.38,3857.86,5872.28,6628.12,6331.73,4297.31,7224.43,7519.89,4992.51,3997.8],"ch_act":[5873,5863,5865,5820,5783,5801,5805,5874,5966,5993,5972,5995,6027,6079,6150,6214,6286,6358,6364,6358],"bb_act":[1,21,50,59,76,81,91,98,137,193,260,368,547,788,996,1120,1296,1411,1449,1490],"ch_new":[154,181,165,141,135,207,165,266,255,210,162,182,237,263,248,244,298,336,275,216],"bb_new":[1,22,36,11,18,5,13,23,60,78,110,139,197,269,246,181,228,206,156,136],"ch_canc":[176,189,163,186,172,189,161,179,161,183,182,158,202,209,176,178,207,230,193,205],"bb_canc":[0,2,7,2,1,0,3,16,21,22,43,31,18,28,38,57,52,91,118,95],"ch_churn":[3.0,3.22,2.78,3.17,2.96,3.27,2.78,3.08,2.74,3.07,3.04,2.65,3.37,3.47,2.9,2.89,3.33,3.66,2.63,2.78],"ch_netn":[-22,-8,2,-45,-37,18,4,87,94,27,-20,24,35,54,72,66,91,106,82,11],"bb_netn":[1,20,29,9,17,5,10,7,39,56,67,108,179,241,208,124,176,115,38,41],"ch_fail_amt":[11983.0,10028.0,12133.0,16380.0,14455.0,11480.0,11465.0,13240.0,12387.0,13788.0,13650.0,16155.0,16668.0,13712.0,14200.0,14756.0,17288.0,20055.0,22803.0,16164.2],"bb_fail_amt":[0.0,0.0,0.0,0.0,0.0,9.99,59.94,89.91,39.96,9.99,49.95,129.87,169.83,209.79,389.61,349.65,469.53,859.14,1208.79,1208.79],"recovery_pct":[16.2,23.0,26.9,21.8,17.2,20.3,20.7,22.3,22.9,24.0,22.1,19.3,20.9,19.8,23.7,16.0,19.3,19.2,null,null],"weekly_ad_spend":[6871.13,5453.65,5401.83,5543.03,5509.9,5465.95,6891.8,7893.83,9951.24,6219.99,6809.78,8657.93,11273.54,15362.25,18297.42,12822.59,17521.56,25436.44,20446.5,14918.76],"weekly_new_sales":[3885.99,8001.78,4554.66,3888.36,3614.21,6922.99,5340.4,12897.92,7980.71,8872.26,8641.62,10846.85,15716.78,18755.76,15552.81,12602.36,18679.41,26574.67,25809.61,14365.0],"weekly_cac":[44.33,27.13,26.87,36.47,36.01,25.78,38.72,29.13,31.79,21.6,25.13,27.31,25.98,28.93,37.19,30.31,34.9,52.66,47.44,42.38],"ltv_cac_ratio":[3.07,5.01,5.06,3.73,3.78,5.28,3.51,4.67,4.28,6.3,5.41,4.98,5.23,4.79,3.73,4.57,4.84,3.21,3.18,3.83],"last_week_revenue":36130.8,"last_week_new":352,"last_week_canc":300,"last_week_failed_amt":17372.99,"last_week_failed_n":null,"prev_week_revenue":53459.51,"prev_week_canc":311,"prev_week_new":431,"avg_net_rev":46487.12,"ltv_blended_published":136.0,"ltv_cohort_blend_12mo":104.96,"ltv_formula_blend_12mo":138.55,"kartra_retention_months":13.875,"ltv_formula_ch":152.43,"arpu_ch":24.74,"ltv_cohort_ch":104.94,"ltv_cohort_bb":null,"avg_life_implied_ch_months":7.5,"avg_cancel_tenure_ch_months":4.96,"avg_recent_cancel_ch_months":2.93,"L":["Jan 07","Jan 11","Jan 18","Jan 25","Feb 01","Feb 07","Feb 15","Feb 22","Mar 01","Mar 07","Mar 15","Mar 22","Mar 29","Apr 07","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"M":{"total_rev":[30947.0,26928.0,26810.0,25966.0,20308.0,29574.0,26827.0,30502.0,23979.0,38314.0,27954.0,30822.0,35340.0,20087.0,28025.0,30490.0,33701.0,16298.0,36185.0,44445,43705,34742,49268,59787,59767,38682],"net_profit":[28119.0,23242.0,24161.0,24417.0,18681.0,27851.0,24460.0,28733.0,22214.0,35662.0,24824.0,27752.0,32501.0,18584.0,25818.0,29315.0,29809.0,14996.0,34496.0,41775,40545,30453,45669,55272,53292,35799],"ch_pro":[5550.0,5500.0,5399.0,5359.0,5344.0,5383.0,5350.0,5343.0,5345.0,5340.0,5304.0,5315.0,5335.0,5379.0,5449.0,5490.0,5474.0,5476.0,5518.0,5579,5641,5690,5740,5837,5901,5877],"ch_biz":[100.0,95.0,92.0,82.0,78.0,77.0,74.0,72.0,69.0,70.0,71.0,70.0,68.0,66.0,70.0,74.0,73.0,75.0,79.0,78,78,75,78,78,77,76],"bb":[null,null,null,null,null,null,null,null,null,57.0,75.0,80.0,91.0,95.0,136.0,193.0,252.0,294.0,493.0,689,865,973,1134,1252,1307,1357],"active_total":[5650.0,5600.0,5519.0,5470.0,5450.0,5490.0,5450.0,5466.0,5499.0,5499.0,5449.0,5496.0,5535.0,5571.0,5660.0,5789.0,5834.0,6285.0,6549,6860,7133,7320,7500,7746,7846,7870],"ad_spend":[7322.31,7322.31,6319.05,5918.97,5592.54,5785.38,8648.56,6871.13,5453.65,4609.97,6334.89,5509.9,5465.95,8860.89,5924.74,9951.24,6219.99,6809.78,11273.54,15362.25,18297.42,12822.59,17521.56,25436.44,20446.5,14918.76],"meta_spend":[6783.05,5322.98,4990.87,4694.37,5022.98,7594.79,5986.35,4707.77,4045.81,5510.59,4794.52,4782.51,8040.12,5408.11,9218.56,5462.6,6126.32,4155.81,9049.6,12362.94,14957.25,10672.31,14506.39,21094.1,18087.44,13677.9],"google_spend":[539.26,996.07,928.1,898.17,762.4,1053.77,884.78,745.88,564.16,824.3,715.38,683.44,820.77,516.63,732.68,757.39,683.46,449.59,2223.94,2999.31,3340.17,2150.28,3015.17,4342.34,2359.06,1240.86],"new_sales_amt":[14765.0,3841.0,3439.0,3317.0,2970.0,5572.0,3886.0,7992.0,4335.0,4088.0,3594.0,6923.0,8895.0,9343.0,7981.0,8862.0,8612.0,4654.0,15717.0,18756,15543,12592,18483,26575,25810,14365],"n_new":[114.0,136.0,142.0,145.0,143.0,226.0,155.0,203.0,178.0,175.0,153.0,212.0,225.0,206,307,281,263,171.0,429,531,492,423,502,483,431,352],"cpa":[64.23,46.46,41.68,38.57,40.46,38.27,44.33,26.87,25.9,36.2,36.01,25.78,39.38,31.85,40.29,26.47,33.63,30.12558824,48.59,58.63,74.38,52.99,41.41,46.23,53.6,48.65],"cpa_bb":[null,null,null,null,null,null,null,null,null,null,null,null,null,0.0,0.0,10.86,15.13,22.21144928,18.48,21.72,24.57,26.41,25.54,37.15,42.06,37.44],"rebills":[16183.0,23087.0,23371.0,22649.0,17338.0,24002.0,22941.0,22510.0,19645.0,34225.0,27954.0,23899.0,26445.0,20087.0,20044.0,21627.0,25089.0,11644.0,19465.0,25689,28162,22150,30589,33212,33958,24317],"aov":[129.52,28.24,24.22,22.88,20.77,24.65,25.07,39.37,24.35,23.36,23.49,32.66,39.53,29.38,31.93,38.73,43.22,45.62745098,56.97,71.59,36.06,31.08,37.93,29.01,39.24,33.42],"aov_bb":[null,null,null,null,null,null,null,null,null,null,null,null,null,2.5,28.78,25.92,18.75,37.07246377,30.59,26.0,27.12,28.01,32.53,38.24,29.21,27.98],"visitors_all":[26848.0,10682.0,7228.0,6259.0,4820.0,10660.0,5462.0,4350.0,3343.0,4237.0,3406.0,4478.0,7930.0,5048.0,7894.0,4953.0,7115.0,2553.0,6371,6730,9756,8167,10262,11948,11170,8920],"home_visitors":[20380.0,9925.0,6446.0,4746.0,4261.0,9655.0,5059.0,3931.0,3037.0,3871.0,3108.0,4052.0,6463.0,3670.0,5516.0,1641.0,6581.0,2289.0,5205,5294,8424,6348,5271,6102,6631,6786],"home_conv":[1.53,0.98,1.65,2.46,2.51,1.8,2.53,3.74,4.08,3.33,3.34,4.22,2.81,3.96,3.32,3.84,1.84,4.279999999999999,3.63,3.68,2.3,2.68,4.08,3.74,2.74,2.27],"oto_conv":[2.72,0.97,0.8,0.93,0.81,4.0,0.75,2.54,0.88,3.05,3.92,2.09,1.12,2.01,2.86,5.56,3.97,3.0300000000000002,3.16,5.52,3.68,8.67,0.55,3.14,3.85,4.11],"epc":[1.05,0.25,0.46,0.55,0.44,0.42,0.58,0.94,0.89,0.7,0.69,1.4,0.85,1.06,0.61,1.71,0.44,0.7147225863,1.18,1.63,0.85,0.68,1.7,1.17,1.06,0.99],"home_sales":[21371.0,2469.0,2970.0,2601.0,1872.0,4013.0,2910.0,3702.0,2706.0,2729.0,2159.0,5688.0,5484.0,3888.0,3349.0,2803.0,2920.0,1636.0,6125,8637,7144,4301,8953,7116,7015,6735],"trials":[null,null,null,null,null,null,null,null,null,null,null,null,null,23.0,24.0,30.0,15.0,14.0,22,38,38,41,38,42,30,null],"hh":[null,null,null,null,null,null,null,null,null,null,null,null,null,3879.0,94.0,1000.0,2000.0,null,2500.0,0,0,0,673,3754,2780,null],"pl":[null,null,null,null,null,null,null,null,null,null,null,null,null,-460.74,-2064.24,2488.84,1466.1,1581.19,1943.46,3393.75,-2754.42,-230.59,961.44,1138.56,5363.5,-553.76],"churn":[2.16,3.53,3.31,3.07,3.43,3.07,3.14,3.25,2.73,3.76,3.08,3.44,3.81,2.3,2.67,2.87,2.98,1.8197278909999999,3.04,3.1,2.55,2.39,2.95,3.02,2.63,2.78],"n_cancellations":[120.0,196.0,182.0,166.0,184.0,165.0,169.0,174.0,146.0,207.0,168.0,189.0,211.0,128.0,151.0,166.0,174.0,115,236,197,169,162,204,218,193,205],"bb_home_conv":[null,null,null,null,null,null,null,null,null,null,null,null,null,18.0,9.0,3.76,4.29,3.34,2.65,2.46,2.91,2.54,3.18,3.26,3.12,3.29],"bb_oto_conv":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,29.0,23.07,26.31,37.83,18.1,20.45,14.03,10.69,6.28,10.0,8.21,6.9],"bb_visitors":[null,null,null,null,null,null,null,null,null,null,null,null,null,146,672,2055,2250,1816,6072,7600,7617,6947,7613,8454,6230,5209],"bb_home_visitors":[null,null,null,null,null,null,null,null,null,null,null,null,null,105,537,1778,1928,1597,5537,5983,6831,6217,6807,5729,null,3468],"bb_epc":[null,null,null,null,null,null,null,null,null,null,null,null,null,0.476,1.713,0.984,1.084,0.877,0.69,0.57,0.68,0.61,0.99,1.17,0.81,0.86]},"apr_summary":{"revenue":207504.0,"revenue_target":200000,"net_profit":190032.0,"net_profit_target":180000,"ad_spend":78323.26,"new_sales_gross":85233,"new_sales_adj":82420,"new_ch":982,"new_bb":726,"trials":110,"blended_cac":45.86,"blended_ltv_cac":3.76,"active_eom":7870,"ch_pro_eom":5877,"bb_eom":1357,"active_growth":370},"qb":{"months":["Jan 2026","Feb 2026","Mar 2026","Apr 2026","May 2026"],"new_customers":[671,760,783,1251,2033],"strict_spend":[39260.49,29720.49,28465.95,37879.51,66234.23],"loaded_spend":[48222.99,34395.49,37240.95,46354.51,77334.7],"strict_cac":[58.51,39.1,36.35,30.28,32.58],"loaded_cac":[71.87,45.26,47.56,37.05,38.04],"facebook":[28699.66,22575.06,22581.55,31037.1,50770.58],"google":[4418.36,3355.91,2759.6,3057.84,11621.29],"affiliate":[806.33,1288.66,1288.18,1985.59,1417.36],"marketing_management":[8962.5,4675.0,8775.0,8475.0,11100.47],"other_marketing":[5300,2500,1800,1800,2425],"merch_fulfillment":[829.09,1457.32,766.44,1453.21,1471.92],"true_loaded_spend":[49052.08,35852.81,38007.39,47807.72,78806.62],"true_loaded_cac":[73.1,47.17,48.54,38.22,38.76]},"hormozi":{"gross_margin_pct":93.06,"ltgp_blended":97.67,"ltgp_formula":128.93,"ltgp_cohort":97.65,"ltgp_cac_loaded":2.04,"ltgp_cac_strict":2.5,"monthly_gp_per_cust":21.2,"payback_loaded_avg":2.1,"payback_strict_avg":1.71,"months":["Jan 2026","Feb 2026","Mar 2026","Apr 2026","May 2026","Jun 2026*"],"payback_by_month":[3.14,1.98,2.08,1.62,null,null],"cash_30d":[46.22,43.93,44.59,31.37,36.65,null],"cash_30d_total":[30784,30752,31837,27950,38590,null],"upsell_take_rate":[9.5,5.9,9.9,8.5,13.2,12.4],"upsell_count_annual":[63,41,71,76,139,90],"upsell_count_total":[666,700,714,891,1053,728]},"pl_history":[{"month":"Jan 25","revenue":116711.59,"cogs":6393.14,"gross_profit":110318.45,"expenses":123513.07,"net_income":-12694.62,"margin_pct":-10.9},{"month":"Feb 25","revenue":98496.43,"cogs":4954.63,"gross_profit":93541.8,"expenses":116619.08,"net_income":-22577.28,"margin_pct":-22.9},{"month":"Mar 25","revenue":125510.82,"cogs":7220,"gross_profit":118290.82,"expenses":93077.11,"net_income":25713.71,"margin_pct":20.5},{"month":"Apr 25","revenue":108003,"cogs":12404.05,"gross_profit":95598.95,"expenses":83518.22,"net_income":13103.76,"margin_pct":12.1},{"month":"May 25","revenue":139987.17,"cogs":14514.4,"gross_profit":125472.77,"expenses":106109.04,"net_income":20407.98,"margin_pct":14.6},{"month":"Jun 25","revenue":143528.45,"cogs":6019.15,"gross_profit":137509.3,"expenses":119170.94,"net_income":19892.4,"margin_pct":13.9},{"month":"Jul 25","revenue":165915.41,"cogs":39860.61,"gross_profit":126054.8,"expenses":126477.01,"net_income":624.1,"margin_pct":0.4},{"month":"Aug 25","revenue":154168.01,"cogs":11160.08,"gross_profit":143007.93,"expenses":122256.1,"net_income":22296.14,"margin_pct":14.5},{"month":"Sep 25","revenue":126587.07,"cogs":8719.35,"gross_profit":117867.72,"expenses":122512.9,"net_income":-3596.51,"margin_pct":-2.8},{"month":"Oct 25","revenue":110626.94,"cogs":6842.65,"gross_profit":103784.29,"expenses":89705.79,"net_income":15128.44,"margin_pct":13.7},{"month":"Nov 25","revenue":241726.17,"cogs":19353.87,"gross_profit":222372.3,"expenses":135260.02,"net_income":88148.93,"margin_pct":36.5},{"month":"Dec 25","revenue":280846.78,"cogs":17414.93,"gross_profit":263431.85,"expenses":162453.57,"net_income":102512.54,"margin_pct":36.5},{"month":"Jan 26","revenue":123570.91,"cogs":5816.88,"gross_profit":117754.03,"expenses":114400.61,"net_income":4440.42,"margin_pct":3.6},{"month":"Feb 26","revenue":99385.85,"cogs":6666.85,"gross_profit":92719.0,"expenses":96426.82,"net_income":-2654.33,"margin_pct":-2.7},{"month":"Mar 26","revenue":115005.23,"cogs":16381.62,"gross_profit":98623.61,"expenses":92571.89,"net_income":7094.22,"margin_pct":6.2},{"month":"Apr 26","revenue":130508.88,"cogs":3655.94,"gross_profit":126852.94,"expenses":100546.26,"net_income":27344.89,"margin_pct":21.0},{"month":"May 26","revenue":157881.06,"cogs":2669.22,"gross_profit":155211.84,"expenses":150949.9,"net_income":4800.02,"margin_pct":3.04},{"month":"Jun 26*","revenue":88025.8,"cogs":9026.92,"gross_profit":78998.88,"expenses":78408.2,"net_income":1125.01,"margin_pct":1.28}],"netcac":{"labels":["Feb 15","Feb 22","Mar 01","Mar 08","Mar 15","Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"net_cac":[19.26,-12.5,4.26,10.95,12.52,-6.87,11.59,2.42,6.6,-5.72,-1.11,-6.82,-4.51,-6.39,5.6,0.55,-1.92,-2.36,-13.93,1.64],"payback_weeks":[0.77,-0.32,0.19,0.43,0.53,-0.21,0.42,0.09,0.26,-0.21,-0.04,-0.2,-0.15,-1.22,1.01,0.1,-0.47,-0.58,-3.22,0.53],"plus_loss":[-2985.14,2538.18,-857.12,-1664.62,-1915.59,1457.04,-2051.4,-656.91,-2064.53,1642.32,301.99,2188.92,1943.24,3393.75,-2754.42,-230.59,961.44,1138.56,5363.5,-553.76],"latest_net_cac":1.64,"latest_payback_weeks":0.53,"latest_pl":-553.76,"mtd_may_pl":4083.07},"bb_clean_churn":[null,200.0,33.33,4.0,1.69,0.0,3.7,17.58,21.43,13.14,20.21,10.0,4.62,4.2,4.82,5.72,4.64,7.02,9.03,7.0],"bb_raw_churn":[null,200.0,33.33,4.0,1.69,0.0,3.7,17.58,21.43,16.06,22.28,11.92,4.89,5.12,4.82,5.72,4.64,7.02,9.03,7.0],"bb_clean_cancel":[0,2,7,2,1,0,3,16,21,18,39,26,17,23,38,57,52,91,118,95],"bb_pp3_excluded":[0,0,0,0,0,0,0,0,0,4,4,5,1,5,0,0,0,0,0,0],"processing":{"weekly_labels":["May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"weekly_vol":[44416.67,43711.46,34748.0,49347.71,59754.88,59671.21,38674.1],"weekly_fees":[1918.04,1889.86,1499.25,2126.1,2582.7,2585.8,1658.96],"monthly_labels":["Jan","Feb","Mar","Apr","May","Jun*"],"monthly_stripe_vol":[100928,87376,104213,107271,147935,171871],"monthly_paypal_vol":[30155,23640,28358,30739,30745,37312],"monthly_fees":[5705,4819,5755,5999,7707,9032],"ytd_stripe_vol":719595,"ytd_stripe_fees":30223,"ytd_paypal_vol":180949,"ytd_paypal_fees":8794,"ytd_total_vol":900544,"ytd_total_fees":39017,"blended_pct":4.33,"stripe_rate":4.20,"paypal_rate":4.86},"era":{"labels":["Facebook","Google Ads","PayPal misc","Xenos (contractor)","Cursor (dev AI)","Spinelli Eve","Nova Ent.","Sherpa Collab","Payment Saver","Sparky Digital","Bubble Plugin","Genesis/Kartra","Prime"],"amount":[151616.46,26682.26,24455.66,19513.20,15011.73,10475.70,10000,9000,7200,6500,5043.78,4908,3325.87],"note":"Operating-vendor view (Era, YTD through Jun 22). Excludes internal transfers/financing — Bluevine $244.6K, Capital One $161.5K, Amex $14.8K — which are money movement, not spend."},"level11":{"launch":"2026-06-11","days_live":17,"active_subs":49,"mrr":4088,"arr":49060,"new_sales":55,"sale_rev":11896.5,"cancellations":7,"monthly_count":40,"annual_count":8,"price_monthly":99,"price_annual":891,"wk_rev":0}}</script>
+<script id="dashboard-data" type="application/json">{"as_of":"2026-07-06","current":{"mrr_total":177994,"arr_total":2135928,"active_total":8050,"mrr_by_product":{"Banger Button":12796,"Crate Hackers":161209,"LEVEL11":3989},"active_by_product":{"Banger Button":1509,"Crate Hackers":6491,"LEVEL11":49}},"labels":["Feb 15","Feb 22","Mar 01","Mar 08","Mar 15","Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28","Jul 05"],"ch_net":[24832.0,28266.95,26037.45,31126.45,24984.5,28594.0,25314.3,34532.5,24592.5,27568.85,28060.85,29488.0,29118.0,35412.7,34811.45,26372.45,39052.0,48022.9,48467.0,32133.0,40927],"bb_net":[9.99,699.84,969.75,259.92,259.92,310.87,490.78,139.86,1666.7,2026.39,2056.38,3857.86,5872.28,6628.12,6331.73,4297.31,7224.43,7519.89,4992.51,3997.8,3944],"ch_act":[5873,5863,5865,5820,5783,5801,5805,5874,5966,5993,5972,5995,6027,6079,6150,6214,6286,6358,6364,6358,6491],"bb_act":[1,21,50,59,76,81,91,98,137,193,260,368,547,788,996,1120,1296,1411,1449,1490,1509],"ch_new":[154,181,165,141,135,207,165,266,255,210,162,182,237,263,248,244,298,336,275,216,326],"bb_new":[1,22,36,11,18,5,13,23,60,78,110,139,197,269,246,181,228,206,156,136,114],"ch_canc":[176,189,163,186,172,189,161,179,161,183,182,158,202,209,176,178,207,230,193,205,191],"bb_canc":[0,2,7,2,1,0,3,16,21,22,43,31,18,28,38,57,52,91,118,95,95],"ch_churn":[3.0,3.22,2.78,3.17,2.96,3.27,2.78,3.08,2.74,3.07,3.04,2.65,3.37,3.47,2.9,2.89,3.33,3.66,2.63,2.78,3.0],"ch_netn":[-22,-8,2,-45,-37,18,4,87,94,27,-20,24,35,54,72,66,91,106,82,11,135],"bb_netn":[1,20,29,9,17,5,10,7,39,56,67,108,179,241,208,124,176,115,38,41,19],"ch_fail_amt":[11983.0,10028.0,12133.0,16380.0,14455.0,11480.0,11465.0,13240.0,12387.0,13788.0,13650.0,16155.0,16668.0,13712.0,14200.0,14756.0,17288.0,20055.0,22803.0,16164.2,21877],"bb_fail_amt":[0.0,0.0,0.0,0.0,0.0,9.99,59.94,89.91,39.96,9.99,49.95,129.87,169.83,209.79,389.61,349.65,469.53,859.14,1208.79,1208.79,1120],"recovery_pct":[16.2,23.0,26.9,21.8,17.2,20.3,20.7,22.3,22.9,24.0,22.1,19.3,20.9,19.8,23.7,16.0,19.3,19.2,null,null,null],"weekly_ad_spend":[6871.13,5453.65,5401.83,5543.03,5509.9,5465.95,6891.8,7893.83,9951.24,6219.99,6809.78,8657.93,11273.54,15362.25,18297.42,12822.59,17521.56,25436.44,20446.5,14918.76,12859],"weekly_new_sales":[3885.99,8001.78,4554.66,3888.36,3614.21,6922.99,5340.4,12897.92,7980.71,8872.26,8641.62,10846.85,15716.78,18755.76,15552.81,12602.36,18679.41,26574.67,25809.61,14365.0,20900],"weekly_cac":[44.33,27.13,26.87,36.47,36.01,25.78,38.72,29.13,31.79,21.6,25.13,27.31,25.98,28.93,37.19,30.31,34.9,52.66,47.44,42.38,29.22],"ltv_cac_ratio":[3.07,5.01,5.06,3.73,3.78,5.28,3.51,4.67,4.28,6.3,5.41,4.98,5.23,4.79,3.73,4.57,4.84,3.21,3.18,3.83,5.78],"last_week_revenue":44871,"prev_week_revenue":36131,"avg_net_rev":38508,"L":["Jan 07","Jan 11","Jan 18","Jan 25","Feb 01","Feb 07","Feb 15","Feb 22","Mar 01","Mar 07","Mar 15","Mar 22","Mar 29","Apr 07","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"M":{"total_rev":[30947.0,26928.0,26810.0,25966.0,20308.0,29574.0,26827.0,30502.0,23979.0,38314.0,27954.0,30822.0,35340.0,20087.0,28025.0,30490.0,33701.0,16298.0,36185.0,44445,43705,34742,49268,59787,59767,38682],"net_profit":[28119.0,23242.0,24161.0,24417.0,18681.0,27851.0,24460.0,28733.0,22214.0,35662.0,24824.0,27752.0,32501.0,18584.0,25818.0,29315.0,29809.0,14996.0,34496.0,41775,40545,30453,45669,55272,53292,35799],"ch_pro":[5550.0,5500.0,5399.0,5359.0,5344.0,5383.0,5350.0,5343.0,5345.0,5340.0,5304.0,5315.0,5335.0,5379.0,5449.0,5490.0,5474.0,5476.0,5518.0,5579,5641,5690,5740,5837,5901,5877],"ch_biz":[100.0,95.0,92.0,82.0,78.0,77.0,74.0,72.0,69.0,70.0,71.0,70.0,68.0,66.0,70.0,74.0,73.0,75.0,79.0,78,78,75,78,78,77,76],"bb":[null,null,null,null,null,null,null,null,null,57.0,75.0,80.0,91.0,95.0,136.0,193.0,252.0,294.0,493.0,689,865,973,1134,1252,1307,1357],"active_total":[5650.0,5600.0,5519.0,5470.0,5450.0,5490.0,5450.0,5466.0,5499.0,5499.0,5449.0,5496.0,5535.0,5571.0,5660.0,5789.0,5834.0,6285.0,6549,6860,7133,7320,7500,7746,7846,7870],"ad_spend":[7322.31,7322.31,6319.05,5918.97,5592.54,5785.38,8648.56,6871.13,5453.65,4609.97,6334.89,5509.9,5465.95,8860.89,5924.74,9951.24,6219.99,6809.78,11273.54,15362.25,18297.42,12822.59,17521.56,25436.44,20446.5,14918.76],"meta_spend":[6783.05,5322.98,4990.87,4694.37,5022.98,7594.79,5986.35,4707.77,4045.81,5510.59,4794.52,4782.51,8040.12,5408.11,9218.56,5462.6,6126.32,4155.81,9049.6,12362.94,14957.25,10672.31,14506.39,21094.1,18087.44,13677.9],"google_spend":[539.26,996.07,928.1,898.17,762.4,1053.77,884.78,745.88,564.16,824.3,715.38,683.44,820.77,516.63,732.68,757.39,683.46,449.59,2223.94,2999.31,3340.17,2150.28,3015.17,4342.34,2359.06,1240.86],"new_sales_amt":[14765.0,3841.0,3439.0,3317.0,2970.0,5572.0,3886.0,7992.0,4335.0,4088.0,3594.0,6923.0,8895.0,9343.0,7981.0,8862.0,8612.0,4654.0,15717.0,18756,15543,12592,18483,26575,25810,14365],"n_new":[114.0,136.0,142.0,145.0,143.0,226.0,155.0,203.0,178.0,175.0,153.0,212.0,225.0,206,307,281,263,171.0,429,531,492,423,502,483,431,352],"cpa":[64.23,46.46,41.68,38.57,40.46,38.27,44.33,26.87,25.9,36.2,36.01,25.78,39.38,31.85,40.29,26.47,33.63,30.13,48.59,58.63,74.38,52.99,41.41,46.23,53.6,48.65],"cpa_bb":[null,null,null,null,null,null,null,null,null,null,null,null,null,0.0,0.0,10.86,15.13,22.21,18.48,21.72,24.57,26.41,25.54,37.15,42.06,37.44],"rebills":[16183.0,23087.0,23371.0,22649.0,17338.0,24002.0,22941.0,22510.0,19645.0,34225.0,27954.0,23899.0,26445.0,20087.0,20044.0,21627.0,25089.0,11644.0,19465.0,25689,28162,22150,30589,33212,33958,24317],"aov":[129.52,28.24,24.22,22.88,20.77,24.65,25.07,39.37,24.35,23.36,23.49,32.66,39.53,29.38,31.93,38.73,43.22,45.63,56.97,71.59,36.06,31.08,37.93,29.01,39.24,33.42],"aov_bb":[null,null,null,null,null,null,null,null,null,null,null,null,null,2.5,28.78,25.92,18.75,37.07,30.59,26.0,27.12,28.01,32.53,38.24,29.21,27.98],"visitors_all":[26848.0,10682.0,7228.0,6259.0,4820.0,10660.0,5462.0,4350.0,3343.0,4237.0,3406.0,4478.0,7930.0,5048.0,7894.0,4953.0,7115.0,2553.0,6371,6730,9756,8167,10262,11948,11170,8920],"home_visitors":[20380.0,9925.0,6446.0,4746.0,4261.0,9655.0,5059.0,3931.0,3037.0,3871.0,3108.0,4052.0,6463.0,3670.0,5516.0,1641.0,6581.0,2289.0,5205,5294,8424,6348,5271,6102,6631,6786],"home_conv":[1.53,0.98,1.65,2.46,2.51,1.8,2.53,3.74,4.08,3.33,3.34,4.22,2.81,3.96,3.32,3.84,1.84,4.28,3.63,3.68,2.3,2.68,4.08,3.74,2.74,2.27],"oto_conv":[2.72,0.97,0.8,0.93,0.81,4.0,0.75,2.54,0.88,3.05,3.92,2.09,1.12,2.01,2.86,5.56,3.97,3.03,3.16,5.52,3.68,8.67,0.55,3.14,3.85,4.11],"epc":[1.05,0.25,0.46,0.55,0.44,0.42,0.58,0.94,0.89,0.7,0.69,1.4,0.85,1.06,0.61,1.71,0.44,0.71,1.18,1.63,0.85,0.68,1.7,1.17,1.06,0.99],"home_sales":[21371.0,2469.0,2970.0,2601.0,1872.0,4013.0,2910.0,3702.0,2706.0,2729.0,2159.0,5688.0,5484.0,3888.0,3349.0,2803.0,2920.0,1636.0,6125,8637,7144,4301,8953,7116,7015,6735],"trials":[null,null,null,null,null,null,null,null,null,null,null,null,null,23.0,24.0,30.0,15.0,14.0,22,38,38,41,38,42,30,35],"hh":[null,null,null,null,null,null,null,null,null,null,null,null,null,3879.0,94.0,1000.0,2000.0,null,2500.0,0,0,0,673,3754,2780,null],"pl":[null,null,null,null,null,null,null,null,null,null,null,null,null,-460.74,-2064.24,2488.84,1466.1,1581.19,1943.46,3393.75,-2754.42,-230.59,961.44,1138.56,5363.5,-553.76],"churn":[2.16,3.53,3.31,3.07,3.43,3.07,3.14,3.25,2.73,3.76,3.08,3.44,3.81,2.3,2.67,2.87,2.98,1.82,3.04,3.1,2.55,2.39,2.95,3.02,2.63,2.78],"n_cancellations":[120.0,196.0,182.0,166.0,184.0,165.0,169.0,174.0,146.0,207.0,168.0,189.0,211.0,128.0,151.0,166.0,174.0,115,236,197,169,162,204,218,193,205],"bb_home_conv":[null,null,null,null,null,null,null,null,null,null,null,null,null,18.0,9.0,3.76,4.29,3.34,2.65,2.46,2.91,2.54,3.18,3.26,3.12,3.29],"bb_oto_conv":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,29.0,23.07,26.31,37.83,18.1,20.45,14.03,10.69,6.28,10.0,8.21,6.9],"bb_visitors":[null,null,null,null,null,null,null,null,null,null,null,null,null,146,672,2055,2250,1816,6072,7600,7617,6947,7613,8454,6230,5209],"bb_home_visitors":[null,null,null,null,null,null,null,null,null,null,null,null,null,105,537,1778,1928,1597,5537,5983,6831,6217,6807,5729,null,3468],"bb_epc":[null,null,null,null,null,null,null,null,null,null,null,null,null,0.476,1.713,0.984,1.084,0.877,0.69,0.57,0.68,0.61,0.99,1.17,0.81,0.86]},"qb":{"months":["Jan 2026","Feb 2026","Mar 2026","Apr 2026","May 2026","Jun 2026*"],"new_customers":[671,760,783,1251,2033,1857],"strict_cac":[58.51,39.1,36.35,30.28,32.58,45.9],"loaded_cac":[71.87,45.26,47.56,37.05,38.04,51.31],"facebook":[28699.66,22575.06,22581.55,31037.1,50770.58,70869.58],"google":[4418.36,3355.91,2759.6,3057.84,11621.29,11314.64],"affiliate":[806.33,1288.66,1288.18,1985.59,1417.36,507.62],"marketing_management":[8962.5,4675.0,8775.0,8475.0,11100.47,10050],"other_marketing":[5300,2500,1800,1800,2425,2550],"merch_fulfillment":[829.09,1457.32,766.44,1453.21,1471.92,40],"true_loaded_spend":[49052.08,35852.81,38007.39,47807.72,78806.62,95331.84],"true_loaded_cac":[73.1,47.17,48.54,38.22,38.76,51.34]},"hormozi":{"months":["Jan 2026","Feb 2026","Mar 2026","Apr 2026","May 2026","Jun 2026*"],"cash_30d":[46.22,43.93,44.59,31.37,36.65,null],"cash_30d_total":[30784,30752,31837,27950,38590,null],"upsell_take_rate":[9.5,5.9,9.9,8.5,13.2,12.4],"upsell_count_annual":[63,41,71,76,139,90],"upsell_count_total":[666,700,714,891,1053,728]},"pl_history":[{"month":"Jan 25","revenue":116711.59,"cogs":6393.14,"expenses":123513.07,"net_income":-12694.62,"margin_pct":-10.9},{"month":"Feb 25","revenue":98496.43,"cogs":4954.63,"expenses":116619.08,"net_income":-22577.28,"margin_pct":-22.9},{"month":"Mar 25","revenue":125510.82,"cogs":7220,"expenses":93077.11,"net_income":25713.71,"margin_pct":20.5},{"month":"Apr 25","revenue":108003,"cogs":12404.05,"expenses":83518.22,"net_income":13103.76,"margin_pct":12.1},{"month":"May 25","revenue":139987.17,"cogs":14514.4,"expenses":106109.04,"net_income":20407.98,"margin_pct":14.6},{"month":"Jun 25","revenue":143528.45,"cogs":6019.15,"expenses":119170.94,"net_income":19892.4,"margin_pct":13.9},{"month":"Jul 25","revenue":165915.41,"cogs":39860.61,"expenses":126477.01,"net_income":624.1,"margin_pct":0.4},{"month":"Aug 25","revenue":154168.01,"cogs":11160.08,"expenses":122256.1,"net_income":22296.14,"margin_pct":14.5},{"month":"Sep 25","revenue":126587.07,"cogs":8719.35,"expenses":122512.9,"net_income":-3596.51,"margin_pct":-2.8},{"month":"Oct 25","revenue":110626.94,"cogs":6842.65,"expenses":89705.79,"net_income":15128.44,"margin_pct":13.7},{"month":"Nov 25","revenue":241726.17,"cogs":19353.87,"expenses":135260.02,"net_income":88148.93,"margin_pct":36.5},{"month":"Dec 25","revenue":280846.78,"cogs":17414.93,"expenses":162453.57,"net_income":102512.54,"margin_pct":36.5},{"month":"Jan 26","revenue":123570.91,"cogs":5816.88,"expenses":114400.61,"net_income":4440.42,"margin_pct":3.6},{"month":"Feb 26","revenue":99385.85,"cogs":6666.85,"expenses":100426.82,"net_income":-6654.33,"margin_pct":-6.7},{"month":"Mar 26","revenue":115005.23,"cogs":16381.62,"expenses":92571.89,"net_income":7094.22,"margin_pct":6.2},{"month":"Apr 26","revenue":142168.57,"cogs":9292.47,"expenses":100219.1,"net_income":33695.21,"margin_pct":23.7},{"month":"May 26","revenue":166240.92,"cogs":11029.08,"expenses":150949.9,"net_income":4800.02,"margin_pct":2.89},{"month":"Jun 26*","revenue":164956,"cogs":10862,"expenses":162613,"net_income":-7985,"margin_pct":-4.8}],"netcac":{"labels":["Feb 15","Feb 22","Mar 01","Mar 08","Mar 15","Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"net_cac":[19.26,-12.5,4.26,10.95,12.52,-6.87,11.59,2.42,6.6,-5.72,-1.11,-6.82,-4.51,-6.39,5.6,0.55,-1.92,-2.36,-13.93,1.64]},"bb_clean_churn":[null,200.0,33.33,4.0,1.69,0.0,3.7,17.58,21.43,13.14,20.21,10.0,4.62,4.2,4.82,5.72,4.64,7.02,9.03,7.0,6.11],"bb_raw_churn":[null,200.0,33.33,4.0,1.69,0.0,3.7,17.58,21.43,16.06,22.28,11.92,4.89,5.12,4.82,5.72,4.64,7.02,9.03,7.0,6.38],"bb_clean_cancel":[0,2,7,2,1,0,3,16,21,18,39,26,17,23,38,57,52,91,118,95,91],"bb_pp3_excluded":[0,0,0,0,0,0,0,0,0,4,4,5,1,5,0,0,0,0,0,0,4],"processing":{"weekly_labels":["May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28","Jul 05"],"weekly_vol":[44416.67,43711.46,34748.0,49347.71,59754.88,59671.21,38674.1,50157],"weekly_fees":[1918.04,1889.86,1499.25,2126.1,2582.7,2585.8,1658.96,2172],"monthly_labels":["Jan","Feb","Mar","Apr","May","Jun*"],"monthly_stripe_vol":[100928,87376,104213,107271,147935,171871],"monthly_paypal_vol":[30155,23640,28358,30739,30745,37312],"monthly_fees":[5705,4819,5755,5999,7707,9032]},"era":{"labels":["Facebook","Google Ads","PayPal misc","Xenos (contractor)","Cursor (dev AI)","Spinelli Eve","Nova Ent.","Sherpa Collab","Payment Saver","Sparky Digital","Bubble Plugin","Genesis/Kartra","Prime"],"amount":[151616,26682,24456,19513,15012,10476,10000,9000,7200,6500,5044,4908,3326]},"fail12":{"labels":["Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26","Mar '26","Apr '26","May '26","Jun '26"],"total":[61415,68169,68989,73021,92612,121706,59835,45567,59362,58358,68169,84570],"bb":[0,0,0,0,0,0,0,0,90,230,1189,4086]},"expenses":{"labels":["Marketing & ads","Team / contractors","Software & tools","Hacker Hotel event","Everything else"],"amount":[95111,36943,21764,9757,8999]},"trial_types":[{"label":"pp9 · 14-day trial","pct":52},{"label":"pp13 · 7-day (YouTube)","pct":44},{"label":"pp35 · 7-day trial","pct":43},{"label":"pp25 · $1 + necklace (hackathon)","pct":41}],"mrrwf":{"start":172196,"new":31187,"churn":29054,"end":174329},"daily":{"start":"2026-05-22","CH":[4720,5086,4814,4138,6089,3600,4396,2626,2534,2490,5040,5937,5704,5736,5010,6258,4693,3526,4747,3746,7120,8196,6145,3981,7879,5076,4565,5144,4604,6062,5557,4022,4593,3798,3972,6002,2878,3057,3058,2606,4501,6124,5340,7202,6689],"BB":[549,2135,952,835,563,314,605,911,791,280,624,430,382,357,2358,2048,1027,1352,1612,926,908,1159,1000,565,712,489,539,565,851,1258,579,645,554,258,357,1020,849,317,771,1082,377,428,361,567,360],"L11":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5720,0,891,198,1698,1140,5361,99,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"HH":[0,0,0,0,500,0,0,0,0,0,0,94,27,128,155,74,195,276,236,2858,128,202,27,27,2497,-1470,47,27,54,128,0,27,997,1628,0,54,0,1105,503,1175,2075,81,1524,47,0],"failed":[1774,2061,2785,1832,2408,2308,1969,1469,3516,1604,2688,2962,1542,2668,3611,1352,2935,2543,2186,3831,2653,1956,3861,3885,2443,3275,4869,3084,2454,4533,3355,2606,2534,2727,2519,2015,1965,3008,2579,1935,3228,3208,3148,4992,3907],"sales":[67,114,57,59,60,52,54,95,65,40,45,49,53,74,105,123,77,79,68,69,91,90,90,55,48,50,59,67,71,98,38,39,47,42,53,69,61,41,37,63,41,44,70,109,97]}}</script>
 <script>
 const D = JSON.parse(document.getElementById('dashboard-data').textContent);
-const fmt$ = n => n == null ? '—' : n.toLocaleString('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0});
-const fmt$2 = n => n == null ? '—' : n.toLocaleString('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2});
-const fmtN = n => n == null ? '—' : n.toLocaleString('en-US');
-const fmtPct = n => `${n.toFixed(2)}%`;
-const C = {ch:'#3b82f6', chL:'rgba(59,130,246,0.12)', bb:'#a855f7', bbL:'rgba(168,85,247,0.15)', green:'#10b981', greenL:'rgba(16,185,129,0.15)', red:'#ef4444', redL:'rgba(239,68,68,0.15)', amber:'#f59e0b', amberL:'rgba(245,158,11,0.15)', purple:'#8b5cf6', purpleL:'rgba(139,92,246,0.15)', teal:'#14b8a6', tealL:'rgba(20,184,166,0.15)', pink:'#ec4899', pinkL:'rgba(236,72,153,0.15)', indigo:'#6366f1', indigoL:'rgba(99,102,241,0.15)', grid:'#e5e7eb'};
+const fmt$ = n => n==null ? '—' : n.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+const fmtN = n => n==null ? '—' : n.toLocaleString('en-US');
 
-document.getElementById('as-of').textContent = D.as_of;
+/* ---------- theme ---------- */
+const THEME_KEY='ch-theme-wh';
+function pal(){const s=getComputedStyle(document.documentElement);const g=n=>s.getPropertyValue(n).trim();
+  return {orange:g('--accent'),amber:g('--amber'),teal:g('--teal'),blue:g('--blue'),red:g('--red'),text:g('--text'),muted:g('--muted'),grid:g('--grid')};}
+function setThemeBtn(){document.getElementById('theme-btn').textContent = document.documentElement.dataset.theme==='dark' ? '☀️ Light' : '🌙 Dark';}
+document.getElementById('theme-btn').addEventListener('click',()=>{
+  const t = document.documentElement.dataset.theme==='dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme=t; try{localStorage.setItem(THEME_KEY,t);}catch(e){}
+  setThemeBtn(); rebuildAll();
+});
+try{const saved=localStorage.getItem(THEME_KEY); if(saved){document.documentElement.dataset.theme=saved;}}catch(e){}
+setThemeBtn();
 
-// May MTD cards (renamed but reusing apr-* element IDs)
-const A = D.apr_summary;
-document.getElementById('apr-rev').textContent = fmt$(A.revenue);
-document.getElementById('apr-rev-sub').textContent = `${(A.revenue/A.revenue_target*100).toFixed(0)}% of $${(A.revenue_target/1000).toFixed(0)}K target · 3 of ~4.3 weeks closed`;
-document.getElementById('apr-rev-bar').style.width = `${Math.min(100, A.revenue/A.revenue_target*100)}%`;
-document.getElementById('apr-profit').textContent = fmt$(A.net_profit);
-document.getElementById('apr-profit-sub').textContent = `${(A.net_profit/A.net_profit_target*100).toFixed(0)}% of $${(A.net_profit_target/1000).toFixed(0)}K target`;
-document.getElementById('apr-profit-bar').style.width = `${Math.min(100, A.net_profit/A.net_profit_target*100)}%`;
-document.getElementById('apr-spend').textContent = fmt$(A.ad_spend);
-document.getElementById('apr-new').textContent = fmtN(A.new_ch + A.new_bb);
-document.getElementById('apr-new-sub').textContent = `${A.new_ch} CH · ${A.new_bb} BB · ${A.trials} trials`;
-document.getElementById('apr-cac').textContent = fmt$2(A.blended_cac);
-document.getElementById('apr-ltvcac').textContent = `${A.blended_ltv_cac.toFixed(2)}x`;
-document.getElementById('apr-active').textContent = fmtN(A.active_eom);
-document.getElementById('apr-active-sub').textContent = `${fmtN(A.ch_pro_eom)} CH Pro · ${fmtN(A.bb_eom)} BB · +${A.active_growth} since Jun 14`;
-
-// LTV cards (refreshed)
-document.getElementById('ltv-cohort-blend').textContent = fmt$2(D.ltv_cohort_blend_12mo);
-document.getElementById('ltv-formula-blend').textContent = fmt$2(D.ltv_formula_blend_12mo);
-document.getElementById('ltv-blend').textContent = fmt$(D.ltv_blended_published);
-document.getElementById('avg-life-implied').textContent = D.avg_life_implied_ch_months.toFixed(1) + ' mo';
-document.getElementById('avg-cancel-tenure').textContent = D.avg_cancel_tenure_ch_months.toFixed(2) + ' mo';
-document.getElementById('avg-cancel-tenure-sub').textContent = `Median ~2.0 mo · heavily right-skewed`;
-document.getElementById('arpu').textContent = fmt$2(D.arpu_ch);
-document.getElementById('ltv-formula').textContent = fmt$2(D.ltv_formula_ch);
-document.getElementById('ltv-formula-sub').textContent = `ARPU ${fmt$2(D.arpu_ch)} / CH monthly churn 13.3%`;
-document.getElementById('ltv-cohort').textContent = fmt$2(D.ltv_cohort_ch);
-document.getElementById('ltv-cohort-bb').textContent = D.ltv_cohort_bb == null ? 'n/a' : fmt$2(D.ltv_cohort_bb);
-document.getElementById('avg-recent-cancel').textContent = D.avg_recent_cancel_ch_months.toFixed(2) + ' mo';
-
+/* ---------- snapshot ---------- */
 document.getElementById('mrr').textContent = fmt$(D.current.mrr_total);
-document.getElementById('mrr-sub').textContent = `${fmt$(D.current.mrr_by_product["Crate Hackers"])} CH · ${fmt$(D.current.mrr_by_product["Banger Button"])} BB`;
+document.getElementById('mrr-sub').textContent = fmt$(D.current.mrr_by_product["Crate Hackers"])+' CH · '+fmt$(D.current.mrr_by_product["Banger Button"])+' BB · '+fmt$(D.current.mrr_by_product["LEVEL11"])+' L11';
 document.getElementById('arr').textContent = fmt$(D.current.arr_total);
 document.getElementById('active').textContent = fmtN(D.current.active_total);
-document.getElementById('active-sub').textContent = `${fmtN(D.current.active_by_product["Crate Hackers"])} CH · ${fmtN(D.current.active_by_product["Banger Button"])} BB`;
+document.getElementById('active-sub').textContent = fmtN(D.current.active_by_product["Crate Hackers"])+' CH · '+fmtN(D.current.active_by_product["Banger Button"])+' BB · '+fmtN(D.current.active_by_product["LEVEL11"])+' L11';
 document.getElementById('lastrev').textContent = fmt$(D.last_week_revenue);
-const revD = D.last_week_revenue - D.prev_week_revenue;
-const revP = revD/D.prev_week_revenue*100;
-const revEl = document.getElementById('lastrev-delta');
-revEl.textContent = `${revD>=0?'+':''}${fmtPct(revP)}`;
-revEl.classList.add(revD>0?'up':revD<0?'down':'flat');
-document.getElementById('lastrev-context').textContent = `vs prior week · 14-wk avg ${fmt$(D.avg_net_rev)}`;
+document.getElementById('lastrev-sub').textContent = ((D.last_week_revenue-D.prev_week_revenue)/D.prev_week_revenue*100).toFixed(1)+'% vs prior wk · 14-wk avg '+fmt$(D.avg_net_rev);
 
-const baseOpts = {responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'}, plugins:{legend:{position:'bottom', labels:{boxWidth:12, padding:12, font:{size:11}}}, tooltip:{padding:10}}, scales:{x:{grid:{display:false}, ticks:{font:{size:11}}}, y:{grid:{color:C.grid, drawBorder:false}, ticks:{font:{size:11}}, beginAtZero:true}}};
-
-new Chart(document.getElementById('chart-revenue'), {type:'bar', data:{labels:D.labels, datasets:[{label:'Crate Hackers', data:D.ch_net, backgroundColor:C.ch, stack:'rev'},{label:'Banger Button', data:D.bb_net, backgroundColor:C.bb, stack:'rev'}]}, options:{...baseOpts, scales:{x:{...baseOpts.scales.x, stacked:true}, y:{...baseOpts.scales.y, stacked:true, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('chart-active'), {type:'line', data:{labels:D.labels, datasets:[{label:'Crate Hackers (left)', data:D.ch_act, borderColor:C.ch, yAxisID:'y1', tension:0.3, pointRadius:3},{label:'Banger Button (right)', data:D.bb_act, borderColor:C.bb, yAxisID:'y2', tension:0.3, pointRadius:3}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y1:{position:'left', grid:{color:C.grid}, ticks:{font:{size:11}}, title:{display:true, text:'Crate Hackers'}}, y2:{position:'right', grid:{display:false}, ticks:{font:{size:11}}, title:{display:true, text:'Banger Button'}}}}});
-const totN = D.ch_new.map((v,i)=>v+D.bb_new[i]);
-const totC = D.ch_canc.map((v,i)=>v+D.bb_canc[i]);
-new Chart(document.getElementById('chart-flow'), {type:'line', data:{labels:D.labels, datasets:[{label:'New', data:totN, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, pointRadius:3, borderWidth:2},{label:'Cancelled', data:totC, borderColor:C.red, backgroundColor:C.redL, tension:0.3, pointRadius:3, borderWidth:2}]}, options:baseOpts});
-new Chart(document.getElementById('chart-churn'), {type:'line', data:{labels:D.labels, datasets:[{label:'Crate Hackers churn %', data:D.ch_churn, borderColor:C.ch, backgroundColor:C.chL, tension:0.3, fill:true, pointRadius:4, borderWidth:2.5}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid, drawBorder:false}, ticks:{font:{size:11}, callback:v=>v.toFixed(1)+'%'}, beginAtZero:false, min:2.0, max:3.6}}}});
-
-// BB churn chart — clean (PP3 stripped) on its own axis since BB churn is much higher
-new Chart(document.getElementById('chart-bb-churn'), {
-  type:'line',
-  data:{labels:D.labels, datasets:[
-    {label:'BB churn % (clean, excl PP3)', data:D.bb_clean_churn, borderColor:C.bb, backgroundColor:C.bbL, tension:0.3, fill:true, pointRadius:4, borderWidth:2.5, spanGaps:false},
-    {label:'BB churn % (raw)', data:D.bb_raw_churn, borderColor:'#9ca3af', borderDash:[4,4], borderWidth:1.5, pointRadius:0, fill:false, tension:0.3, spanGaps:false}
-  ]},
-  options:{...baseOpts,
-    plugins:{...baseOpts.plugins,
-      tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>{
-        const v = c.parsed.y;
-        if (v == null) return c.dataset.label + ': n/a (no subs yet)';
-        return c.dataset.label + ': ' + v.toFixed(2) + '%';
-      }}}
-    },
-    scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid, drawBorder:false}, ticks:{font:{size:11}, callback:v=>v.toFixed(0)+'%'}, beginAtZero:true, suggestedMax:25}}
-  }
-});
-
-// BB cancellations chart — raw vs clean (PP3 stripped)
-new Chart(document.getElementById('chart-bb-cancel'), {
-  type:'bar',
-  data:{labels:D.labels, datasets:[
-    {label:'Clean cancellations (real churn)', data:D.bb_clean_cancel, backgroundColor:C.bb, order:2},
-    {label:'PP3 funnel-upgrades (excluded)', data:D.bb_pp3_excluded, backgroundColor:'#fde68a', order:1}
-  ]},
-  options:{...baseOpts, scales:{x:{...baseOpts.scales.x, stacked:true}, y:{...baseOpts.scales.y, stacked:true}}}
-});
-new Chart(document.getElementById('chart-netnew'), {type:'bar', data:{labels:D.labels, datasets:[{label:'Crate Hackers', data:D.ch_netn, backgroundColor:D.ch_netn.map(v=>v>=0?C.ch:'#fca5a5'), stack:'a'},{label:'Banger Button', data:D.bb_netn, backgroundColor:D.bb_netn.map(v=>v>=0?C.bb:'#f9a8d4'), stack:'a'}]}, options:{...baseOpts, scales:{x:{...baseOpts.scales.x, stacked:true}, y:{...baseOpts.scales.y, stacked:true}}}});
-new Chart(document.getElementById('chart-adspend'), {type:'line', data:{labels:D.labels, datasets:[{label:'Ad spend', data:D.weekly_ad_spend, borderColor:C.purple, backgroundColor:C.purpleL, tension:0.3, fill:true, pointRadius:3, borderWidth:2, spanGaps:true, order:2},{label:'New sales revenue', data:D.weekly_new_sales, borderColor:C.green, backgroundColor:'transparent', tension:0.3, fill:false, pointRadius:4, borderWidth:2.5, order:1}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(1)+'k'}}}}});
-new Chart(document.getElementById('chart-cac'), {type:'line', data:{labels:D.labels, datasets:[{label:'CAC', data:D.weekly_cac, borderColor:C.amber, backgroundColor:C.amberL, tension:0.3, fill:true, pointRadius:3, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(0)}}}}});
-const bm3 = D.labels.map(()=>3);
-const bm5 = D.labels.map(()=>5);
-new Chart(document.getElementById('chart-ltvcac'), {type:'line', data:{labels:D.labels, datasets:[{label:'LTV : CAC', data:D.ltv_cac_ratio, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, fill:true, pointRadius:4, borderWidth:2.5, spanGaps:true},{label:'Healthy (3)', data:bm3, borderColor:'#9ca3af', borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false},{label:'Great (5)', data:bm5, borderColor:'#6b7280', borderDash:[2,4], borderWidth:1, pointRadius:0, fill:false}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toFixed(1)+'x'}, suggestedMax:7}}}});
-const totFail = D.ch_fail_amt.map((v,i)=>v+D.bb_fail_amt[i]);
-new Chart(document.getElementById('chart-fail-amt'), {type:'bar', data:{labels:D.labels, datasets:[{label:'Failed $', data:totFail, backgroundColor:C.amber}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('chart-recovery'), {type:'line', data:{labels:D.labels, datasets:[{label:'14-day recovery %', data:D.recovery_pct, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, fill:true, pointRadius:3}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toFixed(0)+'%'}, suggestedMax:35}}}});
-
-const L = D.L; const M = D.M;
-new Chart(document.getElementById('cmo-rev-profit'), {type:'line', data:{labels:L, datasets:[{label:'Total Revenue', data:M.total_rev, borderColor:C.ch, backgroundColor:C.chL, tension:0.3, pointRadius:3, borderWidth:2},{label:'Net Profit', data:M.net_profit, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('cmo-rebills'), {type:'line', data:{labels:L, datasets:[{label:'Rebills', data:M.rebills, borderColor:C.teal, backgroundColor:C.tealL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('cmo-newsales'), {type:'line', data:{labels:L, datasets:[{label:'New Sales $', data:M.new_sales_amt, borderColor:C.indigo, backgroundColor:C.indigoL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('cmo-homesales'), {type:'line', data:{labels:L, datasets:[{label:'Home Page Sales $', data:M.home_sales, borderColor:C.amber, backgroundColor:C.amberL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
-new Chart(document.getElementById('cmo-hh'), {type:'bar', data:{labels:L, datasets:[{label:'Hacker Hotel', data:M.hh, backgroundColor:C.pink}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toLocaleString()}}}}});
-new Chart(document.getElementById('cmo-pl'), {type:'line', data:{labels:L, datasets:[{label:'P/L on Ad Spend', data:M.pl, borderColor:C.amber, backgroundColor:C.amberL, tension:0.3, fill:true, pointRadius:3, borderWidth:2, spanGaps:true},{label:'Break-even', data:L.map(()=>0), borderColor:'#9ca3af', borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid}, ticks:{font:{size:11}, callback:v=>'$'+v.toLocaleString()}}}}});
-new Chart(document.getElementById('cmo-mix'), {type:'line', data:{labels:L, datasets:[{label:'CH Pro (left)', data:M.ch_pro, borderColor:C.ch, backgroundColor:C.chL, yAxisID:'y1', tension:0.3, pointRadius:3, borderWidth:2},{label:'CH Biz Plan (right)', data:M.ch_biz, borderColor:C.amber, backgroundColor:C.amberL, yAxisID:'y2', tension:0.3, pointRadius:3, borderWidth:2},{label:'Banger Button (right)', data:M.bb, borderColor:C.bb, backgroundColor:C.bbL, yAxisID:'y2', tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y1:{position:'left', grid:{color:C.grid}, ticks:{font:{size:11}}, title:{display:true, text:'CH Pro'}}, y2:{position:'right', grid:{display:false}, ticks:{font:{size:11}}, title:{display:true, text:'CH Biz / BB'}}}}});
-new Chart(document.getElementById('cmo-active-total'), {type:'line', data:{labels:L, datasets:[{label:'Active Subs', data:M.active_total, borderColor:C.ch, backgroundColor:C.chL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid}, ticks:{font:{size:11}}, suggestedMin:5300, suggestedMax:6400}}}});
-new Chart(document.getElementById('cmo-churn'), {type:'line', data:{labels:L, datasets:[{label:'Churn % (left)', data:M.churn, borderColor:C.red, backgroundColor:C.redL, tension:0.3, pointRadius:4, borderWidth:2.5, yAxisID:'y1'},{label:'# Cancellations (right)', data:M.n_cancellations, borderColor:'#9ca3af', backgroundColor:'rgba(156,163,175,0.15)', tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y2'}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y1:{position:'left', grid:{color:C.grid}, ticks:{font:{size:11}, callback:v=>v.toFixed(1)+'%'}, title:{display:true, text:'Churn %'}, beginAtZero:false, min:1.5, max:4.0}, y2:{position:'right', grid:{display:false}, ticks:{font:{size:11}}, title:{display:true, text:'# Cancel'}}}}});
-new Chart(document.getElementById('cmo-spend-split'), {type:'line', data:{labels:L, datasets:[
-  {label:'Meta', data:M.meta_spend, borderColor:'#1877f2', backgroundColor:'rgba(24,119,242,0.10)', tension:0.3, fill:true, pointRadius:3, borderWidth:2.5},
-  {label:'Google', data:M.google_spend, borderColor:'#ea4335', backgroundColor:'rgba(234,67,53,0.10)', tension:0.3, fill:true, pointRadius:3, borderWidth:2.5},
-  {label:'Total', data:M.meta_spend.map((v,i)=>v+M.google_spend[i]), borderColor:C.purple, backgroundColor:'transparent', tension:0.3, fill:false, pointRadius:3, borderWidth:2, borderDash:[4,4]}
-]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(1)+'k'}}}}});
-new Chart(document.getElementById('cmo-nnew'), {type:'line', data:{labels:L, datasets:[{label:'# New customers', data:M.n_new, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}}});
-new Chart(document.getElementById('cmo-visitors'), {type:'line', data:{labels:L, datasets:[{label:'Visitors', data:M.visitors_all, borderColor:C.purple, backgroundColor:C.purpleL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}}});
-new Chart(document.getElementById('cmo-home-visitors'), {type:'line', data:{labels:L, datasets:[{label:'Home/Sales visitors', data:M.home_visitors, borderColor:C.teal, backgroundColor:C.tealL, tension:0.3, fill:true, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}}});
-new Chart(document.getElementById('cmo-conv'), {type:'line', data:{labels:L, datasets:[{label:'Home page conv %', data:M.home_conv, borderColor:C.red, backgroundColor:C.redL, tension:0.3, pointRadius:4, borderWidth:2.5},{label:'OTO conv %', data:M.oto_conv, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, pointRadius:3, borderWidth:2}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toFixed(2)+'%'}}}}});
-new Chart(document.getElementById('cmo-epc'), {type:'line', data:{labels:L, datasets:[{label:'EPC', data:M.epc, borderColor:C.pink, backgroundColor:C.pinkL, tension:0.3, fill:true, pointRadius:4, borderWidth:2}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(2)}}}}});
-new Chart(document.getElementById('cmo-trials'), {type:'line', data:{labels:L, datasets:[{label:'# Trials', data:M.trials, borderColor:C.amber, backgroundColor:C.amberL, tension:0.3, fill:true, pointRadius:4, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}}});
-new Chart(document.getElementById('cmo-bb-visitors'), {type:'line', data:{labels:L, datasets:[{label:'BB All Page Visitors', data:M.bb_visitors, borderColor:C.bb, backgroundColor:C.bbL, tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true},{label:'BB Home Visitors', data:M.bb_home_visitors, borderColor:C.purple, backgroundColor:C.purpleL, tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true}]}, options:baseOpts});
-new Chart(document.getElementById('cmo-bb-epc'), {type:'line', data:{labels:L, datasets:[{label:'BB EPC', data:M.bb_epc, borderColor:C.pink, backgroundColor:C.pinkL, tension:0.3, fill:true, pointRadius:4, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(2)}}}}});
-new Chart(document.getElementById('cmo-bb-conv'), {type:'line', data:{labels:L, datasets:[{label:'BB Home page conv %', data:M.bb_home_conv, borderColor:C.bb, backgroundColor:C.bbL, tension:0.3, pointRadius:4, borderWidth:2.5, spanGaps:true},{label:'BB OTO conv %', data:M.bb_oto_conv, borderColor:C.green, backgroundColor:C.greenL, tension:0.3, pointRadius:4, borderWidth:2.5, spanGaps:true}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toFixed(1)+'%'}}}}});
-new Chart(document.getElementById('cmo-cpa'), {type:'line', data:{labels:L, datasets:[{label:'CPA — CH', data:M.cpa, borderColor:C.ch, backgroundColor:C.chL, tension:0.3, pointRadius:3, borderWidth:2},{label:'CPA — BB', data:M.cpa_bb, borderColor:C.bb, backgroundColor:C.bbL, tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(0)}}}}});
-new Chart(document.getElementById('cmo-aov'), {type:'line', data:{labels:L, datasets:[{label:'AOV — CH', data:M.aov, borderColor:C.ch, backgroundColor:C.chL, tension:0.3, pointRadius:3, borderWidth:2},{label:'AOV — BB', data:M.aov_bb, borderColor:C.bb, backgroundColor:C.bbL, tension:0.3, pointRadius:3, borderWidth:2, spanGaps:true}]}, options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(0)}}}}});
-
-// === QB Fully-loaded CAC section (incl. merch fulfillment) ===
+/* ---------- trial bars ---------- */
 (function(){
-  const Q = D.qb;
-  if (!Q) return;
-  document.getElementById('qb-apr-cac').textContent = fmt$2(Q.loaded_cac[3]);
-  document.getElementById('qb-apr-cac-sub').textContent = `Ads + affiliate + mgmt: $${Q.loaded_spend[3].toLocaleString()}`;
-
-  document.getElementById('qb-apr-true-cac').textContent = fmt$2(Q.true_loaded_cac[3]);
-  document.getElementById('qb-apr-true-cac-sub').textContent = `+ $${Q.merch_fulfillment[3].toLocaleString()} merch fulfillment (Apr)`;
-
-  const avg_true = Q.true_loaded_spend.reduce((a,b)=>a+b,0) / Q.new_customers.reduce((a,b)=>a+b,0);
-  document.getElementById('qb-avg-cac').textContent = fmt$2(avg_true);
-  const total_merch = Q.merch_fulfillment.reduce((a,b)=>a+b,0);
-  document.getElementById('qb-avg-cac-sub').textContent = `Jan-Apr (incl. $${Math.round(total_merch).toLocaleString()} merch over 4mo)`;
-  // Use new cohort blended LTV ($104.96) in the ratio
-  document.getElementById('qb-ltv-cac').textContent = (D.ltv_cohort_blend_12mo/avg_true).toFixed(2)+'x';
-
-  // CAC chart - Strict vs Fully-loaded vs True Loaded
-  new Chart(document.getElementById('qb-cac-chart'), {
-    type:'line',
-    data:{labels:Q.months, datasets:[
-      {label:'Strict CAC (paid + affiliate)', data:Q.strict_cac, borderColor:C.amber, backgroundColor:C.amberL, tension:0.3, pointRadius:4, borderWidth:2.5, fill:false},
-      {label:'Fully-loaded CAC (+ Marketing Mgmt)', data:Q.loaded_cac, borderColor:C.purple, backgroundColor:C.purpleL, tension:0.3, pointRadius:4, borderWidth:2, fill:false},
-      {label:'True Loaded CAC (+ merch fulfillment)', data:Q.true_loaded_cac, borderColor:C.pink, backgroundColor:C.pinkL, tension:0.3, pointRadius:5, borderWidth:3, fill:true},
-    ]},
-    options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(0)}}}}
-  });
-
-  // Spend breakdown stacked bar (now includes merch fulfillment)
-  new Chart(document.getElementById('qb-spend-chart'), {
-    type:'bar',
-    data:{labels:Q.months, datasets:[
-      {label:'Facebook', data:Q.facebook, backgroundColor:'#1877f2', stack:'s'},
-      {label:'Google Ads', data:Q.google, backgroundColor:'#ea4335', stack:'s'},
-      {label:'Affiliate Program', data:Q.affiliate, backgroundColor:C.green, stack:'s'},
-      {label:'Other Marketing', data:Q.other_marketing, backgroundColor:C.amber, stack:'s'},
-      {label:'Marketing Mgmt', data:Q.marketing_management, backgroundColor:C.purple, stack:'s'},
-      {label:'Merch Fulfillment (Printful + USB + ship)', data:Q.merch_fulfillment, backgroundColor:C.pink, stack:'s'},
-    ]},
-    options:{...baseOpts, scales:{x:{...baseOpts.scales.x, stacked:true}, y:{...baseOpts.scales.y, stacked:true, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}, plugins:{...baseOpts.plugins, tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>`${c.dataset.label}: ${fmt$2(c.parsed.y)}`}}}}
+  const wrap=document.getElementById('trial-bars'); if(!wrap)return;
+  D.trial_types.forEach((t,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;';
+    row.innerHTML='<span style="width:200px;font-size:12.5px;color:var(--muted);">'+t.label+'</span>'+
+      '<span style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:6px;height:16px;overflow:hidden;"><span style="display:block;height:100%;width:'+t.pct+'%;background:'+(i===0?'var(--teal)':'var(--accent)')+';"></span></span>'+
+      '<span style="width:44px;text-align:right;font-size:12.5px;font-weight:700;">'+t.pct+'%</span>';
+    wrap.appendChild(row);
   });
 })();
 
+/* ---------- chart framework ---------- */
+const REG=[]; const BUILT={};
+function reg(id,build){REG.push({id,build});}
+function baseOpts(){const p=pal();return{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10,color:p.muted,font:{size:11}}},tooltip:{padding:10}},
+  scales:{x:{grid:{display:false},ticks:{color:p.muted,font:{size:10.5}}},y:{grid:{color:p.grid},ticks:{color:p.muted,font:{size:11}},beginAtZero:true}}};}
+function ln(label,data,color,extra){return Object.assign({label,data,borderColor:color,backgroundColor:'transparent',borderWidth:2,borderCapStyle:'round',tension:0.3,pointRadius:2,pointHoverRadius:5,spanGaps:true},extra||{});}
+function fill(ds,rgba){ds.backgroundColor=rgba;ds.fill=true;return ds;}
+function $cb(o,f){o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+(f?f(c.parsed.y):c.parsed.y)};return o;}
+function yK(o){o.scales.y.ticks.callback=v=>'$'+(v/1000).toFixed(0)+'k';return o;}
+function y$(o){o.scales.y.ticks.callback=v=>'$'+Number(v).toFixed(0);return o;}
+function yPct(o,d){o.scales.y.ticks.callback=v=>Number(v).toFixed(d==null?1:d)+'%';return o;}
+function zero(labels,color){return {label:'Break-even',data:labels.map(()=>0),borderColor:color,borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false};}
+function buildVisible(){REG.forEach(r=>{if(BUILT[r.id])return;const el=document.getElementById(r.id);if(!el)return;
+  if(el.closest('.hidden'))return; if(el.offsetParent===null)return;
+  BUILT[r.id]=r.build(el);});}
+function rebuildAll(){for(const k in BUILT){BUILT[k].destroy();delete BUILT[k];}buildVisible();}
 
-// === Hormozi Top-5 KPIs (with CMO-sheet aligned Net CAC) ===
-(function(){
-  const H = D.hormozi;
-  const NC = D.netcac;
-  if (!H) return;
-  document.getElementById('hz-ltgp').textContent = fmt$2(H.ltgp_blended);
-  document.getElementById('hz-ltgp-sub').textContent = `Cohort LTV $${D.ltv_cohort_blend_12mo.toFixed(0)} × ${H.gross_margin_pct.toFixed(1)}% gross margin`;
-  document.getElementById('hz-ltgp-cac').textContent = H.ltgp_cac_loaded.toFixed(2)+'x';
-  document.getElementById('hz-ltgp-cac-sub').textContent = `Strict CAC: ${H.ltgp_cac_strict.toFixed(2)}x · 3x healthy, 5x great`;
-  document.getElementById('hz-gm').textContent = H.gross_margin_pct.toFixed(1)+'%';
-
-  // Net CAC card (from CMO sheet formula)
-  if (NC) {
-    const nc = NC.latest_net_cac;
-    const ncEl = document.getElementById('hz-netcac');
-    ncEl.textContent = (nc<0?'−':'')+'$'+Math.abs(nc).toFixed(2);
-    ncEl.style.color = nc<0 ? '#047857' : '#b91c1c';
-    document.getElementById('hz-netcac-sub').textContent = nc<0
-      ? 'Customers pay for themselves on Day 1 (thru May 10)'
-      : `Out-of-pocket cost per customer (thru May 10)`;
-
-    const pb = NC.latest_payback_weeks;
-    const pbEl = document.getElementById('hz-payback-weeks');
-    pbEl.textContent = (pb<0?'−':'')+Math.abs(pb).toFixed(2)+' wk';
-    pbEl.style.color = pb<0 ? '#047857' : '#b91c1c';
-    document.getElementById('hz-payback-weeks-sub').textContent = pb<0
-      ? 'Negative = paid back before Day 7'
-      : 'Weeks until first-charge revenue covers ad spend';
-
-    const pl = NC.latest_pl;
-    const plEl = document.getElementById('hz-pl-week');
-    plEl.textContent = (pl<0?'−':'')+'$'+Math.abs(pl).toLocaleString('en-US',{maximumFractionDigits:0});
-    plEl.style.color = pl<0 ? '#b91c1c' : '#047857';
-    document.getElementById('hz-pl-week-sub').textContent = `Week ending ${NC.labels[NC.labels.length-1]} (first-charge − spend) · pending refresh`;
-
-    const mtd = NC.mtd_may_pl;
-    const mtdEl = document.getElementById('hz-pl-mtd');
-    mtdEl.textContent = (mtd<0?'−':'')+'$'+Math.abs(mtd).toLocaleString('en-US',{maximumFractionDigits:0});
-    mtdEl.style.color = mtd<0 ? '#b91c1c' : '#047857';
-  }
-
-  // Recurring payback (months) — keep but rename
-  document.getElementById('hz-payback').textContent = H.payback_loaded_avg.toFixed(1)+' mo';
-  document.getElementById('hz-payback-sub').textContent = `Conservative: fully-loaded CAC ÷ monthly gross profit. Ignores front-end cash.`;
-
-  // 0-30 Day Cash chart
-  new Chart(document.getElementById('hz-cash30'), {
-    type:'bar',
-    data:{labels:H.months, datasets:[{label:'Cash per new customer ($)', data:H.cash_30d, backgroundColor:[C.green, C.green, C.green, '#fde68a']}]},
-    options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false},
-      tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>{
-        const totals = H.cash_30d_total[c.dataIndex];
-        return `$${c.parsed.y.toFixed(2)} per customer (total $${totals.toLocaleString()})`;
-      }}}},
-      scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+v.toFixed(0)}}}}
-  });
-
-  // Upsell take rate chart
-  new Chart(document.getElementById('hz-upsell'), {
-    type:'bar',
-    data:{labels:H.months, datasets:[{label:'Annual take rate %', data:H.upsell_take_rate, backgroundColor:C.purple}]},
-    options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false},
-      tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>{
-        const a = H.upsell_count_annual[c.dataIndex];
-        const t = H.upsell_count_total[c.dataIndex];
-        return `${c.parsed.y.toFixed(1)}% (${a} annual / ${t} total)`;
-      }}}},
-      scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toFixed(1)+'%'}}}}
-  });
-
-  // Net CAC by week chart (replaces monthly payback chart)
-  if (NC) {
-    const zeroLine = NC.labels.map(()=>0);
-    new Chart(document.getElementById('hz-netcac-chart'), {
-      type:'bar',
-      data:{labels:NC.labels, datasets:[
-        {label:'Net CAC (out-of-pocket per customer)', data:NC.net_cac, backgroundColor:NC.net_cac.map(v=>v<0?C.green:C.red), order:2},
-        {type:'line', label:'Break-even', data:zeroLine, borderColor:'#6b7280', borderDash:[4,4], borderWidth:1.5, pointRadius:0, fill:false, order:1}
-      ]},
-      options:{...baseOpts, plugins:{...baseOpts.plugins,
-        tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>{
-          if (c.dataset.label==='Break-even') return '';
-          const v = c.parsed.y;
-          return `${c.dataset.label}: ${v<0?'−':''}$${Math.abs(v).toFixed(2)}/customer`;
-        }}}
-      }, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid}, ticks:{font:{size:11}, callback:v=>(v<0?'−':'')+'$'+Math.abs(v).toFixed(0)}}}}
+/* ---------- filters: time tabs + product chips + search ---------- */
+let timeTab='weekly', product='all', q='';
+document.getElementById('time-tabs').addEventListener('click',e=>{
+  const t=e.target.closest('.tab'); if(!t)return;
+  document.querySelectorAll('#time-tabs .tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); timeTab=t.dataset.t; applyFilters();
+});
+document.getElementById('prod-chips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c)return;
+  document.querySelectorAll('#prod-chips .chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); product=c.dataset.p; applyFilters();
+});
+document.getElementById('q').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();applyFilters();});
+function elOk(el, tStr, pStr, hay){
+  const okT = tStr==='all' || tStr.split(' ').includes(timeTab);
+  const okP = product==='all' || pStr==='all' || pStr.split(' ').includes(product);
+  const okQ = !q || hay.includes(q);
+  return okT && okP && okQ;
+}
+function applyFilters(){
+  document.querySelectorAll('.blk').forEach(b=>{
+    const ok = elOk(b, b.dataset.time||'all', b.dataset.product||'all', ((b.dataset.kw||'')+' '+b.textContent).toLowerCase());
+    b.classList.toggle('hidden', !ok);
+    // inner product-tagged cards
+    b.querySelectorAll('.chart-card[data-product]').forEach(c=>{
+      const okC = product==='all' || c.dataset.product.split(' ').includes(product);
+      c.classList.toggle('hidden', !okC);
     });
-  }
-})();
-
-
-// === P&L Revenue vs Expenses chart ===
-(function(){
-  const PL = D.pl_history;
-  if (!PL) return;
-  const labels = PL.map(r=>r.month);
-  const rev = PL.map(r=>r.revenue);
-  const exp = PL.map(r=>r.expenses + r.cogs);  // total cost = expenses + COGS
-  const ni = PL.map(r=>r.net_income);
-  const margin = PL.map(r=>r.margin_pct);
-
-  // KPI cards
-  const apr = PL[PL.length-1];  // Apr 2026
-  document.getElementById('pl-apr-rev').textContent = fmt$(apr.revenue);
-  document.getElementById('pl-apr-rev-sub').textContent = `Expenses ${fmt$(apr.expenses + apr.cogs)}`;
-  document.getElementById('pl-apr-ni').textContent = fmt$(apr.net_income);
-  const niEl = document.getElementById('pl-apr-ni');
-  niEl.style.color = apr.net_income >= 0 ? '#047857' : '#b91c1c';
-  document.getElementById('pl-apr-margin').textContent = `${apr.margin_pct.toFixed(1)}% margin`;
-
-  // L12M (May 2025 - Apr 2026)
-  const l12m = PL.slice(-12);
-  const l12m_rev = l12m.reduce((a,b)=>a+b.revenue, 0);
-  const l12m_ni = l12m.reduce((a,b)=>a+b.net_income, 0);
-  document.getElementById('pl-l12m-ni').textContent = fmt$(l12m_ni);
-  document.getElementById('pl-l12m-sub').textContent = `On ${fmt$(l12m_rev)} revenue (${(l12m_ni/l12m_rev*100).toFixed(1)}% margin)`;
-
-  // YTD 2026
-  const ytd = PL.slice(-4);  // Jan-Apr 2026
-  const ytd_rev = ytd.reduce((a,b)=>a+b.revenue, 0);
-  const ytd_ni = ytd.reduce((a,b)=>a+b.net_income, 0);
-  document.getElementById('pl-ytd-ni').textContent = fmt$(ytd_ni);
-  document.getElementById('pl-ytd-sub').textContent = `On ${fmt$(ytd_rev)} revenue (${(ytd_ni/ytd_rev*100).toFixed(1)}% margin)`;
-
-  // Main P&L chart - bars + line
-  new Chart(document.getElementById('pl-chart'), {
-    type:'bar',
-    data:{labels:labels, datasets:[
-      {label:'Revenue', data:rev, backgroundColor:C.green, order:2},
-      {label:'Expenses (incl. COGS)', data:exp, backgroundColor:C.red, order:3},
-      {type:'line', label:'Net profit', data:ni, borderColor:C.purple, backgroundColor:C.purpleL, borderWidth:3, pointRadius:4, tension:0.3, fill:false, order:1}
-    ]},
-    options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}},
-      plugins:{...baseOpts.plugins, tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>`${c.dataset.label}: ${fmt$2(c.parsed.y)}`}}}}
   });
-
-  // Margin chart
-  new Chart(document.getElementById('pl-margin-chart'), {
-    type:'bar',
-    data:{labels:labels, datasets:[{label:'Net margin %', data:margin, backgroundColor:margin.map(v=>v>=0?C.green:C.red)}]},
-    options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid}, ticks:{font:{size:11}, callback:v=>v.toFixed(0)+'%'}}}}
+  document.querySelectorAll('.sec').forEach(s=>{
+    const secP=s.dataset.p; let ok=true;
+    if(secP && product!=='all' && secP!==product) ok=false;
+    const any=[...s.querySelectorAll('.blk')].some(b=>!b.classList.contains('hidden'));
+    s.classList.toggle('hidden', !(ok&&any));
   });
+  buildVisible();
+}
 
-  // Net income $ chart
-  new Chart(document.getElementById('pl-ni-chart'), {
-    type:'bar',
-    data:{labels:labels, datasets:[{label:'Net profit $', data:ni, backgroundColor:ni.map(v=>v>=0?C.green:C.red)}]},
-    options:{...baseOpts, plugins:{...baseOpts.plugins, legend:{display:false}}, scales:{x:baseOpts.scales.x, y:{grid:{color:C.grid}, ticks:{font:{size:11}, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}
-  });
-})();
+/* ================= WEEKLY charts ================= */
+reg('w-revenue', el=>{const p=pal();const tot=D.ch_net.map((v,i)=>v+D.bb_net[i]);
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    fill(ln('Total',tot,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.10)'),
+    ln('Crate Hackers (incl. L11 + HH)',D.ch_net,p.blue),
+    ln('Banger Button',D.bb_net,p.teal,{borderDash:[6,4]})
+  ]},options:$cb(yK(baseOpts()),fmt$)});
+});
+reg('w-active', el=>{const p=pal();const o=baseOpts();
+  o.scales={x:o.scales.x,
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11}},title:{display:true,text:'Crate Hackers',color:p.muted}},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11}},title:{display:true,text:'Banger Button',color:p.muted}}};
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    ln('Crate Hackers (left)',D.ch_act,p.orange,{yAxisID:'y1',borderWidth:2.5,pointRadius:3}),
+    ln('Banger Button (right)',D.bb_act,p.blue,{yAxisID:'y2',pointRadius:3})
+  ]},options:o});
+});
+reg('w-flow', el=>{const p=pal();const totN=D.ch_new.map((v,i)=>v+D.bb_new[i]);const totC=D.ch_canc.map((v,i)=>v+D.bb_canc[i]);
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    ln('New',totN,p.teal,{borderWidth:2.5,pointRadius:3}),
+    ln('Cancelled',totC,p.red,{borderWidth:2.5,pointRadius:3})
+  ]},options:baseOpts()});
+});
+reg('w-churn-ch', el=>{const p=pal();const o=baseOpts();o.scales.y.beginAtZero=false;o.scales.y.min=2.0;o.scales.y.max=4.0;yPct(o);o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[fill(ln('CH churn %',D.ch_churn,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.10)')]},options:$cb(o,v=>v.toFixed(2)+'%')});
+});
+reg('w-churn-bb', el=>{const p=pal();const o=baseOpts();o.scales.y.max=30;yPct(o,0);
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    ln('BB churn % (clean, excl PP3)',D.bb_clean_churn,p.orange,{borderWidth:2.5,pointRadius:3,spanGaps:false}),
+    ln('BB churn % (raw)',D.bb_raw_churn,p.muted,{borderDash:[4,4],borderWidth:1.5,pointRadius:0,spanGaps:false})
+  ]},options:o});
+});
+reg('w-netnew', el=>{const p=pal();const o=baseOpts();o.scales.y.beginAtZero=false;
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    ln('Crate Hackers',D.ch_netn,p.orange,{borderWidth:2.5,pointRadius:3}),
+    ln('Banger Button',D.bb_netn,p.blue,{pointRadius:3}),
+    zero(D.labels,p.muted)
+  ]},options:o});
+});
+reg('w-bbcancel', el=>{const p=pal();
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    ln('Clean cancellations (real churn)',D.bb_clean_cancel,p.red,{borderWidth:2.5,pointRadius:3}),
+    ln('PP3 funnel-upgrades (excluded)',D.bb_pp3_excluded,p.amber,{borderDash:[5,4],pointRadius:2})
+  ]},options:baseOpts()});
+});
+reg('w-adspend', el=>{const p=pal();
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    fill(ln('Ad spend',D.weekly_ad_spend,p.blue,{pointRadius:3}),'rgba(57,135,229,0.10)'),
+    ln('New-sales revenue',D.weekly_new_sales,p.orange,{borderWidth:2.5,pointRadius:3})
+  ]},options:$cb(yK(baseOpts()),fmt$)});
+});
+reg('w-cac', el=>{const p=pal();const o=y$(baseOpts());o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[fill(ln('CAC',D.weekly_cac,p.amber,{borderWidth:2.5,pointRadius:3}),'rgba(240,169,10,0.10)')]},options:$cb(o,v=>'$'+v.toFixed(2))});
+});
+reg('w-ltvcac', el=>{const p=pal();const o=baseOpts();o.scales.y.suggestedMax=7;o.scales.y.ticks.callback=v=>v.toFixed(1)+'x';
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    fill(ln('LTV : CAC',D.ltv_cac_ratio,p.teal,{borderWidth:2.5,pointRadius:3}),'rgba(27,175,122,0.10)'),
+    {label:'Healthy (3x)',data:D.labels.map(()=>3),borderColor:p.muted,borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false},
+    {label:'Great (5x)',data:D.labels.map(()=>5),borderColor:p.amber,borderDash:[2,4],borderWidth:1,pointRadius:0,fill:false}
+  ]},options:o});
+});
+reg('w-netcac', el=>{const p=pal();const NC=D.netcac;const o=baseOpts();o.scales.y.beginAtZero=false;
+  o.scales.y.ticks.callback=v=>(v<0?'−':'')+'$'+Math.abs(v).toFixed(0);
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label==='Break-even'?'':('Net CAC: '+(c.parsed.y<0?'−':'')+'$'+Math.abs(c.parsed.y).toFixed(2)+'/customer')};
+  return new Chart(el,{type:'line',data:{labels:NC.labels,datasets:[
+    fill(ln('Net CAC (out-of-pocket / customer)',NC.net_cac,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    zero(NC.labels,p.muted)
+  ]},options:o});
+});
+reg('w-fail', el=>{const p=pal();const tot=D.ch_fail_amt.map((v,i)=>v+D.bb_fail_amt[i]);
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[
+    fill(ln('Total failed $',tot,p.red,{borderWidth:2.5,pointRadius:2}),'rgba(226,75,74,0.08)'),
+    ln('Crate Hackers',D.ch_fail_amt,p.blue,{pointRadius:0}),
+    ln('Banger Button',D.bb_fail_amt,p.amber,{borderDash:[5,4],pointRadius:0})
+  ]},options:$cb(yK(baseOpts()),fmt$)});
+});
+reg('w-recovery', el=>{const p=pal();const o=baseOpts();o.scales.y.suggestedMax=35;yPct(o,0);o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:D.labels,datasets:[fill(ln('14-day recovery %',D.recovery_pct,p.teal,{pointRadius:3,spanGaps:false}),'rgba(27,175,122,0.10)')]},options:o});
+});
+reg('w-procfees', el=>{const p=pal();const P=D.processing;const o=baseOpts();
+  o.scales={x:o.scales.x,
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Volume',color:p.muted}},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(1)+'k'},title:{display:true,text:'Fees',color:p.muted}}};
+  return new Chart(el,{type:'line',data:{labels:P.weekly_labels,datasets:[
+    fill(ln('Volume processed',P.weekly_vol,p.orange,{yAxisID:'y1',borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    ln('Est. fees',P.weekly_fees,p.red,{yAxisID:'y2',borderDash:[5,4],pointRadius:3})
+  ]},options:$cb(o,fmt$)});
+});
 
+/* ================= CMO weekly charts ================= */
+const L=D.L, M=D.M;
+reg('m-revprofit', el=>{const p=pal();return new Chart(el,{type:'line',data:{labels:L,datasets:[
+  ln('Total revenue',M.total_rev,p.orange,{borderWidth:2.5,pointRadius:2}),
+  ln('Net (rev − refunds)',M.net_profit,p.teal,{pointRadius:2})]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('m-rebills', el=>{const p=pal();const o=yK(baseOpts());o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Rebills',M.rebills,p.teal,{pointRadius:2}),'rgba(27,175,122,0.10)')]},options:$cb(o,fmt$)});});
+reg('m-newsales', el=>{const p=pal();const o=yK(baseOpts());o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('New sales $',M.new_sales_amt,p.orange,{pointRadius:2}),'rgba(255,119,34,0.10)')]},options:$cb(o,fmt$)});});
+reg('m-homesales', el=>{const p=pal();const o=yK(baseOpts());o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Home page sales',M.home_sales,p.amber,{pointRadius:2}),'rgba(240,169,10,0.10)')]},options:$cb(o,fmt$)});});
+reg('m-hh', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};o.scales.y.ticks.callback=v=>'$'+Number(v).toLocaleString();
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Hacker Hotel',M.hh,p.amber,{pointRadius:3}),'rgba(240,169,10,0.10)')]},options:$cb(o,fmt$)});});
+reg('m-pl', el=>{const p=pal();const o=baseOpts();o.scales.y.beginAtZero=false;o.scales.y.ticks.callback=v=>'$'+Number(v).toLocaleString();
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    fill(ln('P/L on ad spend',M.pl,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    zero(L,p.muted)]},options:o});});
+reg('m-mix', el=>{const p=pal();const o=baseOpts();
+  o.scales={x:o.scales.x,
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11}},title:{display:true,text:'CH Pro',color:p.muted}},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11}},title:{display:true,text:'CH Biz / BB',color:p.muted}}};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('CH Pro (left)',M.ch_pro,p.orange,{yAxisID:'y1',borderWidth:2.5,pointRadius:2}),
+    ln('CH Biz (right)',M.ch_biz,p.amber,{yAxisID:'y2',pointRadius:2,borderDash:[4,4]}),
+    ln('Banger Button (right)',M.bb,p.blue,{yAxisID:'y2',pointRadius:2})]},options:o});});
+reg('m-activetotal', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};o.scales.y.beginAtZero=false;o.scales.y.suggestedMin=5300;
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Active subs',M.active_total,p.orange,{borderWidth:2.5,pointRadius:2}),'rgba(255,119,34,0.10)')]},options:o});});
+reg('m-churn', el=>{const p=pal();const o=baseOpts();
+  o.scales={x:o.scales.x,
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11},callback:v=>v.toFixed(1)+'%'},title:{display:true,text:'Churn %',color:p.muted},min:1.5,max:4.0},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11}},title:{display:true,text:'# Cancel',color:p.muted}}};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('Churn % (left)',M.churn,p.red,{borderWidth:2.5,pointRadius:3}),
+    ln('# Cancellations (right)',M.n_cancellations,p.muted,{yAxisID:'y2',pointRadius:2,borderDash:[4,4]})]},options:o});});
+reg('m-spendsplit', el=>{const p=pal();const tot=M.meta_spend.map((v,i)=>v+M.google_spend[i]);
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('Meta',M.meta_spend,p.blue,{borderWidth:2.5,pointRadius:2}),
+    ln('Google',M.google_spend,p.red,{pointRadius:2}),
+    ln('Total',tot,p.orange,{borderDash:[4,4],pointRadius:0})]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('m-nnew', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('# New customers',M.n_new,p.teal,{borderWidth:2.5,pointRadius:2}),'rgba(27,175,122,0.10)')]},options:o});});
+reg('m-visitors', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Visitors',M.visitors_all,p.orange,{pointRadius:2}),'rgba(255,119,34,0.10)')]},options:o});});
+reg('m-homevisitors', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('Home visitors',M.home_visitors,p.teal,{pointRadius:2}),'rgba(27,175,122,0.10)')]},options:o});});
+reg('m-conv', el=>{const p=pal();const o=baseOpts();o.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('Home page conv %',M.home_conv,p.orange,{borderWidth:2.5,pointRadius:3}),
+    ln('OTO conv %',M.oto_conv,p.teal,{pointRadius:2})]},options:o});});
+reg('m-epc', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};o.scales.y.ticks.callback=v=>'$'+Number(v).toFixed(2);
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('EPC',M.epc,p.amber,{pointRadius:3}),'rgba(240,169,10,0.10)')]},options:o});});
+reg('m-trials', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('# Trials',M.trials,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.10)')]},options:o});});
+reg('m-bbvisitors', el=>{const p=pal();
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('BB all-page visitors',M.bb_visitors,p.orange,{borderWidth:2.5,pointRadius:2}),
+    ln('BB home visitors',M.bb_home_visitors,p.blue,{pointRadius:2})]},options:baseOpts()});});
+reg('m-bbepc', el=>{const p=pal();const o=baseOpts();o.plugins.legend={display:false};o.scales.y.ticks.callback=v=>'$'+Number(v).toFixed(2);
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[fill(ln('BB EPC',M.bb_epc,p.amber,{pointRadius:3}),'rgba(240,169,10,0.10)')]},options:o});});
+reg('m-bbconv', el=>{const p=pal();const o=baseOpts();o.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('BB home conv %',M.bb_home_conv,p.orange,{borderWidth:2.5,pointRadius:3}),
+    ln('BB OTO conv %',M.bb_oto_conv,p.teal,{pointRadius:3})]},options:o});});
+reg('m-cpa', el=>{const p=pal();const o=y$(baseOpts());
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('CPA — CH',M.cpa,p.orange,{borderWidth:2.5,pointRadius:2}),
+    ln('CPA — BB',M.cpa_bb,p.blue,{pointRadius:2})]},options:o});});
+reg('m-aov', el=>{const p=pal();const o=y$(baseOpts());
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('AOV — CH',M.aov,p.orange,{borderWidth:2.5,pointRadius:2}),
+    ln('AOV — BB',M.aov_bb,p.blue,{pointRadius:2})]},options:o});});
 
+/* ================= MONTHLY charts ================= */
+reg('mo-mrrwf', el=>{const p=pal();const W=D.mrrwf;
+  const o=baseOpts();o.plugins.legend={display:false};
+  o.plugins.tooltip.callbacks={label:c=>{const v=c.raw;return '$'+Math.round(Math.abs(v[1]-v[0])).toLocaleString();}};
+  o.scales.y.ticks.callback=v=>'$'+(v/1000)+'K';
+  return new Chart(el,{type:'bar',data:{labels:['Start MRR','+ New','− Churn','End MRR'],datasets:[{label:'MRR',
+    data:[[0,W.start],[W.start,W.start+W.new],[W.end,W.start+W.new],[0,W.end]],
+    backgroundColor:[p.blue,p.teal,p.red,p.orange],borderWidth:0,borderRadius:4}]},options:o});});
+reg('mo-retention', el=>{const p=pal();
+  const months=Array.from({length:13},(_,i)=>i===0?'M0':'M'+i);
+  const modeled=months.map((_,i)=>+(Math.pow(1-0.136,i)*100).toFixed(1));
+  const empirical=months.map((_,i)=>i===1?57:null);
+  const o=baseOpts();o.scales.y.max=100;yPct(o,0);
+  return new Chart(el,{type:'line',data:{labels:months,datasets:[
+    fill(ln('Modeled (13.6%/mo blended churn)',modeled,p.orange,{borderWidth:2.5,pointRadius:2}),'rgba(255,119,34,0.08)'),
+    {label:'Empirical anchor (~57% survive M1)',data:empirical,borderColor:p.red,backgroundColor:p.red,pointRadius:6,pointHoverRadius:8,showLine:false}
+  ]},options:o});});
+reg('mo-pnl', el=>{const p=pal();const PL=D.pl_history;
+  return new Chart(el,{type:'line',data:{labels:PL.map(r=>r.month),datasets:[
+    fill(ln('Revenue',PL.map(r=>r.revenue),p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    ln('Total costs (exp + COGS)',PL.map(r=>r.expenses+r.cogs),p.red,{pointRadius:2}),
+    ln('Net profit',PL.map(r=>r.net_income),p.teal,{borderWidth:2.5,pointRadius:3})
+  ]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('mo-margin', el=>{const p=pal();const PL=D.pl_history;const o=baseOpts();o.plugins.legend={display:false};o.scales.y.beginAtZero=false;yPct(o,0);
+  return new Chart(el,{type:'line',data:{labels:PL.map(r=>r.month),datasets:[
+    fill(ln('Net margin %',PL.map(r=>r.margin_pct),p.teal,{borderWidth:2.5,pointRadius:3}),'rgba(27,175,122,0.08)'),
+    zero(PL.map(r=>r.month),p.muted)]},options:o});});
+reg('mo-ni', el=>{const p=pal();const PL=D.pl_history;const o=yK(baseOpts());o.plugins.legend={display:false};o.scales.y.beginAtZero=false;
+  return new Chart(el,{type:'line',data:{labels:PL.map(r=>r.month),datasets:[
+    fill(ln('Net profit $',PL.map(r=>r.net_income),p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    zero(PL.map(r=>r.month),p.muted)]},options:o});});
+reg('mo-cac', el=>{const p=pal();const Q=D.qb;const o=y$(baseOpts());
+  return new Chart(el,{type:'line',data:{labels:Q.months,datasets:[
+    ln('Strict CAC (ads + affiliate)',Q.strict_cac,p.amber,{pointRadius:3}),
+    ln('Fully-loaded (+ mktg mgmt)',Q.loaded_cac,p.blue,{pointRadius:3}),
+    fill(ln('True-loaded (+ merch)',Q.true_loaded_cac,p.orange,{borderWidth:2.5,pointRadius:4}),'rgba(255,119,34,0.08)')
+  ]},options:$cb(o,v=>'$'+v.toFixed(2))});});
+reg('mo-mktspend', el=>{const p=pal();const Q=D.qb;
+  return new Chart(el,{type:'line',data:{labels:Q.months,datasets:[
+    ln('Facebook',Q.facebook,p.blue,{borderWidth:2.5,pointRadius:3}),
+    ln('Google Ads',Q.google,p.red,{pointRadius:3}),
+    ln('Marketing mgmt',Q.marketing_management,p.amber,{pointRadius:2}),
+    ln('Affiliate',Q.affiliate,p.teal,{pointRadius:2,borderDash:[4,4]}),
+    ln('Merch fulfillment',Q.merch_fulfillment,p.muted,{pointRadius:2,borderDash:[2,3]})
+  ]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('mo-cash30', el=>{const p=pal();const H=D.hormozi;const o=y$(baseOpts());o.plugins.legend={display:false};
+  o.plugins.tooltip.callbacks={label:c=>{const t=H.cash_30d_total[c.dataIndex];return '$'+c.parsed.y.toFixed(2)+' per customer'+(t?' (total $'+t.toLocaleString()+')':'');}};
+  return new Chart(el,{type:'line',data:{labels:H.months,datasets:[fill(ln('0–30d cash / customer',H.cash_30d,p.teal,{borderWidth:2.5,pointRadius:4,spanGaps:false}),'rgba(27,175,122,0.10)')]},options:o});});
+reg('mo-upsell', el=>{const p=pal();const H=D.hormozi;const o=baseOpts();o.plugins.legend={display:false};yPct(o);
+  o.plugins.tooltip.callbacks={label:c=>c.parsed.y.toFixed(1)+'% ('+H.upsell_count_annual[c.dataIndex]+' annual / '+H.upsell_count_total[c.dataIndex]+' total)'};
+  return new Chart(el,{type:'line',data:{labels:H.months,datasets:[fill(ln('Annual take rate %',H.upsell_take_rate,p.orange,{borderWidth:2.5,pointRadius:4}),'rgba(255,119,34,0.10)')]},options:o});});
+reg('mo-fail12', el=>{const p=pal();const F=D.fail12;
+  return new Chart(el,{type:'line',data:{labels:F.labels,datasets:[
+    fill(ln('Total failed $',F.total,p.red,{borderWidth:2.5,pointRadius:3}),'rgba(226,75,74,0.08)'),
+    ln('Banger Button portion',F.bb,p.amber,{borderDash:[5,4],pointRadius:0})
+  ]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('mo-proc', el=>{const p=pal();const P=D.processing;const o=baseOpts();
+  o.scales={x:o.scales.x,
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Volume',color:p.muted}},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Fees',color:p.muted}}};
+  return new Chart(el,{type:'line',data:{labels:P.monthly_labels,datasets:[
+    fill(ln('Stripe volume',P.monthly_stripe_vol,p.orange,{yAxisID:'y1',borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    ln('PayPal volume',P.monthly_paypal_vol,p.blue,{yAxisID:'y1',pointRadius:3}),
+    ln('Fees',P.monthly_fees,p.red,{yAxisID:'y2',borderDash:[5,4],pointRadius:3})
+  ]},options:$cb(o,fmt$)});});
+reg('mo-exp', el=>{const p=pal();const E=D.expenses;
+  const o=baseOpts();o.indexAxis='y';o.plugins.legend={display:false};
+  o.scales={x:{beginAtZero:true,grid:{color:p.grid},ticks:{color:p.muted,callback:v=>'$'+(v/1000)+'K'}},y:{grid:{display:false},ticks:{color:p.text,font:{size:11.5}}}};
+  o.plugins.tooltip.callbacks={label:c=>'$'+Math.round(c.parsed.x).toLocaleString()+' · '+Math.round(100*c.parsed.x/172574)+'%'};
+  return new Chart(el,{type:'bar',data:{labels:E.labels,datasets:[{label:'June cost',data:E.amount,backgroundColor:[p.red,p.blue,p.teal,p.amber,p.muted],borderWidth:0,borderRadius:4}]},options:o});});
+reg('mo-era', el=>{const p=pal();const E=D.era;
+  const o=baseOpts();o.indexAxis='y';o.plugins.legend={display:false};
+  o.scales={x:{beginAtZero:true,grid:{color:p.grid},ticks:{color:p.muted,callback:v=>'$'+(v/1000).toFixed(0)+'k'}},y:{grid:{display:false},ticks:{color:p.text,font:{size:10.5}}}};
+  o.plugins.tooltip.callbacks={label:c=>fmt$(c.parsed.x)};
+  return new Chart(el,{type:'bar',data:{labels:E.labels,datasets:[{label:'YTD spend',data:E.amount,
+    backgroundColor:E.labels.map(l=>l==='Facebook'?p.orange:l==='Google Ads'?p.blue:p.muted),borderRadius:3}]},options:o});});
 
-// === LEVEL11 callout ===
-(function(){
-  const X=D.level11; if(!X) return;
-  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
-  set('l11-days',X.days_live);
-  set('l11-subs',fmtN(X.active_subs)); set('l11-subs-sub',`${X.monthly_count} monthly · ${X.annual_count} annual`);
-  set('l11-mrr',fmt$(X.mrr)); set('l11-arr-sub',`${fmt$(X.arr)} ARR run-rate`);
-  set('l11-wkrev',fmt$(X.wk_rev));
-  set('l11-signups',fmtN(X.new_sales)); set('l11-signups-sub',`${X.cancellations} cancelled so far`);
-  set('l11-cum',fmt$(X.sale_rev));
-})();
+/* ================= YEARLY charts ================= */
+function byYear(field){
+  const PL=D.pl_history;
+  const y25=PL.slice(0,12).map(r=>r[field]);
+  const y26=PL.slice(12).map(r=>r[field]);
+  while(y26.length<12)y26.push(null);
+  return {y25,y26};
+}
+const MO_LABELS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+reg('y-rev', el=>{const p=pal();const {y25,y26}=byYear('revenue');
+  return new Chart(el,{type:'line',data:{labels:MO_LABELS,datasets:[
+    fill(ln('2026',y26,p.orange,{borderWidth:2.5,pointRadius:3}),'rgba(255,119,34,0.08)'),
+    ln('2025',y25,p.muted,{pointRadius:2,borderDash:[5,4]})
+  ]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('y-ni', el=>{const p=pal();const {y25,y26}=byYear('net_income');const o=yK(baseOpts());o.scales.y.beginAtZero=false;
+  return new Chart(el,{type:'line',data:{labels:MO_LABELS,datasets:[
+    ln('2026',y26,p.orange,{borderWidth:2.5,pointRadius:3}),
+    ln('2025',y25,p.muted,{pointRadius:2,borderDash:[5,4]}),
+    zero(MO_LABELS,p.red)
+  ]},options:$cb(o,fmt$)});});
 
-// === Failed payments weekly line ===
-(function(){
-  const tot=D.ch_fail_amt.map((v,i)=>(v==null&&D.bb_fail_amt[i]==null)?null:((v||0)+(D.bb_fail_amt[i]||0)));
-  new Chart(document.getElementById('fail-line'),{type:'line',data:{labels:D.labels,datasets:[
-    {label:'Total failed $',data:tot,borderColor:C.red,backgroundColor:C.redL,borderWidth:3,pointRadius:3,tension:0.3,fill:true,spanGaps:true},
-    {label:'Crate Hackers',data:D.ch_fail_amt,borderColor:C.ch,backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3,spanGaps:true},
-    {label:'Banger Button',data:D.bb_fail_amt,borderColor:C.bb,backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3,spanGaps:true}
-  ]},options:{...baseOpts,scales:{x:baseOpts.scales.x,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'$'+(v/1000).toFixed(0)+'k'}}},plugins:{...baseOpts.plugins,tooltip:{...baseOpts.plugins.tooltip,callbacks:{label:c=>`${c.dataset.label}: ${fmt$2(c.parsed.y)}`}}}}});
-})();
+reg('mo-julybook', el=>{const p=pal();const o=baseOpts();
+  o.scales.y.ticks.callback=v=>'$'+(v/1000).toFixed(0)+'K';
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:['Jul 1–5 (collected)','wk end Jul 12','wk end Jul 19','wk end Jul 26','Jul 27–31'],datasets:[
+    fill(ln('July rebills (booked)',[23779,46552,38539,33466,11922],p.orange,{borderWidth:2.5,pointRadius:5}),'rgba(255,119,34,0.10)'),
+    {label:'June weekly avg collected (~$29.4K)',data:[29400,29400,29400,29400,29400],borderColor:p.muted,borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}
+  ]},options:o});
+});
 
-// === Payment processing & fees ===
-(function(){
-  const P=D.processing; if(!P) return;
-  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
-  set('pf-ytd-vol',fmt$(P.ytd_total_vol)); set('pf-ytd-vol-sub',`${fmt$(P.ytd_stripe_vol)} Stripe · ${fmt$(P.ytd_paypal_vol)} PayPal`);
-  set('pf-ytd-fees',fmt$(P.ytd_total_fees)); set('pf-ytd-fees-sub',`${fmt$(P.ytd_stripe_fees)} Stripe · ${fmt$(P.ytd_paypal_fees)} PayPal`);
-  set('pf-rate',P.blended_pct.toFixed(2)+'%');
-  set('pf-wk-fees',fmt$(P.weekly_fees[P.weekly_fees.length-1])); set('pf-wk-fees-sub',`on ${fmt$(P.weekly_vol[P.weekly_vol.length-1])} processed`);
-  new Chart(document.getElementById('pf-weekly'),{data:{labels:P.weekly_labels,datasets:[
-    {type:'bar',label:'Volume processed',data:P.weekly_vol,backgroundColor:C.teal,yAxisID:'y1',order:2},
-    {type:'line',label:'Processing fees',data:P.weekly_fees,borderColor:C.red,backgroundColor:C.redL,borderWidth:2.5,pointRadius:4,tension:0.3,yAxisID:'y2',order:1}
-  ]},options:{...baseOpts,scales:{x:baseOpts.scales.x,y1:{position:'left',grid:{color:C.grid},ticks:{font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Volume'}},y2:{position:'right',grid:{display:false},ticks:{font:{size:11},callback:v=>'$'+(v/1000).toFixed(1)+'k'},title:{display:true,text:'Fees'}}},plugins:{...baseOpts.plugins,tooltip:{...baseOpts.plugins.tooltip,callbacks:{label:c=>`${c.dataset.label}: ${fmt$2(c.parsed.y)}`}}}}});
-  new Chart(document.getElementById('pf-monthly'),{data:{labels:P.monthly_labels,datasets:[
-    {type:'bar',label:'Stripe volume',data:P.monthly_stripe_vol,backgroundColor:'#635bff',stack:'v',yAxisID:'y1',order:3},
-    {type:'bar',label:'PayPal volume',data:P.monthly_paypal_vol,backgroundColor:'#0070ba',stack:'v',yAxisID:'y1',order:2},
-    {type:'line',label:'Processing fees',data:P.monthly_fees,borderColor:C.red,backgroundColor:C.redL,borderWidth:2.5,pointRadius:4,tension:0.3,yAxisID:'y2',order:1}
-  ]},options:{...baseOpts,scales:{x:{...baseOpts.scales.x,stacked:true},y1:{position:'left',stacked:true,grid:{color:C.grid},ticks:{font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Volume'}},y2:{position:'right',grid:{display:false},ticks:{font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Fees'}}},plugins:{...baseOpts.plugins,tooltip:{...baseOpts.plugins.tooltip,callbacks:{label:c=>`${c.dataset.label}: ${fmt$2(c.parsed.y)}`}}}}});
-})();
+/* ================= DAILY charts ================= */
+function dailyLabels(){const out=[];const d=new Date(D.daily.start+"T00:00:00");for(let i=0;i<D.daily.CH.length;i++){out.push((d.getMonth()+1)+"/"+d.getDate());d.setDate(d.getDate()+1);}return out;}
+reg('d-rev', el=>{const p=pal();const L=dailyLabels();
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    fill(ln('Crate Hackers',D.daily.CH,p.orange,{borderWidth:2.5,pointRadius:0}),'rgba(255,119,34,0.08)'),
+    ln('Banger Button',D.daily.BB,p.blue,{pointRadius:0}),
+    ln('LEVEL11',D.daily.L11,p.teal,{pointRadius:0,borderDash:[5,4]}),
+    ln('Hacker Hotel',D.daily.HH,p.amber,{pointRadius:0,borderDash:[2,3]})
+  ]},options:$cb(yK(baseOpts()),fmt$)});});
+reg('d-sales', el=>{const p=pal();const L=dailyLabels();const s=D.daily.sales;
+  const ma=s.map((_,i)=>{const a=s.slice(Math.max(0,i-6),i+1);return +(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1);});
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    ln('Sale transactions/day',s,p.muted,{pointRadius:0,borderWidth:1.5}),
+    fill(ln('7-day average',ma,p.orange,{borderWidth:2.5,pointRadius:0}),'rgba(255,119,34,0.08)')
+  ]},options:baseOpts()});});
+reg('d-fail', el=>{const p=pal();const L=dailyLabels();
+  const o=yK(baseOpts());o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:L,datasets:[
+    fill(ln('Failed $',D.daily.failed,p.red,{borderWidth:2,pointRadius:0}),'rgba(226,75,74,0.08)')
+  ]},options:$cb(o,fmt$)});});
 
-// === Era operating spend ===
-(function(){
-  const E=D.era; if(!E) return;
-  const n=document.getElementById('era-note-txt'); if(n) n.textContent=E.note;
-  new Chart(document.getElementById('era-chart'),{type:'bar',data:{labels:E.labels,datasets:[{label:'YTD spend',data:E.amount,backgroundColor:E.labels.map(l=>l==='Facebook'?'#1877f2':l==='Google Ads'?'#ea4335':C.purple)}]},options:{...baseOpts,indexAxis:'y',plugins:{...baseOpts.plugins,legend:{display:false},tooltip:{...baseOpts.plugins.tooltip,callbacks:{label:c=>fmt$2(c.parsed.x)}}},scales:{x:{grid:{color:C.grid},ticks:{font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
-})();
-
+/* ---------- boot ---------- */
+function boot(){if(!window.Chart){return setTimeout(boot,60);} applyFilters();}
+if(document.readyState==='complete'){boot();}else{window.addEventListener('load',boot);}
 </script>
 </body>
 </html>

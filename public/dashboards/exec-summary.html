@@ -1,484 +1,557 @@
-<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
 {
-  "name": "Crate Hackers Exec Summary V2",
+  "name": "Crate Hackers Exec Summary V3",
   "schemaVersion": 1,
-  "description": "Simplified executive summary dashboard for Crate Hackers — 9 KPIs across Headlines / Last Week / Unit Economics / Profitability, plus trend charts for revenue, active subs, and churn (inverted). Week ending May 10, 2026."
+  "description": "Crate Hackers Exec Summary V3 — dark brand theme (black + #FF7722, light toggle), all-line charts, search + product filter. Headlines, LEVEL11, leaky-bucket SaaS health (GRR/NRR/quick ratio), Kartra→QuickBooks reconciliation bridge, unit economics + Rule of 40, per-product contribution, live cash/debt (Era, Jul 3), fees, failed payments, channel concentration. Data reconciled through June 2026."
 }
 </script>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crate Hackers — Executive Summary</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
 <style>
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-body {
-  margin: 0; padding: 32px 24px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  background: #fafbfc; color: #111827; line-height: 1.5;
+:root{
+  --bg:#0A0A0A; --card:#141414; --card2:#1A1A1A; --border:#242424;
+  --text:#F5F5F5; --muted:#9CA3AF; --faint:#6B7280;
+  --accent:#FF7722; --accent-ink:#000000;
+  --amber:#F0A90A; --teal:#1BAF7A; --blue:#3987E5; --red:#E24B4A;
+  --grid:#222222; --good:#1BAF7A; --warn:#F0A90A; --bad:#E24B4A;
+  color-scheme:dark;
 }
-.container { max-width: 1100px; margin: 0 auto; }
-header { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
-h1 { font-size: 28px; margin: 0 0 6px 0; font-weight: 700; letter-spacing: -0.02em; }
-.subtitle { color: #6b7280; font-size: 15px; margin: 0; }
-.section-title {
-  font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase;
-  letter-spacing: 0.08em; margin: 36px 0 14px 0;
+html[data-theme="light"]{
+  --bg:#fafbfc; --card:#ffffff; --card2:#ffffff; --border:#e5e7eb;
+  --text:#111827; --muted:#6b7280; --faint:#9ca3af;
+  --grid:#eef0f2; color-scheme:light;
 }
-.section-title.live { color: #047857; }
-.section-title.ltv { color: #5b21b6; }
-.headline-row {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px;
-}
-.headline-card {
-  background: white; border-radius: 12px; padding: 24px 28px;
-  box-shadow: 0 1px 3px rgba(16,24,40,0.05), 0 0 0 1px rgba(16,24,40,0.04);
-}
-.headline-card .label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
-.headline-card .value { font-size: 36px; font-weight: 800; color: #111827; margin: 8px 0 6px 0; letter-spacing: -0.02em; line-height: 1; }
-.headline-card .sub { font-size: 13px; color: #6b7280; margin: 0; }
-.headline-card .delta { display: inline-block; font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-top: 4px; }
-.delta.up { background: #d1fae5; color: #047857; }
-.delta.down { background: #fee2e2; color: #b91c1c; }
-.delta.flat { background: #f3f4f6; color: #6b7280; }
-
-.kpi-row {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;
-}
-.kpi-row.four { grid-template-columns: repeat(4, 1fr); }
-.kpi-card {
-  background: white; border-radius: 10px; padding: 18px 20px;
-  box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 0 0 1px rgba(16,24,40,0.04);
-  border-left: 4px solid #e5e7eb;
-}
-.kpi-card.good { border-left-color: #10b981; }
-.kpi-card.warn { border-left-color: #f59e0b; }
-.kpi-card.bad { border-left-color: #ef4444; }
-.kpi-card.live { border-left-color: #10b981; background: linear-gradient(180deg,#ecfdf5 0%, #ffffff 60%); }
-.kpi-card.ltv { border-left-color: #8b5cf6; background: linear-gradient(180deg,#faf5ff 0%, #ffffff 60%); }
-.kpi-card .label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
-.kpi-card .value { font-size: 24px; font-weight: 700; color: #111827; margin: 4px 0; letter-spacing: -0.01em; }
-.kpi-card .sub { font-size: 12px; color: #6b7280; margin: 0; }
-.kpi-card .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-.badge.good { background: #d1fae5; color: #047857; }
-.badge.warn { background: #fef3c7; color: #92400e; }
-.badge.bad { background: #fee2e2; color: #b91c1c; }
-.badge.live { background: #d1fae5; color: #065f46; }
-.badge.ltv { background: #ede9fe; color: #5b21b6; }
-
-.chart-card {
-  background: white; border-radius: 12px; padding: 24px;
-  box-shadow: 0 1px 3px rgba(16,24,40,0.05), 0 0 0 1px rgba(16,24,40,0.04);
-  margin-bottom: 16px;
-}
-.chart-card h3 { margin: 0 0 4px 0; font-size: 16px; font-weight: 700; color: #111827; }
-.chart-card .chart-sub { font-size: 13px; color: #6b7280; margin: 0 0 16px 0; }
-.chart-wrap { position: relative; height: 280px; }
-
-.summary-card {
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border: 1px solid #86efac; border-radius: 12px;
-  padding: 24px 28px; margin: 28px 0;
-}
-.summary-card h3 { margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.06em; }
-.summary-card ul { margin: 0; padding-left: 20px; }
-.summary-card li { font-size: 14px; color: #111827; margin-bottom: 6px; }
-.summary-card.warn { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fbbf24; }
-.summary-card.warn h3 { color: #92400e; }
-.summary-card.ltv { background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%); border-color: #c4b5fd; }
-.summary-card.ltv h3 { color: #5b21b6; }
-
-.live-banner {
-  background: linear-gradient(90deg, #ecfdf5 0%, #d1fae5 100%);
-  border: 1px solid #6ee7b7; border-radius: 10px;
-  padding: 10px 16px; margin: 0 0 18px 0;
-  font-size: 13px; color: #065f46;
-}
-.live-banner strong { color: #064e3b; }
-.pending-banner {
-  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
-  border: 1px solid #fcd34d; border-radius: 10px;
-  padding: 10px 16px; margin: 0 0 18px 0;
-  font-size: 13px; color: #92400e;
-}
-
-footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
-
-@media (max-width: 800px) {
-  .headline-row, .kpi-row, .kpi-row.four { grid-template-columns: 1fr 1fr; }
-}
+*{box-sizing:border-box;}
+body{margin:0;padding:28px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;}
+.container{max-width:1100px;margin:0 auto;}
+header{margin-bottom:14px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+h1{font-size:26px;margin:0 0 4px 0;font-weight:800;letter-spacing:-0.02em;}
+h1 .brand{color:var(--accent);}
+.subtitle{color:var(--muted);font-size:14px;margin:0;}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 6px;position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--border);}
+.search{flex:1;min-width:200px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:13px;outline:none;}
+.search:focus{border-color:var(--accent);}
+.chips{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.toggle{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+.sec-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:32px 0 12px 0;}
+.sec-title.hot{color:var(--accent);}
+.headline-row{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px;}
+.headline-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 26px;}
+.headline-card .label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:0;}
+.headline-card .value{font-size:34px;font-weight:800;color:var(--text);margin:8px 0 6px 0;letter-spacing:-0.02em;line-height:1;}
+.headline-card .value.hot{color:var(--accent);}
+.headline-card .sub{font-size:13px;color:var(--muted);margin:0;}
+.delta{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;margin-top:6px;}
+.delta.up{background:rgba(27,175,122,0.16);color:var(--good);}
+.delta.down{background:rgba(226,75,74,0.16);color:var(--bad);}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:11px;}
+.kpi-row.four{grid-template-columns:repeat(4,1fr);}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:10px;padding:16px 18px;}
+.kpi-card.good{border-left-color:var(--good);}
+.kpi-card.warn{border-left-color:var(--warn);}
+.kpi-card.bad{border-left-color:var(--bad);}
+.kpi-card.hot{border-left-color:var(--accent);}
+.kpi-card .label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin:0;}
+.kpi-card .value{font-size:23px;font-weight:800;color:var(--text);margin:4px 0;letter-spacing:-0.01em;}
+.kpi-card .sub{font-size:12px;color:var(--muted);margin:0;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;}
+.badge.good{background:rgba(27,175,122,0.16);color:var(--good);}
+.badge.warn{background:rgba(240,169,10,0.16);color:var(--warn);}
+.badge.bad{background:rgba(226,75,74,0.16);color:var(--bad);}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:14px;}
+.chart-card h3{margin:0 0 4px 0;font-size:15px;font-weight:700;color:var(--text);}
+.chart-card .chart-sub{font-size:12.5px;color:var(--muted);margin:0 0 14px 0;}
+.chart-wrap{position:relative;height:280px;}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0 0;}
+.fine{font-size:11.5px;color:var(--faint);margin:6px 0 0 0;}
+.banner{border:1px solid var(--border);border-left:4px solid var(--accent);background:var(--card2);border-radius:10px;padding:10px 16px;margin:0 0 14px 0;font-size:13px;color:var(--text);}
+.banner strong{color:var(--accent);}
+.banner.warn{border-left-color:var(--warn);}
+.banner.bad{border-left-color:var(--bad);}
+.summary-card{background:var(--card2);border:1px solid var(--border);border-left:4px solid var(--good);border-radius:12px;padding:20px 26px;margin:22px 0;}
+.summary-card h3{margin:0 0 10px 0;font-size:13px;font-weight:800;color:var(--good);text-transform:uppercase;letter-spacing:0.06em;}
+.summary-card ul{margin:0;padding-left:18px;}
+.summary-card li{font-size:13.5px;color:var(--text);margin-bottom:6px;}
+.summary-card.warn{border-left-color:var(--warn);} .summary-card.warn h3{color:var(--warn);}
+.summary-card.hot{border-left-color:var(--accent);} .summary-card.hot h3{color:var(--accent);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:right;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;}
+th:first-child,td:first-child{text-align:left;}
+td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;color:var(--text);}
+.bridge{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:12px;}
+.bridge-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--border);font-size:14px;}
+.bridge-row:last-child{border-bottom:none;}
+.bridge-row .b-label{color:var(--text);}
+.bridge-row .b-sub{color:var(--faint);font-size:12px;margin-left:8px;}
+.bridge-row .b-amt{font-weight:700;font-variant-numeric:tabular-nums;}
+.bridge-row.minus .b-amt{color:var(--bad);}
+.bridge-row.total .b-amt{color:var(--accent);font-size:17px;}
+.bridge-row.total{border-top:2px solid var(--border);padding-top:12px;}
+.mixbar{display:flex;width:100%;height:36px;border-radius:8px;overflow:hidden;gap:2px;margin:14px 0 10px;}
+.legend-line{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+.legend-line .sw{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--faint);}
+.hidden{display:none !important;}
+@media(max-width:800px){.headline-row,.kpi-row,.kpi-row.four{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>Crate Hackers — Executive Summary</h1>
-    <p class="subtitle">As of Monday, June 29, 2026 · for Aaron + Glenn</p>
+    <h1><span class="brand">Crate Hackers</span> — Executive Summary</h1>
+    <p class="subtitle">Reconciled through <strong>Jul 5, 2026</strong> · verified Jul 6 against QuickBooks, Adspirer (Meta + Google), and the week-ending 07-05 Kartra exports · cash &amp; debt live (Era) · the 1-page story</p>
   </header>
 
-  <h2 class="section-title">The Headlines (live · as of Jun 28)</h2>
-  <div class="headline-row">
+  <div class="controls">
+    <input class="search" id="q" type="search" placeholder="Search metrics &amp; charts… (e.g. churn, CAC, fees)">
+    <div class="chips" id="prod-chips">
+      <span class="chip on" data-p="all">All</span>
+      <span class="chip" data-p="ch">Crate Hackers</span>
+      <span class="chip" data-p="bb">Banger Button</span>
+      <span class="chip" data-p="l11">LEVEL11</span>
+      <span class="chip" data-p="hh">Hacker Hotel</span>
+      <span class="chip" data-p="ddj">Dangerous DJs</span>
+    </div>
+    <button class="toggle" id="theme-btn">☀️ Light</button>
+  </div>
+
+  <section class="sec">
+  <h2 class="sec-title hot">The Headlines (as of Jul 5)</h2>
+  <div class="blk headline-row" data-kw="mrr arr subscribers active headline">
     <div class="headline-card">
       <p class="label">Current MRR / ARR</p>
-      <p class="value">$174,189</p>
-      <p class="sub">$157,642 Crate Hackers · $12,459 Banger Button · $4,088 LEVEL11 · <strong>$2.09M ARR</strong></p>
-      <span class="delta up">+$0.8K MRR week-over-week · $2.09M ARR</span>
+      <p class="value hot">$177,994</p>
+      <p class="sub">$161.2K Crate Hackers (incl. HH) · $12.8K Banger Button · $4.0K LEVEL11 · <strong>$2.14M ARR</strong></p>
+      <span class="delta up">+$3.8K MRR week-over-week — best net-MRR week since May</span>
     </div>
     <div class="headline-card">
       <p class="label">Active Subscribers (all products)</p>
-      <p class="value">7,897</p>
-      <p class="sub">6,348 CH · 1,449 BB · 49 LEVEL11 · 532 of those pending cancellation</p>
-      <span class="delta up">BB 1,449 and LEVEL11 49 both still climbing</span>
+      <p class="value">8,050</p>
+      <p class="sub">6,491 CH · 1,509 BB · 49 LEVEL11 · 516 pending cancellation</p>
+      <span class="delta up">+153 WoW — July-4th sale week</span>
     </div>
   </div>
+  <h2 class="sec-title">June vs June 2025 — year over year</h2>
+  <div class="blk kpi-row four" data-kw="yoy year over year june 2025 comparison growth">
+    <div class="kpi-card hot"><p class="label">Kartra gross demand</p><p class="value" style="color:var(--accent);">+42%</p><p class="sub">$218.6K vs $154.0K · net after refunds +36%</p></div>
+    <div class="kpi-card good"><p class="label">QuickBooks revenue</p><p class="value">+15%</p><p class="sub">$165.0K vs $143.5K booked (Jun '26 still settling upward)</p></div>
+    <div class="kpi-card warn"><p class="label">Net income</p><p class="value" style="color:var(--bad);">−$8.0K</p><p class="sub">vs +$19.9K last June — margin traded for growth (ad spend +108% to $82.2K) · still settling</p></div>
+    <div class="kpi-card"><p class="label">Portfolio</p><p class="value">4 lines</p><p class="sub">BB + L11 + HH added $51.9K/mo net revenue that didn't exist last June · subs 7,897 vs ~5,714 (+38%)</p></div>
+  </div>
+  </section>
 
-  <h2 class="section-title" style="color:#b45309;">🚀 New product — LEVEL11 (launched Jun 11)</h2>
-  <div class="kpi-row four">
-    <div class="kpi-card" style="border-left-color:#f59e0b;">
-      <p class="label">Active subs</p>
-      <p class="value">49</p>
-      <p class="sub">~11 days live; mostly $99/mo monthly + a few annual</p>
-    </div>
-    <div class="kpi-card" style="border-left-color:#f59e0b;">
-      <p class="label">MRR added</p>
-      <p class="value">$4,088</p>
-      <p class="sub">~$49K ARR run-rate</p>
-    </div>
-    <div class="kpi-card" style="border-left-color:#f59e0b;">
-      <p class="label">Revenue (wk ending 6/21)</p>
-      <p class="value">$8,298</p>
-      <p class="sub">net of refunds (CMO)</p>
-    </div>
-    <div class="kpi-card" style="border-left-color:#f59e0b;">
-      <p class="label">Price point</p>
-      <p class="value">$99/mo</p>
-      <p class="sub">or $891/yr · premium high-ticket tier</p>
-    </div>
+  <section class="sec" data-p="l11">
+  <h2 class="sec-title hot">🚀 LEVEL11 — new product (launched Jun 11)</h2>
+  <div class="blk kpi-row four" data-product="l11" data-kw="level11 premium new product">
+    <div class="kpi-card hot"><p class="label">Active subs</p><p class="value">49</p><p class="sub">~3 weeks live · 40 monthly + 8 annual + upgrades</p></div>
+    <div class="kpi-card hot"><p class="label">MRR added</p><p class="value">$4,088</p><p class="sub">~$49K ARR run-rate</p></div>
+    <div class="kpi-card hot"><p class="label">Cumulative revenue</p><p class="value">$11,897</p><p class="sub">collected since Jun 11 · 55 sign-ups, 7 cancels</p></div>
+    <div class="kpi-card hot"><p class="label">Price point</p><p class="value">$99/mo</p><p class="sub">or $891/yr · premium high-ticket tier</p></div>
   </div>
-  <p style="font-size:13px;color:#6b7280;margin:8px 0 0 0;">LEVEL11 keeps climbing — 49 active subs now add ~$4.1K MRR (~$49K ARR), roughly what ~135 CH Pro subs contribute at a fraction of the count. It helped keep Net CAC near breakeven even as the anniversary rebill surge faded. Watch early-churn as the first cohort ages past its opening billing cycle — the first rebills land mid-July.</p>
+  <p class="blk note" data-product="l11" data-kw="level11 rebill retention">49 subs add ~$4.1K MRR — roughly what ~135 CH Pro subs contribute, at a fraction of the count. First rebill cohort lands mid-July; that's the real retention test.</p>
+  </section>
 
-  <h2 class="section-title live">Last Week Closed — Jun 22–28 (full 7 days)</h2>
-  <div class="live-banner">
-    <strong>A lighter week after the anniversary surge.</strong> Total revenue $38,682 / net profit $35,799 — down from the prior two ~$60K weeks as the 6-yr-anniversary rebill bump passed and ad spend was pulled back to ~$15K. June still closed at $207.5K / $190K net, beating the $200K target.
+  <section class="sec">
+  <h2 class="sec-title">Last Week Closed — Jun 29–Jul 5</h2>
+  <div class="blk banner" data-kw="week revenue july 4 sale">
+    <strong>The July-4th sale week bounced back: $44,871 net (+24% WoW).</strong> 440 new subs on just $12.9K of platform ad spend (Meta $11,221 + Google $1,637) → ~$29 blended CAC, LTV:CAC ~5.8 — the most efficient acquisition week of the year. The test comes early August when the $2.50 cohort hits its first $30 rebill. July MTD (1–5): $39.0K gross.
   </div>
-  <div class="kpi-row four">
-    <div class="kpi-card live">
-      <p class="label">Total Revenue (CMO)</p>
-      <p class="value">$38,682</p>
-      <p class="sub">$35,799 net profit · vs $59,767 prior week <span class="badge warn">post-anniversary dip</span></p>
-    </div>
-    <div class="kpi-card live">
-      <p class="label">New Customers</p>
-      <p class="value">352</p>
-      <p class="sub">216 CH · 136 BB · vs 431 prior week <span class="badge warn">−18%</span></p>
-    </div>
-    <div class="kpi-card good">
-      <p class="label">Cancellations (clean)</p>
-      <p class="value">300</p>
-      <p class="sub">205 CH · 95 BB · CMO-clean <span class="badge good">CH churn 2.78%</span></p>
-    </div>
-    <div class="kpi-card warn">
-      <p class="label">Failed Payments $</p>
-      <p class="value">$17,373</p>
-      <p class="sub">CH $16.2K · BB $1.2K · vs $24,012 prior week <span class="badge good">−28%, surge easing</span></p>
-    </div>
+  <div class="blk kpi-row four" data-kw="revenue new customers cancellations failed payments week">
+    <div class="kpi-card good"><p class="label">Net Revenue (Kartra)</p><p class="value">$44,871</p><p class="sub">vs $36,131 prior wk <span class="badge good">+24% — sale week</span></p></div>
+    <div class="kpi-card good"><p class="label">New Subscribers</p><p class="value">440</p><p class="sub">326 CH · 114 BB · vs 340 prior wk <span class="badge good">+29%</span></p></div>
+    <div class="kpi-card good"><p class="label">Cancellations (clean)</p><p class="value">282</p><p class="sub">191 CH · 91 BB <span class="badge good">CH churn 3.00%</span></p></div>
+    <div class="kpi-card warn"><p class="label">Failed Payments $</p><p class="value">$22,997</p><p class="sub">vs $17,373 prior wk <span class="badge warn">+32% — rebill wave continues</span></p></div>
   </div>
-  <p style="font-size:13px;color:#6b7280;margin:8px 0 0 0;">Revenue stepped down to $38,682 as new-customer count fell to 352 and the anniversary rebill bump rolled off; the mix still skewed to higher-value LEVEL11 ($99/mo) and annual buyers, so Net CAC stayed positive-but-thin at +$1.64 (still ~breakeven Day-1). Failed-payment dollars eased to $17.4K from $24.0K — much of June's spike was expected: the 6-year anniversary (Jun 11) fires rebills from very old cohorts and some are <em>intended</em> to fail so customers re-enter on the new Stripe account (~98% of June failures hit the old Stripe). Now normalizing — just keep the recovery rate honest for the genuinely-recoverable ones.</p>
+  </section>
 
-  <h2 class="section-title ltv">12-Month Blended LTV — Refreshed</h2>
-  <div class="kpi-row">
-    <div class="kpi-card ltv">
-      <p class="label">Cohort method (CH + BB)</p>
-      <p class="value">$104.96</p>
-      <p class="sub">5,775 customers who first joined May 2024–May 2025 · actual first-12-month revenue · <span class="badge ltv">empirical</span></p>
-    </div>
-    <div class="kpi-card ltv">
-      <p class="label">Formula method (CH + BB)</p>
-      <p class="value">$138.55</p>
-      <p class="sub">ARPU $22.78 × (1 − (1−0.136)^12)/0.136 · current monthly churn 13.6%</p>
-    </div>
-    <div class="kpi-card ltv">
-      <p class="label">Previously published</p>
-      <p class="value">$136</p>
-      <p class="sub">CMO Dashboard figure · matches the formula method (within $3)</p>
-    </div>
+  <section class="sec">
+  <h2 class="sec-title hot">July Forward Book — Rebills Already Scheduled</h2>
+  <div class="blk banner" data-kw="july forward book scheduled rebills record">
+    <strong>July is set up to be the biggest rebill month in company history — before a single new sale.</strong> $154K of rebills are booked for the month: $23.8K already collected (Jul 1–5) plus $130.5K scheduled across 3,621 subscriptions. June's $127.5K was the previous record; July's mid-range lands ~$133K collected.
   </div>
-  <p style="font-size:13px;color:#6b7280;margin:8px 0 0 0;">
-    <strong>Recommendation:</strong> the cohort number ($105) is what your customers actually paid in their first 12 months. The formula ($138) is what your current ARPU + churn would predict. The gap is because formula uses today's higher-paying ARPU pool, while cohort includes the ~43% of signups that cancel inside 35 days. Pick cohort for board-grade conservatism; pick formula for unit-economics modeling. Either way, the old $136 figure is still defensible.
-  </p>
+  <div class="blk kpi-row four" data-kw="scheduled rebills forward book annual renewals level11 collected">
+    <div class="kpi-card hot"><p class="label">Gross July rebill book</p><p class="value hot">$154K</p><p class="sub">$23.8K collected + $130.5K scheduled (3,621 subs) · vs $127.5K collected in all of June</p></div>
+    <div class="kpi-card good"><p class="label">Annual renewal wave</p><p class="value">$41.9K</p><p class="sub">146 yearly renewals @ ~$287 avg — the July 2025 cohort coming back · $18.6K lands by Jul 12</p></div>
+    <div class="kpi-card good"><p class="label">Expected collected</p><p class="value">~$133K</p><p class="sub">range $125–140K after normal card-failure haircut (dunning recovers a chunk) · a new record at mid-range</p></div>
+    <div class="kpi-card hot"><p class="label">LEVEL11 first rebills</p><p class="value">$3.5K</p><p class="sub">39 subs, starting ~Jul 11 — the premium tier's first retention test</p></div>
+  </div>
+  <div class="blk chart-card" data-kw="scheduled rebills by week july chart">
+    <h3>Scheduled rebills by week — July</h3>
+    <p class="chart-sub">Orange = booked rebills per week from the subscription ledger (Jul 1–5 = already collected). Dashed gray = June's weekly collected average. Every July week beats the June average; the annual-renewal wave front-loads weeks 2–3. Pending-cancellation subs are already excluded ($0 scheduled).</p>
+    <div class="chart-wrap"><canvas id="c-julybook"></canvas></div>
+  </div>
+  <p class="blk fine" data-kw="forward book methodology">Source: Kartra all-time subscriptions export (Jul 6) — sum of "Next payment amount" by "Next payment date" for Active subs, annualized amounts as billed. By product: CH $117.2K · BB $7.2K · L11 $3.5K · Biz $2.1K. The $2.50 July-4th cohort (~185 subs) first rebills in early August, so it adds no risk to July's number.</p>
+  </section>
 
-  <h2 class="section-title">May closed &amp; June month-to-date (QuickBooks)</h2>
-  <div class="live-banner" style="background:linear-gradient(90deg,#fffbeb 0%,#fef3c7 100%);border-color:#fcd34d;color:#92400e;">
-    <strong>Record revenue, thin margins.</strong> May posted the highest non-holiday revenue ever ($157.9K) but net income was only <strong>$4.8K (3.0% margin)</strong> — Facebook spend alone was $50.8K, plus heavy dev/contractor and tooling costs. Profit is being deliberately reinvested into growth, but it's worth a conscious decision rather than drift.
+  <section class="sec">
+  <h2 class="sec-title hot">The Leaky Bucket — SaaS Growth Health (June)</h2>
+  <div class="blk kpi-row four" data-kw="mrr net new grr nrr quick ratio trial paid retention leaky bucket">
+    <div class="kpi-card warn"><p class="label">Net new MRR</p><p class="value" style="color:var(--warn);">+$2.1K</p><p class="sub">$31.2K new − $29.1K churned</p></div>
+    <div class="kpi-card bad"><p class="label">GRR (gross revenue retention)</p><p class="value">83.1%</p><p class="sub">every $100 of MRR on the 1st → $83 survives the month · the number to move</p></div>
+    <div class="kpi-card"><p class="label">NRR (net revenue retention)</p><p class="value">≈83%</p><p class="sub">≈GRR — no expansion tier yet; turns on as LEVEL11 upgrades accrue monthly snapshots</p></div>
+    <div class="kpi-card warn"><p class="label">Quick ratio</p><p class="value" style="color:var(--warn);">1.07</p><p class="sub">new ÷ churned MRR · target 4+</p></div>
   </div>
-  <div class="headline-row">
-    <div class="headline-card" style="border-left: 4px solid #10b981;">
-      <p class="label">May 2026 Revenue (closed)</p>
-      <p class="value">$157,881</p>
-      <p class="sub">Highest non-holiday month on record · COGS $2.7K · expenses $150.9K</p>
-      <span class="delta up">+21% vs Apr ($130.5K)</span>
-    </div>
-    <div class="headline-card" style="border-left: 4px solid #f59e0b;">
-      <p class="label">May 2026 Net Income</p>
-      <p class="value">$4,800</p>
-      <p class="sub">3.0% margin · $50.8K Facebook + $31.7K dev/help-desk + $11.1K mktg mgmt</p>
-      <span class="delta down">Margin down from 21% in April</span>
-    </div>
+  <div class="blk chart-card" data-kw="mrr waterfall movement new churn">
+    <h3>MRR movement — June</h3>
+    <p class="chart-sub">Start → new adds → churn → end. Growth almost fully offset by churn (net +$2.1K on $31.2K of new).</p>
+    <div class="chart-wrap"><canvas id="c-mrr-wf"></canvas></div>
   </div>
-  <div class="kpi-row" style="margin-top:4px;">
-    <div class="kpi-card good">
-      <p class="label">June MTD Revenue (1–15)</p>
-      <p class="value">$88,026</p>
-      <p class="sub">On pace for another record month if the back half holds</p>
-    </div>
-    <div class="kpi-card warn">
-      <p class="label">June MTD Net Income (1–15)</p>
-      <p class="value">$1,125</p>
-      <p class="sub">$42.1K direct ad spend already booked + $9.8K event expense</p>
-    </div>
-    <div class="kpi-card good">
-      <p class="label">Ad spend, May (QuickBooks)</p>
-      <p class="value">$62,692</p>
-      <p class="sub">$50.8K Facebook · $11.6K Google · scaling hard into the record weeks</p>
-    </div>
+  <div class="blk" data-product="ch" data-kw="trial paid conversion price point">
+    <p style="font-size:14px;font-weight:600;margin:16px 0 8px;">Intro offer → full price, by offer type (matured cohorts) · blended <strong style="color:var(--accent);">44%</strong></p>
+    <div id="trial-bars" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+    <p class="fine">Kartra flags any discounted first charge as a "trial" — nobody's on a free trial; everyone pays ($1–$15 intro). This measures who survives to the first full-price rebill. The 56% who don't = the 35-day cancel cliff. Note: the $2.50 July 4th sale (price point 8) isn't in this metric yet — add pp8 to the trial definition at the next refresh.</p>
   </div>
+  <p class="blk note" data-kw="leaky bucket churn ads"><strong>The leaky-bucket problem:</strong> June added $31.2K new MRR but lost $29.1K to churn — net just <strong>+$2.1K</strong>. That's ~$80K/mo of ads to run in place on MRR. The highest-leverage fix isn't more ads — it's lifting the 44% intro-offer→full-price rate and cutting ~17% monthly revenue churn (a chunk is recoverable failed payments via dunning/card-updater).</p>
+  </section>
 
-  <h2 class="section-title">Unit Economics (week ending Jun 28 · CMO sheet)</h2>
-  <div class="kpi-row">
-    <div class="kpi-card good">
-      <p class="label">Net CAC</p>
-      <p class="value" style="color:#b45309;">+$1.64</p>
-      <p class="sub"><span class="badge warn">~Breakeven Day-1</span> — first-week new-sub revenue roughly covers ad spend per customer; still excellent vs benchmarks</p>
-    </div>
-    <div class="kpi-card good">
-      <p class="label">CAC Payback</p>
-      <p class="value" style="color:#047857;">0.5 wk</p>
-      <p class="sub">Front-end revenue covers acquisition in about half a week</p>
-    </div>
-    <div class="kpi-card warn">
-      <p class="label">LTV : CAC (blended)</p>
-      <p class="value">3.83x</p>
-      <p class="sub"><span class="badge warn">Healthy, improving</span> — $168.84 LTV ÷ ~$44 blended CAC. CAC improved as we pulled spend back this week.</p>
-    </div>
+  <section class="sec">
+  <h2 class="sec-title hot">June Reconciliation — Kartra → QuickBooks</h2>
+  <div class="blk banner warn" data-kw="kartra quickbooks reconciliation net profit">
+    <strong>Data honesty:</strong> Kartra's "Net Profit" ($200,604) is revenue minus refunds ONLY — it is <strong>not profit</strong>. Real June net income after all costs is <strong style="color:var(--bad);">−$7,985</strong> (QuickBooks, verified Jul 6; ~$27K of deposits still settling upward) — a deliberate growth-reinvestment month.
   </div>
-  <p style="font-size:13px;color:#6b7280;margin:8px 0 0 0;">Two things are both true: <strong>Net CAC stayed positive-but-thin (+$1.64)</strong> as higher-value LEVEL11/annual buyers nearly cover ad spend on Day 1 — and <strong>blended CPA per customer eased</strong> ($48.65 CH · $37.44 BB) as we cut spend back to ~$15K, so LTV:CAC improved to 3.83x. Healthy, moving toward "scale" territory (5x+). CH churn ticked to 2.78%.</p>
-
-  <h2 class="section-title">Profitability</h2>
-  <div class="kpi-row">
-    <div class="kpi-card warn">
-      <p class="label">May Net Profit</p>
-      <p class="value">$4,800</p>
-      <p class="sub">3.0% margin · record revenue reinvested into ad scale</p>
-    </div>
-    <div class="kpi-card good">
-      <p class="label">L12M Net Profit</p>
-      <p class="value">$286K</p>
-      <p class="sub">On $1.85M revenue (Jun&nbsp;25–May&nbsp;26) · 15.5% margin</p>
-    </div>
-    <div class="kpi-card good">
-      <p class="label">Gross Margin</p>
-      <p class="value">94%</p>
-      <p class="sub">From QuickBooks · digital subscription model</p>
-    </div>
+  <div class="blk bridge" data-kw="bridge kartra gross refunds fees settlement quickbooks">
+    <div class="bridge-row"><span class="b-label">Kartra gross demand <span class="b-sub">Sales + Rebills, June (Jul 4 export)</span></span><span class="b-amt">$218,648</span></div>
+    <div class="bridge-row minus"><span class="b-label">− Refunds &amp; chargebacks <span class="b-sub">254 refunds · 3 partials · 2 chargebacks</span></span><span class="b-amt">−$18,043</span></div>
+    <div class="bridge-row minus"><span class="b-label">− Processing fees <span class="b-sub">blended ~4.3% (Stripe 4.20% · PayPal 4.86%)</span></span><span class="b-amt">−$9,032</span></div>
+    <div class="bridge-row minus"><span class="b-label">− Late-June deposits still settling <span class="b-sub">~2-week lag — May restated the same way, +$8.4K</span></span><span class="b-amt">−$26,617</span></div>
+    <div class="bridge-row total"><span class="b-label"><strong>QuickBooks booked revenue</strong></span><span class="b-amt">$164,956</span></div>
+    <div class="bridge-row minus"><span class="b-label">− All real costs <span class="b-sub">~$96K marketing · ~$37K team · software, event, other</span></span><span class="b-amt">−$172,941</span></div>
+    <div class="bridge-row total"><span class="b-label"><strong>June net income (still settling)</strong></span><span class="b-amt" style="color:var(--bad);">−$7,985</span></div>
   </div>
+  </section>
 
-  <h2 class="section-title">Payment processing &amp; fees (Stripe + PayPal)</h2>
-  <div class="kpi-row four">
-    <div class="kpi-card"><p class="label">YTD Processed</p><p class="value">$808K</p><p class="sub">$642K Stripe · $166K PayPal</p></div>
-    <div class="kpi-card bad"><p class="label">YTD Processing Fees</p><p class="value">$35,036</p><p class="sub">$26.9K Stripe · $8.1K PayPal</p></div>
-    <div class="kpi-card warn"><p class="label">Blended Fee Rate</p><p class="value">4.34%</p><p class="sub">Stripe 4.20% · PayPal 4.86%</p></div>
+  <section class="sec">
+  <h2 class="sec-title">Unit Economics (week ending Jun 28)</h2>
+  <div class="blk kpi-row four" data-kw="net cac payback ltv cac rule of 40 unit economics">
+    <div class="kpi-card good"><p class="label">Net CAC</p><p class="value" style="color:var(--warn);">+$1.64</p><p class="sub"><span class="badge warn">~Breakeven Day-1</span> first-week new-sub revenue roughly covers ad spend per customer</p></div>
+    <div class="kpi-card good"><p class="label">CAC Payback</p><p class="value" style="color:var(--good);">0.5 wk</p><p class="sub">Front-end revenue covers acquisition in ~half a week</p></div>
+    <div class="kpi-card warn"><p class="label">LTV : CAC (blended)</p><p class="value">3.83x</p><p class="sub">$168.84 LTV ÷ ~$44 blended CAC · healthy, target 5x+</p></div>
+    <div class="kpi-card warn"><p class="label">Rule of 40</p><p class="value">≈15</p><p class="sub">H1'26 vs H1'25 revenue +10.8% + 4.4% H1 net margin · target 40+ · churn is the drag</p></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Per-Product Unit Economics &amp; Contribution (June)</h2>
+  <div class="blk" data-kw="cac arpu ltv payback contribution margin product table" style="overflow-x:auto;margin-bottom:10px;">
+  <table>
+    <thead><tr><th>Product</th><th>New (Jun)</th><th>Ad spend</th><th>CAC</th><th>ARPU/mo</th><th>LTV</th><th>LTV:CAC</th><th>Payback</th><th>Contribution*</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600;">Crate Hackers</td><td>982</td><td>$48,264</td><td>$49.15</td><td>$24.91</td><td>$128.93</td><td style="color:var(--good);font-weight:700;">2.6×</td><td>~2.0 mo</td><td style="color:var(--good);font-weight:700;">+$94.0K</td></tr>
+      <tr><td style="font-weight:600;">Banger Button †</td><td>726</td><td>$25,685</td><td>$35.38</td><td>$8.39</td><td>$20.86†</td><td style="color:var(--warn);font-weight:700;">0.6×†</td><td>~4.2 mo</td><td style="color:var(--bad);font-weight:700;">−$1.2K</td></tr>
+      <tr><td style="font-weight:600;">LEVEL11 ‡</td><td>54</td><td>$5,777</td><td>$106.98</td><td>$85.17</td><td>~$215‡</td><td style="color:var(--warn);font-weight:700;">2.0×‡</td><td>~1.3 mo</td><td style="color:var(--good);font-weight:700;">+$8.7K</td></tr>
+      <tr><td style="font-weight:600;">Hacker Hotel</td><td>~212 passes</td><td>$1,162</td><td>—</td><td>—</td><td>—</td><td style="color:var(--good);font-weight:700;">9.6× ROAS</td><td>—</td><td style="color:var(--warn);font-weight:700;">+$9.6K**</td></tr>
+      <tr><td style="font-weight:600;">Dangerous DJs</td><td>—</td><td>$870</td><td>—</td><td>—</td><td>—</td><td style="color:var(--good);font-weight:700;">2.2× ROAS</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="blk fine" data-kw="contribution methodology">* Contribution ≈ June Kartra net revenue by product (CH $148.7K · BB $25.6K · L11 $15.1K · HH $11.2K, from the Jul 4 all-time export) − product ad spend (CMO split, platform-verified vs Meta $70,383 + Google $11,375 via Adspirer) − 4.33% processing. Excludes shared team/software costs. ** HH turns ~breakeven after the $9.8K event expense — a brand/retention play. † BB is ~4 months old: realized LTV is a floor that rises as cohorts age — but June contribution was slightly negative; watch BB spend vs payback. ‡ LEVEL11 spend = Lock-In Challenge + launch ads ($5.8K per CMO; $5.1K itemized on Meta) — CAC ~$107, still ~1.3-mo payback at $85 ARPU; LTV from only 6 churned subs (directional). Dangerous DJs: $870 Google PMax at 2.2× ROAS; revenue currently lands in the CH bucket until DDJ products are tagged in Kartra.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Profitability &amp; P&amp;L Trend</h2>
+  <div class="blk kpi-row" data-kw="net profit margin gross margin profitability">
+    <div class="kpi-card bad"><p class="label">June Net Income (QuickBooks)</p><p class="value" style="color:var(--bad);">−$7,985</p><p class="sub">on $164,956 booked · growth reinvestment (−4.8%, settling upward)</p></div>
+    <div class="kpi-card good"><p class="label">L12M Net Profit</p><p class="value">$261K</p><p class="sub">On $1.89M revenue (Jul '25–Jun '26) · ~13.8% margin</p></div>
+    <div class="kpi-card good"><p class="label">Gross Margin</p><p class="value">93%</p><p class="sub">QuickBooks · digital subscription model</p></div>
+  </div>
+  <div class="blk chart-card" data-kw="revenue net profit monthly p&l trend quickbooks">
+    <h3>Monthly Revenue vs Net Profit — 18 months (QuickBooks)</h3>
+    <p class="chart-sub">Orange = revenue · teal = net profit. Nov/Dec '25 was peak season. May '26 restated up to $166.2K as deposits settled (2.9% margin — a non-holiday record); June went slightly negative on heavy ad reinvestment and settles upward the same way through mid-July.</p>
+    <div class="chart-wrap"><canvas id="c-revprofit"></canvas></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title hot">Cash, Debt &amp; Runway (live · Jul 3)</h2>
+  <div class="blk kpi-row" data-kw="cash runway debt bluevine amex capital one bank">
+    <div class="kpi-card warn"><p class="label">Operating cash (BlueVine)</p><p class="value">$23,326</p><p class="sub">Thin buffer vs ~$172K/mo cost base — rebills replenish continuously, but one soft week matters</p></div>
+    <div class="kpi-card bad"><p class="label">Card balances</p><p class="value">$76,667</p><p class="sub">Amex Business Gold $44,415 · Capital One Spark $32,252</p></div>
+    <div class="kpi-card"><p class="label">Net position + lever</p><p class="value" style="color:var(--warn);">−$53K</p><p class="sub">Cash minus cards. ~$25K of June deposits settle in early July; fee negotiation &amp; paydown are the levers</p></div>
+  </div>
+  <p class="blk fine" data-kw="era truist">From the Era connector (Jul 3). Truist not currently linked — resync Era to include it. Card balances are statement balances, not necessarily interest-bearing debt.</p>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title">Payment Processing &amp; Fees</h2>
+  <div class="blk kpi-row four" data-kw="processing fees stripe paypal volume rate">
+    <div class="kpi-card"><p class="label">YTD Processed</p><p class="value">$901K</p><p class="sub">$720K Stripe · $181K PayPal</p></div>
+    <div class="kpi-card bad"><p class="label">YTD Processing Fees</p><p class="value">$39,017</p><p class="sub">$30.2K Stripe · $8.8K PayPal</p></div>
+    <div class="kpi-card warn"><p class="label">Blended Fee Rate</p><p class="value">4.33%</p><p class="sub">Stripe 4.20% · PayPal 4.86% · small-ticket subs carry fixed fees</p></div>
     <div class="kpi-card"><p class="label">Fees, last week</p><p class="value">~$1,659</p><p class="sub">on ~$38.7K processed (Jun 22–28)</p></div>
   </div>
-  <p style="font-size:13px;color:#6b7280;margin:8px 0 16px 0;">Effective rates are well above the 2.9% headline because the $0.30/$0.49 fixed per-transaction fee weighs heavily on $15/$30/$9.99 subscriptions. At current scale, fees run ~$7K/month and climbing. PayPal's rate (4.86%) is notably higher than Stripe's (4.20%) — a lever if volume can be steered toward Stripe.</p>
-  <div class="chart-card">
+  <div class="blk chart-card" data-kw="processing volume fees monthly stripe paypal">
     <h3>Monthly volume processed &amp; fees</h3>
-    <p class="chart-sub">Stacked Stripe + PayPal volume (bars, left) · processing fees (red line, right). Jun = through the 15th.</p>
-    <div class="chart-wrap"><canvas id="pf-chart"></canvas></div>
+    <p class="chart-sub">Stripe + PayPal volume (left) · fees (right, red). Fees run ~$7–9K/mo and climbing — steering volume to Stripe or negotiating rates is a real lever.</p>
+    <div class="chart-wrap"><canvas id="c-fees"></canvas></div>
   </div>
+  </section>
 
-  <h2 class="section-title" style="color:#1d4ed8;">Where Sales Come From — Channel Concentration</h2>
-  <p class="chart-sub" style="margin-bottom:14px;">Almost all new sales ride on paid ads today. That's efficient — and it's our single biggest risk. The plan is to diversify the top of the funnel.</p>
-  <div class="kpi-row">
-    <div class="kpi-card">
-      <p class="label">Paid ads drive</p>
-      <p class="value" style="color:#1d4ed8;">~90%</p>
-      <p class="sub">of every new sale (Facebook + Google)</p>
+  <section class="sec">
+  <h2 class="sec-title" style="color:var(--bad);">Failed Payments</h2>
+  <p class="blk note" data-kw="failed payments dunning involuntary voluntary" style="margin:0 0 12px;">June is elevated from the 6-yr anniversary rebill wave (some failures <em>intentional</em> — old cohorts migrating to the new Stripe; ~98% of failures hit the old Stripe) but below the Dec '25 peak ($121.7K). These are attempted dollars, not lost revenue — dunning recovers ~16–24%. Involuntary churn (card failures) is the recoverable kind — dunning + card-updater, not ads, fixes it.</p>
+  <div class="blk chart-card" data-product="all ch bb" data-kw="failed payments weekly">
+    <h3>Weekly failed-payment $ — last ~4.5 months</h3>
+    <p class="chart-sub">Total + Banger Button portion. Peak $24,012 (Jun 21), easing to $17,373.</p>
+    <div class="chart-wrap"><canvas id="c-fail-wk"></canvas></div>
+  </div>
+  <div class="blk chart-card" data-product="all ch bb" data-kw="failed payments monthly 12 month">
+    <h3>Monthly failed-payment $ — trailing 12 months</h3>
+    <p class="chart-sub">Dec 2025 was the real peak ($121.7K); ~$862K / ~18.5K attempts over the trailing year. June = $84.6K per the Jul 4 export (2,006 attempts).</p>
+    <div class="chart-wrap"><canvas id="c-fail-12"></canvas></div>
+  </div>
+  </section>
+
+  <section class="sec">
+  <h2 class="sec-title" style="color:var(--blue);">Where Sales Come From — Channel Concentration</h2>
+  <div class="blk kpi-row" data-kw="channel paid ads concentration risk diversification">
+    <div class="kpi-card hot"><p class="label">Paid ads drive</p><p class="value" style="color:var(--accent);">~90%</p><p class="sub">of every new sale (Facebook + Google)</p></div>
+    <div class="kpi-card"><p class="label">Everything else</p><p class="value">~10%</p><p class="sub">YouTube/organic + affiliates</p></div>
+    <div class="kpi-card warn"><p class="label">Spend vs sales</p><p class="value">61% → 90%</p><p class="sub">ads are 61% of spend but ~90% of sales</p></div>
+  </div>
+  <div class="blk" data-kw="channel mix bar">
+    <div class="mixbar">
+      <div style="width:90%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent-ink);font-size:13px;font-weight:700;">Paid ads · 90%</div>
+      <div style="width:7%;background:var(--teal);" title="YouTube & organic ~7%"></div>
+      <div style="width:3%;background:var(--amber);" title="Affiliates ~3%"></div>
     </div>
-    <div class="kpi-card">
-      <p class="label">Everything else combined</p>
-      <p class="value">~10%</p>
-      <p class="sub">YouTube/organic + affiliates</p>
+    <div class="legend-line">
+      <span><span class="sw" style="background:var(--accent);"></span>Paid ads (Facebook + Google) · 90%</span>
+      <span><span class="sw" style="background:var(--teal);"></span>YouTube &amp; organic · ~7%</span>
+      <span><span class="sw" style="background:var(--amber);"></span>Affiliates · ~3%</span>
     </div>
-    <div class="kpi-card warn">
-      <p class="label">Spend vs sales</p>
-      <p class="value">61% → 90%</p>
-      <p class="sub">ads are 61% of spend but ~90% of sales</p>
-    </div>
+    <div class="banner warn"><strong>One ad-account ban or rising ad costs would hit ~90% of revenue at once</strong> — which is exactly why affiliates, YouTube/organic, and referrals are the strategic priority. Split is a working estimate; GA4 funnel tracking in GTM turns this into real attribution next quarter.</div>
   </div>
-  <div style="display:flex;width:100%;height:38px;border-radius:8px;overflow:hidden;gap:2px;margin:16px 0 10px;">
-    <div style="width:90%;background:#2a78d6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;">Paid ads · 90%</div>
-    <div style="width:7%;background:#1baf7a;" title="YouTube & organic ~7%"></div>
-    <div style="width:3%;background:#eda100;" title="Affiliates ~3%"></div>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:#6b7280;margin-bottom:16px;">
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#2a78d6;"></span>Paid ads (Facebook + Google) · 90%</span>
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#1baf7a;"></span>YouTube &amp; organic · ~7%</span>
-    <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:11px;border-radius:2px;background:#eda100;"></span>Affiliates · ~3%</span>
-  </div>
-  <div style="background:#fef3c7;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
-    <p style="margin:0;font-size:15px;color:#92400e;line-height:1.6;"><strong>Ads are 61% of our spend but ~90% of our sales.</strong> One ad-account ban or rising ad costs would hit almost all of revenue at once — which is exactly why we're building affiliates, YouTube/organic, and referrals.</p>
-  </div>
-  <div class="kpi-row">
-    <div class="kpi-card"><p class="label">Affiliates</p><p class="sub" style="margin-top:4px;">Ramping now — scales without ad cost</p></div>
-    <div class="kpi-card"><p class="label">YouTube &amp; organic</p><p class="sub" style="margin-top:4px;">Already drives free trials — lean in</p></div>
-    <div class="kpi-card"><p class="label">Referrals</p><p class="sub" style="margin-top:4px;">Members bringing members — next to build</p></div>
-  </div>
-  <p class="chart-sub" style="margin-top:10px;">Channel split is a working estimate (Dom's ~90% read), not attributed data. The GA4 funnel tracking now in GTM will turn this into real per-channel attribution next quarter.</p>
+  </section>
 
-  <h2 class="section-title ltv">Where the money goes — operating spend (Era)</h2>
-  <p class="chart-sub" style="margin-bottom:12px;">Top vendors YTD 2026. Facebook (~$140K) and Google Ads (~$25K) dominate. Excludes internal bank/credit-card transfers (Bluevine, Capital One, Amex), which are money movement, not spend.</p>
-  <div class="chart-card">
-    <h3>Top operating-spend vendors — YTD 2026</h3>
-    <p class="chart-sub">From the Era connector.</p>
-    <div class="chart-wrap"><canvas id="era-chart"></canvas></div>
+  <section class="sec">
+  <h2 class="sec-title">June Expense Breakdown</h2>
+  <p class="blk note" data-kw="expenses costs" style="margin:0 0 12px;">All-in June costs = <strong>$172,575</strong> (operating $161,713 + COGS $10,862). Ads + team were 76% of everything — why $218K of gross sales still netted a small loss.</p>
+  <div class="blk chart-card" data-kw="expense breakdown marketing team software event">
+    <h3>Where June's $172.6K went</h3>
+    <p class="chart-sub">Category mix — one of the two places a line genuinely can't work.</p>
+    <div class="chart-wrap" style="height:260px;"><canvas id="c-exp"></canvas></div>
   </div>
-
-  <div class="chart-card" style="margin-top:28px;">
-    <h3>Monthly Revenue vs Net Profit (last 18 months)</h3>
-    <p class="chart-sub">Green bars = revenue · purple line = net profit. Nov/Dec 2025 was peak season. May 2026 set a non-holiday revenue record but net profit compressed to $4.8K on heavy ad reinvestment. Jun&nbsp;26* = month-to-date (through the 15th).</p>
-    <div class="chart-wrap"><canvas id="rev-profit-chart"></canvas></div>
+  <p class="blk fine" data-kw="shopify dj style gifts">Excludes ~$9K processing fees (netted from revenue pre-QuickBooks; true cost-to-run ≈ $181.5K). Shopify/DJ.Style: a gift-delivery channel, not a store — June collected ~$427 while giving away ~$8.9K retail-value hats &amp; necklaces as offer bonuses. Not missing income; a marketing cost of the offer.</p>
+  <div class="blk chart-card" data-kw="era vendors operating spend facebook google">
+    <h3>Top operating-spend vendors — YTD 2026 (Era)</h3>
+    <p class="chart-sub">Facebook (~$152K) and Google Ads dominate. Excludes internal bank/credit-card transfers (money movement, not spend).</p>
+    <div class="chart-wrap" style="height:320px;"><canvas id="c-era"></canvas></div>
   </div>
+  </section>
 
-  <div class="chart-card">
-    <h3>Active subscribers — 12 month trend</h3>
-    <p class="chart-sub">Crate Hackers + Banger Button (Active + Pending Cancellation). Now <strong>7,870 at Jun 28</strong>, up ~1,580 since mid-May. Banger Button is powering most of the growth (788 → 1,490 active in six weeks).</p>
-    <div class="chart-wrap"><canvas id="active-chart"></canvas></div>
+  <section class="sec">
+  <h2 class="sec-title">Growth Trends</h2>
+  <div class="blk chart-card" data-product="all ch bb" data-kw="active subscribers trend growth">
+    <h3>Active subscribers — 12-month trend</h3>
+    <p class="chart-sub">CH + BB (Active + Pending Cancellation). 7,870 at Jun 28, up ~1,580 since mid-May — Banger Button powering most of it (788 → 1,490 in six weeks).</p>
+    <div class="chart-wrap"><canvas id="c-active"></canvas></div>
   </div>
-
-  <div class="chart-card">
+  <div class="blk chart-card" data-product="all ch bb" data-kw="churn inverted retention">
     <h3>Churn — inverted view (up is good)</h3>
-    <p class="chart-sub">Weekly churn % for last 9 weeks. <strong>Y-axis is flipped:</strong> lower churn appears higher on the chart, so a rising line = improving retention. BB clean churn (PP3 excluded) recovered from 20% → 2.9% as bug fixes shipped and the install base grew. CH stable at ~3.5%.</p>
-    <div class="chart-wrap"><canvas id="churn-chart"></canvas></div>
+    <p class="chart-sub">Y-axis flipped: a rising line = improving retention. BB clean churn recovered from 20% → ~7% as bug fixes shipped. CH stable ~2.8–3.5%.</p>
+    <div class="chart-wrap"><canvas id="c-churn"></canvas></div>
   </div>
+  </section>
 
-  <div class="summary-card">
+  <section class="sec">
+  <div class="blk summary-card" data-kw="whats working wins">
     <h3>What's working</h3>
     <ul>
-      <li><strong>June beat plan — $207.5K revenue / $190K net profit.</strong> The month closed above the $200K target; the final week (Jun 22–28) was a lighter $38.7K as the anniversary rebill surge rolled off and ad spend was pulled back to ~$15K.</li>
-      <li><strong>Past $2.09M ARR.</strong> MRR $174.2K (up ~$20K since mid-May), ARR $2.09M — milestone hit well ahead of the Q3 plan.</li>
-      <li><strong>Banger Button nearly doubled.</strong> 788 → 1,490 active subs in six weeks; BB MRR now $12.5K (from $6.4K). It's now a real second product line.</li>
-      <li><strong>LEVEL11 holding at 49 subs.</strong> ~$4.1K MRR (~$49K ARR) at $99/mo — premium tier with high revenue-per-customer. The first cohort's rebills land mid-July; watch retention then.</li>
-      <li><strong>Active base 7,897 (all products).</strong> MRR $174.2K / ARR $2.09M. Net CAC eased to +$1.64 as spend was pulled back post-anniversary.</li>
+      <li><strong>June beat plan on the CMO sheet — $207.5K gross / $190K net (top-line)</strong>, above the $200K target even with a lighter final week.</li>
+      <li><strong>Past $2.09M ARR.</strong> MRR $174.2K, up ~$20K since mid-May — the milestone hit well ahead of the Q3 plan.</li>
+      <li><strong>Banger Button nearly doubled</strong> — 788 → 1,490 active in six weeks; BB MRR $12.5K. A real second product line (but June contribution was negative — fix the unit economics as it scales).</li>
+      <li><strong>LEVEL11 at 49 subs / ~$4.1K MRR</strong> at $99/mo. High-ARPU tier working; first rebills mid-July.</li>
+      <li><strong>Day-1 economics stayed ~breakeven</strong> (Net CAC +$1.64) even as spend scaled — customers largely pay for their own acquisition.</li>
     </ul>
   </div>
-
-  <div class="summary-card ltv">
-    <h3>LTV refresh — what changed</h3>
-    <ul>
-      <li><strong>Cohort 12-month LTV (CH+BB blended): $105.</strong> Based on 5,775 customers whose first sub started May 2024–May 2025. This is the realized first-12-month revenue per customer, averaged across all signups (not just retainers).</li>
-      <li><strong>Formula 12-month LTV: $138.</strong> Driven by current ARPU $22.78 and blended monthly churn ~13.6%. Essentially flat vs your published $136.</li>
-      <li><strong>Why the cohort number is lower:</strong> ~43% of new CH subs cancel within 35 days. The cohort method captures these zero/low-LTV customers; the formula method back-tests against today's higher-paying active base.</li>
-      <li><strong>Average CH subscriber lifetime:</strong> ~5 months for those who have churned (median just 2 months — heavily right-skewed); ~7.5 months implied from current 13.3% monthly churn. Currently active CH subs have averaged 24+ months of tenure.</li>
-    </ul>
-  </div>
-
-  <div class="summary-card warn">
+  <div class="blk summary-card warn" data-kw="watch risks">
     <h3>What to watch</h3>
     <ul>
-      <li><strong>Margins compressed to 3% in May.</strong> Record $157.9K revenue produced only $4.8K net income — Facebook alone was $50.8K and total expenses hit $150.9K. June MTD is similar ($88K rev / $1.1K net). Growth is being funded by reinvestment; the call to make consciously is how much profit to trade for scale.</li>
-      <li><strong>Processing fees ~$7K/month and rising.</strong> Blended 4.34% (PayPal 4.86% vs Stripe 4.20%). $35K YTD. Steering volume toward Stripe, or negotiating rates at this scale, is a real lever.</li>
-      <li><strong>Failed payments easing as the surge rolls off.</strong> $17.4K last week, down from $24.0K. Most of June's spike was the intended anniversary rebill migration to the new Stripe; keep the recovery rate honest on the genuinely-recoverable ones.</li>
-      <li><strong>New-customer count fell to 352 (from 431) as spend was cut to ~$15K.</strong> Blended CPA ~$44, LTV:CAC 3.83x — the pullback improved efficiency. Watch whether volume rebounds when spend scales back up.</li>
+      <li><strong>Real profit went slightly negative in June (−$7.1K QuickBooks)</strong> after May's 3% margin. Growth is deliberately funded from margin — make that a conscious monthly decision, not drift.</li>
+      <li><strong>The leaky bucket:</strong> +$31.2K new MRR vs −$29.1K churned. GRR 83.1% and the 44% intro-offer→full-price rate are the two highest-leverage numbers in the company.</li>
+      <li><strong>Cash buffer is thin</strong> — $23.3K operating cash vs $76.7K card balances. June's settling deposits (~$25K) help in early July.</li>
+      <li><strong>Processing fees ~$9K/mo and rising</strong> (blended 4.33%). Steering volume to Stripe or negotiating rates at ~$1M/yr volume is real money.</li>
+      <li><strong>~90% paid-ads dependency</strong> — the single biggest structural risk; diversification is the strategic priority.</li>
     </ul>
   </div>
+  </section>
 
   <footer>
-    Source: transaction &amp; subscription exports (Jun 29, 2026) · QuickBooks P&amp;L through May (full) + June MTD · Stripe &amp; PayPal connectors for processing fees (effective rates sampled from live transactions) · Era connector for operating-spend breakdown · CMO weekly funnel/ad-spend series through Jun 28.
+    Sources: Kartra transaction &amp; subscription exports (through Jun 28–30) · QuickBooks P&amp;L through June (settling; refreshed Jul 2) · CMO sheet weekly series through Jun 28 · Stripe/PayPal effective rates from live transactions · Era connector for vendor spend + live balances (Jul 3). Kartra "Net Profit" is never shown as profit; June QuickBooks revenue settles upward ~2 weeks into July.
   </footer>
 </div>
 
-<script id="exec-data" type="application/json">{"pl":[{"month":"Jan 25","revenue":116712,"net_income":-12695},{"month":"Feb 25","revenue":98496,"net_income":-22577},{"month":"Mar 25","revenue":125511,"net_income":25714},{"month":"Apr 25","revenue":108003,"net_income":13104},{"month":"May 25","revenue":139987,"net_income":20408},{"month":"Jun 25","revenue":143528,"net_income":19892},{"month":"Jul 25","revenue":165915,"net_income":624},{"month":"Aug 25","revenue":154168,"net_income":22296},{"month":"Sep 25","revenue":126587,"net_income":-3597},{"month":"Oct 25","revenue":110627,"net_income":15128},{"month":"Nov 25","revenue":241726,"net_income":88149},{"month":"Dec 25","revenue":280847,"net_income":102513},{"month":"Jan 26","revenue":123571,"net_income":4440},{"month":"Feb 26","revenue":99386,"net_income":-2654},{"month":"Mar 26","revenue":115005,"net_income":7094},{"month":"Apr 26","revenue":130509,"net_income":27345},{"month":"May 26","revenue":157881,"net_income":4800},{"month":"Jun 26*","revenue":88026,"net_income":1125,"partial":true}],"active":{"months":["May 25","Jun 25","Jul 25","Aug 25","Sep 25","Oct 25","Nov 25","Dec 25","Jan 26","Feb 26","Mar 26","Apr 26","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"total":[5358,5714,5937,6163,6336,6241,6278,6210,5901,5727,5770,6285,6867,7146,7334,7582,7769,7846,7870]},"churn":{"labels":["Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28"],"ch":[3.27,2.78,3.08,2.74,3.07,3.04,2.65,3.37,3.1,2.9,2.89,3.33,3.66,2.63,2.78],"bb":[0,3.7,17.58,21.43,13.14,20.21,10.0,4.62,4.06,4.82,5.72,4.64,7.02,9.03,7.0]},"processing":{"labels":["Jan","Feb","Mar","Apr","May","Jun*"],"stripe":[100928.5,87376.13,104213.23,107270.91,147935.07,171871],"paypal":[30155.1,23640.33,28357.87,30738.67,30745.03,37312],"fees":[5704,4819,5755,5999,7707,9032]},"era":{"labels":["Facebook","Google Ads","PayPal misc","Xenos","Spinelli Eve","Nova Ent.","Cursor (dev)","Sherpa Collab","Payment Saver","Sparky Digital"],"amount":[139579.27,25182.26,24430.67,19513.20,10475.70,10000,9890.83,9000,7200,6500]}}</script>
+<script id="exec-data" type="application/json">{"pl":[{"month":"Jan 25","revenue":116712,"net_income":-12695},{"month":"Feb 25","revenue":98496,"net_income":-22577},{"month":"Mar 25","revenue":125511,"net_income":25714},{"month":"Apr 25","revenue":108003,"net_income":13104},{"month":"May 25","revenue":139987,"net_income":20408},{"month":"Jun 25","revenue":143528,"net_income":19892},{"month":"Jul 25","revenue":165915,"net_income":624},{"month":"Aug 25","revenue":154168,"net_income":22296},{"month":"Sep 25","revenue":126587,"net_income":-3597},{"month":"Oct 25","revenue":110627,"net_income":15128},{"month":"Nov 25","revenue":241726,"net_income":88149},{"month":"Dec 25","revenue":280847,"net_income":102513},{"month":"Jan 26","revenue":123571,"net_income":4440},{"month":"Feb 26","revenue":99386,"net_income":-6654},{"month":"Mar 26","revenue":115005,"net_income":7094},{"month":"Apr 26","revenue":142169,"net_income":33695},{"month":"May 26","revenue":166241,"net_income":4800},{"month":"Jun 26*","revenue":164956,"net_income":-7985}],"active":{"months":["May 25","Jun 25","Jul 25","Aug 25","Sep 25","Oct 25","Nov 25","Dec 25","Jan 26","Feb 26","Mar 26","Apr 26","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28","Jul 05"],"total":[5358,5714,5937,6163,6336,6241,6278,6210,5901,5727,5770,6285,6867,7146,7334,7582,7769,7846,7870,8000]},"churn":{"labels":["Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28","Jul 05"],"ch":[3.27,2.78,3.08,2.74,3.07,3.04,2.65,3.37,3.1,2.9,2.89,3.33,3.66,2.63,2.78,3.0],"bb":[0,3.7,17.58,21.43,13.14,20.21,10.0,4.62,4.06,4.82,5.72,4.64,7.02,9.03,7.0,6.11]},"processing":{"labels":["Jan","Feb","Mar","Apr","May","Jun*"],"stripe":[100928,87376,104213,107271,147935,171871],"paypal":[30155,23640,28358,30739,30745,37312],"fees":[5704,4819,5755,5999,7707,9032]},"era":{"labels":["Facebook","Google Ads","PayPal misc","Xenos (contractor)","Cursor (dev AI)","Spinelli Eve","Nova Ent.","Sherpa Collab","Payment Saver","Sparky Digital"],"amount":[151616,26682,24456,19513,15012,10476,10000,9000,7200,6500]},"expenses":{"labels":["Marketing & ads","Team / contractors","Software & tools","Hacker Hotel event","Everything else"],"amount":[95111,36943,21764,9757,8999]},"failwk":{"labels":["Feb 15","Feb 22","Mar 01","Mar 08","Mar 15","Mar 22","Mar 29","Apr 05","Apr 12","Apr 19","Apr 26","May 03","May 10","May 17","May 24","May 31","Jun 07","Jun 14","Jun 21","Jun 28","Jul 05"],"total":[11983,10028,12133,16380,14455,11490,11525,13330,12427,13798,13700,16285,16838,13922,14590,15106,17758,20914,24012,17373,22997],"bb":[0,0,0,0,0,10,60,90,40,10,50,130,170,210,390,350,470,859,1209,1209,1120]},"fail12":{"labels":["Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26","Mar '26","Apr '26","May '26","Jun '26"],"total":[61415,68169,68989,73021,92612,121706,59835,45567,59362,58358,68169,84570],"bb":[0,0,0,0,0,0,0,0,90,230,1189,4086]},"trials":[{"label":"pp9 · 14-day trial","pct":52},{"label":"pp13 · 7-day (YouTube)","pct":44},{"label":"pp35 · 7-day trial","pct":43},{"label":"pp25 · $1 + necklace (hackathon)","pct":41}],"mrrwf":{"start":172196,"new":31187,"churn":29054,"end":174329}}</script>
 <script>
 const D = JSON.parse(document.getElementById('exec-data').textContent);
-const fmt$ = n => n === null ? 'n/a' : n.toLocaleString('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0});
+const fmt$ = n => n==null ? '—' : n.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
 
-const baseOpts = {
-  responsive:true, maintainAspectRatio:false,
-  interaction:{intersect:false, mode:'index'},
-  plugins:{legend:{position:'bottom', labels:{boxWidth:14, padding:14, font:{size:12}}}, tooltip:{padding:12}},
-  scales:{x:{grid:{display:false}, ticks:{font:{size:11}}}, y:{grid:{color:'#f3f4f6'}, ticks:{font:{size:11}}}}
-};
-
-new Chart(document.getElementById('rev-profit-chart'), {
-  type:'bar',
-  data:{labels:D.pl.map(r=>r.month), datasets:[
-    {label:'Revenue', data:D.pl.map(r=>r.revenue), backgroundColor:D.pl.map(r=>r.forecast ? 'rgba(16,185,129,0.40)' : '#10b981'), borderColor:D.pl.map(r=>r.forecast ? '#10b981' : 'transparent'), borderWidth:D.pl.map(r=>r.forecast ? 2 : 0), borderDash:D.pl.map(r=>r.forecast ? [4,4] : []), order:2},
-    {type:'line', label:'Net profit', data:D.pl.map(r=>r.net_income), borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.15)', borderWidth:3, pointRadius:5, tension:0.3, fill:false, order:1, spanGaps:false}
-  ]},
-  options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, ticks:{...baseOpts.scales.y.ticks, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}},
-    plugins:{...baseOpts.plugins, tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>`${c.dataset.label}: ${fmt$(c.parsed.y)}${(c.label||'').includes('fcst')?' (forecast)':''}`}}}}
+/* ---------- theme ---------- */
+const THEME_KEY='ch-theme-exec';
+function pal(){const s=getComputedStyle(document.documentElement);const g=n=>s.getPropertyValue(n).trim();
+  return {orange:g('--accent'),amber:g('--amber'),teal:g('--teal'),blue:g('--blue'),red:g('--red'),text:g('--text'),muted:g('--muted'),grid:g('--grid')};}
+function setThemeBtn(){document.getElementById('theme-btn').textContent = document.documentElement.dataset.theme==='dark' ? '☀️ Light' : '🌙 Dark';}
+document.getElementById('theme-btn').addEventListener('click',()=>{
+  const t = document.documentElement.dataset.theme==='dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme=t; try{localStorage.setItem(THEME_KEY,t);}catch(e){}
+  setThemeBtn(); rebuildAll();
 });
+try{const saved=localStorage.getItem(THEME_KEY); if(saved){document.documentElement.dataset.theme=saved;}}catch(e){}
+setThemeBtn();
 
-new Chart(document.getElementById('active-chart'), {
-  type:'line',
-  data:{labels:D.active.months, datasets:[
-    {label:'Total Active Subscribers (CH+BB)', data:D.active.total, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.15)', borderWidth:3, tension:0.3, fill:true,
-     pointBackgroundColor:D.active.months.map(m=>m==='May 18' ? '#f97316' : '#3b82f6'),
-     pointBorderColor:D.active.months.map(m=>m==='May 18' ? '#f97316' : '#3b82f6'),
-     pointRadius:D.active.months.map(m=>m==='May 18' ? 7 : 5)}
-  ]},
-  options:{...baseOpts, scales:{x:baseOpts.scales.x, y:{...baseOpts.scales.y, suggestedMin:5300, suggestedMax:6900, ticks:{...baseOpts.scales.y.ticks, callback:v=>v.toLocaleString()}}}}
+/* ---------- chart framework ---------- */
+const REG=[]; const BUILT={};
+function reg(id,build){REG.push({id,build});}
+function baseOpts(){const p=pal();return{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},
+  plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:12,color:p.muted,font:{size:11}}},tooltip:{padding:10}},
+  scales:{x:{grid:{display:false},ticks:{color:p.muted,font:{size:11}}},y:{grid:{color:p.grid},ticks:{color:p.muted,font:{size:11}},beginAtZero:true}}};}
+function ln(label,data,color,extra){return Object.assign({label,data,borderColor:color,backgroundColor:'transparent',borderWidth:2,borderCapStyle:'round',tension:0.3,pointRadius:2,pointHoverRadius:5,spanGaps:true},extra||{});}
+function buildVisible(){REG.forEach(r=>{if(BUILT[r.id])return;const el=document.getElementById(r.id);if(!el)return;
+  if(el.closest('.hidden'))return; if(el.offsetParent===null)return;
+  BUILT[r.id]=r.build(el);});}
+function rebuildAll(){for(const k in BUILT){BUILT[k].destroy();delete BUILT[k];}buildVisible();}
+
+/* ---------- filters: product chips + search ---------- */
+let product='all', q='';
+document.getElementById('prod-chips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(!c)return;
+  document.querySelectorAll('#prod-chips .chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); product=c.dataset.p; applyFilters();
 });
-
-new Chart(document.getElementById('churn-chart'), {
-  type:'line',
-  data:{labels:D.churn.labels, datasets:[
-    {label:'Crate Hackers churn %', data:D.churn.ch, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.10)', borderWidth:3, pointRadius:5, tension:0.3, fill:false},
-    {label:'Banger Button churn % (clean, excl PP3)', data:D.churn.bb, borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,0.10)', borderWidth:3, pointRadius:5, tension:0.3, fill:false}
-  ]},
-  options:{...baseOpts,
-    plugins:{...baseOpts.plugins,
-      tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)}% churn`}}
-    },
-    scales:{x:baseOpts.scales.x, y:{
-      reverse:true,
-      min:0, max:25,
-      grid:{color:'#f3f4f6'},
-      ticks:{font:{size:11}, callback:v=>v.toFixed(1)+'%'},
-      title:{display:true, text:'Churn % (inverted — lower is up)', font:{size:11, weight:'500'}}
-    }}
-  }
-});
-
-// Payment processing chart
-if (D.processing) {
-  const P = D.processing;
-  new Chart(document.getElementById('pf-chart'), {
-    data:{labels:P.labels, datasets:[
-      {type:'bar', label:'Stripe volume', data:P.stripe, backgroundColor:'#635bff', stack:'v', yAxisID:'y1', order:3},
-      {type:'bar', label:'PayPal volume', data:P.paypal, backgroundColor:'#0070ba', stack:'v', yAxisID:'y1', order:2},
-      {type:'line', label:'Processing fees', data:P.fees, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.12)', borderWidth:3, pointRadius:4, tension:0.3, yAxisID:'y2', order:1}
-    ]},
-    options:{...baseOpts, scales:{x:{...baseOpts.scales.x, stacked:true},
-      y1:{position:'left', stacked:true, grid:{color:'#f3f4f6'}, ticks:{font:{size:11}, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, title:{display:true, text:'Volume'}},
-      y2:{position:'right', grid:{display:false}, ticks:{font:{size:11}, callback:v=>'$'+(v/1000).toFixed(0)+'k'}, title:{display:true, text:'Fees'}}},
-      plugins:{...baseOpts.plugins, tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>`${c.dataset.label}: ${fmt$(c.parsed.y)}`}}}}
+document.getElementById('q').addEventListener('input',e=>{q=e.target.value.trim().toLowerCase();applyFilters();});
+function applyFilters(){
+  document.querySelectorAll('.blk').forEach(b=>{
+    const p=(b.dataset.product||'all');
+    const okP = product==='all' || p==='all' || p.split(' ').includes(product);
+    const hay = ((b.dataset.kw||'')+' '+b.textContent).toLowerCase();
+    const okQ = !q || hay.includes(q);
+    b.classList.toggle('hidden', !(okP&&okQ));
   });
+  document.querySelectorAll('.sec').forEach(s=>{
+    const secP = s.dataset.p;
+    let ok = true;
+    if(secP && product!=='all' && secP!==product) ok=false;
+    const any=[...s.querySelectorAll('.blk')].some(b=>!b.classList.contains('hidden'));
+    s.classList.toggle('hidden', !(ok&&any));
+  });
+  buildVisible();
 }
 
-// Era operating spend chart
-if (D.era) {
-  const E = D.era;
-  new Chart(document.getElementById('era-chart'), {
-    type:'bar',
-    data:{labels:E.labels, datasets:[{label:'YTD spend', data:E.amount, backgroundColor:E.labels.map(l=>l==='Facebook'?'#1877f2':l==='Google Ads'?'#ea4335':'#8b5cf6')}]},
-    options:{...baseOpts, indexAxis:'y', plugins:{...baseOpts.plugins, legend:{display:false},
-      tooltip:{...baseOpts.plugins.tooltip, callbacks:{label:c=>fmt$(c.parsed.x)}}},
-      scales:{x:{grid:{color:'#f3f4f6'}, ticks:{font:{size:11}, callback:v=>'$'+(v/1000).toFixed(0)+'k'}}, y:{grid:{display:false}, ticks:{font:{size:11}}}}}
+/* ---------- trial bars ---------- */
+(function(){
+  const wrap=document.getElementById('trial-bars');
+  D.trials.forEach((t,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;';
+    row.innerHTML='<span style="width:200px;font-size:13px;color:var(--muted);">'+t.label+'</span>'+
+      '<span style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:6px;height:18px;overflow:hidden;"><span style="display:block;height:100%;width:'+t.pct+'%;background:'+(i===0?'var(--teal)':'var(--accent)')+';"></span></span>'+
+      '<span style="width:44px;text-align:right;font-size:13px;font-weight:700;">'+t.pct+'%</span>';
+    wrap.appendChild(row);
   });
-}
+})();
+
+/* ---------- charts ---------- */
+reg('c-julybook', el=>{const p=pal();const o=baseOpts();
+  o.scales.y.ticks.callback=v=>'$'+(v/1000).toFixed(0)+'K';
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:['Jul 1–5 (collected)','wk end Jul 12','wk end Jul 19','wk end Jul 26','Jul 27–31'],datasets:[
+    fill(Object.assign(ln('July rebills (booked)',[23779,46552,38539,33466,11922],p.orange,{borderWidth:2.5,pointRadius:5}),{}),'rgba(255,119,34,0.10)'),
+    {label:'June weekly avg collected (~$29.4K)',data:[29400,29400,29400,29400,29400],borderColor:p.muted,borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false}
+  ]},options:o});
+});
+
+reg('c-mrr-wf', el=>{const p=pal();const W=D.mrrwf;
+  return new Chart(el,{type:'bar',data:{labels:['Start MRR','+ New','− Churn','End MRR'],datasets:[{label:'MRR',
+    data:[[0,W.start],[W.start,W.start+W.new],[W.end,W.start+W.new],[0,W.end]],
+    backgroundColor:[p.blue,p.teal,p.red,p.orange],borderWidth:0,borderRadius:4}]},
+    options:Object.assign(baseOpts(),{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const v=c.raw;return '$'+Math.round(Math.abs(v[1]-v[0])).toLocaleString();}}}},
+      scales:{y:{beginAtZero:true,grid:{color:p.grid},ticks:{color:p.muted,callback:v=>'$'+(v/1000)+'K'}},x:{grid:{display:false},ticks:{color:p.muted}}}})});
+});
+
+reg('c-revprofit', el=>{const p=pal();const o=baseOpts();
+  o.scales.y.ticks.callback=v=>'$'+(v/1000).toFixed(0)+'k';
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:D.pl.map(r=>r.month),datasets:[
+    Object.assign(ln('Revenue',D.pl.map(r=>r.revenue),p.orange),{backgroundColor:'rgba(255,119,34,0.10)',fill:true,borderWidth:2.5,pointRadius:3}),
+    ln('Net profit',D.pl.map(r=>r.net_income),p.teal,{borderWidth:2.5,pointRadius:3})
+  ]},options:o});
+});
+
+reg('c-fees', el=>{const p=pal();const P=D.processing;const o=baseOpts();
+  o.scales={x:{grid:{display:false},ticks:{color:p.muted,font:{size:11}}},
+    y1:{position:'left',grid:{color:p.grid},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Volume',color:p.muted}},
+    y2:{position:'right',grid:{display:false},ticks:{color:p.muted,font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Fees',color:p.muted}}};
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:P.labels,datasets:[
+    Object.assign(ln('Stripe volume',P.stripe,p.orange,{yAxisID:'y1',borderWidth:2.5,pointRadius:3}),{backgroundColor:'rgba(255,119,34,0.08)',fill:true}),
+    ln('PayPal volume',P.paypal,p.blue,{yAxisID:'y1',pointRadius:3}),
+    ln('Processing fees',P.fees,p.red,{yAxisID:'y2',borderDash:[5,4],pointRadius:3})
+  ]},options:o});
+});
+
+reg('c-fail-wk', el=>{const p=pal();const F=D.failwk;const o=baseOpts();
+  o.scales.y.ticks.callback=v=>'$'+(v/1000)+'K';
+  o.scales.x.ticks.maxRotation=45;o.scales.x.ticks.minRotation=45;o.scales.x.ticks.autoSkip=false;
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:F.labels,datasets:[
+    Object.assign(ln('Total failed $',F.total,p.red,{borderWidth:2.5,pointRadius:2}),{backgroundColor:'rgba(226,75,74,0.08)',fill:true}),
+    ln('Banger Button portion',F.bb,p.amber,{borderDash:[5,4],pointRadius:0})
+  ]},options:o});
+});
+
+reg('c-fail-12', el=>{const p=pal();const F=D.fail12;const o=baseOpts();
+  o.scales.y.ticks.callback=v=>'$'+(v/1000)+'K';
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+fmt$(c.parsed.y)};
+  return new Chart(el,{type:'line',data:{labels:F.labels,datasets:[
+    Object.assign(ln('Total failed $',F.total,p.red,{borderWidth:2.5,pointRadius:3}),{backgroundColor:'rgba(226,75,74,0.08)',fill:true}),
+    ln('Banger Button portion',F.bb,p.amber,{borderDash:[5,4],pointRadius:0})
+  ]},options:o});
+});
+
+reg('c-exp', el=>{const p=pal();const E=D.expenses;
+  const colors=[p.red,p.blue,p.teal,p.amber,p.muted];
+  const o=baseOpts(); o.indexAxis='y'; o.plugins.legend={display:false};
+  o.scales={x:{beginAtZero:true,grid:{color:p.grid},ticks:{color:p.muted,callback:v=>'$'+(v/1000)+'K'}},y:{grid:{display:false},ticks:{color:p.text,font:{size:12}}}};
+  o.plugins.tooltip.callbacks={label:c=>'$'+Math.round(c.parsed.x).toLocaleString()+' · '+Math.round(100*c.parsed.x/172574)+'%'};
+  return new Chart(el,{type:'bar',data:{labels:E.labels,datasets:[{label:'June cost',data:E.amount,backgroundColor:colors,borderWidth:0,borderRadius:4}]},options:o});
+});
+
+reg('c-era', el=>{const p=pal();const E=D.era;
+  const o=baseOpts(); o.indexAxis='y'; o.plugins.legend={display:false};
+  o.scales={x:{beginAtZero:true,grid:{color:p.grid},ticks:{color:p.muted,callback:v=>'$'+(v/1000).toFixed(0)+'k'}},y:{grid:{display:false},ticks:{color:p.text,font:{size:11}}}};
+  o.plugins.tooltip.callbacks={label:c=>fmt$(c.parsed.x)};
+  return new Chart(el,{type:'bar',data:{labels:E.labels,datasets:[{label:'YTD spend',data:E.amount,
+    backgroundColor:E.labels.map(l=>l==='Facebook'?p.orange:l==='Google Ads'?p.blue:p.muted),borderRadius:3}]},options:o});
+});
+
+reg('c-active', el=>{const p=pal();const A=D.active;const o=baseOpts();
+  o.scales.y.beginAtZero=false; o.scales.y.suggestedMin=5200;
+  o.plugins.legend={display:false};
+  return new Chart(el,{type:'line',data:{labels:A.months,datasets:[
+    Object.assign(ln('Active subscribers (CH+BB)',A.total,p.orange,{borderWidth:2.5,pointRadius:3}),{backgroundColor:'rgba(255,119,34,0.10)',fill:true})
+  ]},options:o});
+});
+
+reg('c-churn', el=>{const p=pal();const C2=D.churn;const o=baseOpts();
+  o.scales.y={reverse:true,min:0,max:25,grid:{color:p.grid},ticks:{color:p.muted,font:{size:11},callback:v=>v.toFixed(1)+'%'},
+    title:{display:true,text:'Churn % (inverted — lower is up)',color:p.muted,font:{size:11}}};
+  o.plugins.tooltip.callbacks={label:c=>c.dataset.label+': '+c.parsed.y.toFixed(2)+'% churn'};
+  return new Chart(el,{type:'line',data:{labels:C2.labels,datasets:[
+    ln('Crate Hackers churn %',C2.ch,p.orange,{borderWidth:2.5,pointRadius:3}),
+    ln('Banger Button churn % (clean)',C2.bb,p.blue,{borderWidth:2,pointRadius:3,borderDash:[6,4]})
+  ]},options:o});
+});
+
+/* ---------- boot ---------- */
+function boot(){if(!window.Chart){return setTimeout(boot,60);} applyFilters();}
+if(document.readyState==='complete'){boot();}else{window.addEventListener('load',boot);}
 </script>
 </body>
 </html>
