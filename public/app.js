@@ -2,8 +2,15 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const api = async (url, opts) => {
-  const r = await fetch(url, opts);
-  return r.json();
+  let r;
+  try { r = await fetch(url, opts); }
+  catch (e) { return { error: "Network error — check your connection and try again." }; }
+  const text = await r.text().catch(() => "");
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = null; } }
+  if (data == null) return { error: r.ok ? "Unexpected server response." : `Server error (${r.status})` + (text ? ": " + text.slice(0, 140) : ".") };
+  if (!r.ok && !data.error) data.error = `Request failed (${r.status}).`;
+  return data;
 };
 const post = (url, body) => api(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const fmt = (n) => (n == null ? "—" : n.toLocaleString());
@@ -1249,6 +1256,7 @@ function adCard(a) {
     ${a.hook ? `<p class="muted small" style="margin:6px 0 0">Hook: ${esc(a.hook)}</p>` : ""}
     ${a.why_it_works ? `<p style="margin:10px 0 0;font-size:13px"><b>Why it works:</b> ${esc(a.why_it_works)}</p>` : ""}
     ${beats ? `<details style="margin-top:8px"><summary class="muted small">Structure</summary><ol style="margin:6px 0 0 18px;font-size:13px">${beats}</ol></details>` : ""}
+    ${a.transcript ? `<details style="margin-top:8px"><summary class="muted small">Original transcript / script</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12.5px;margin:6px 0 0;color:#aeb6cc;max-height:280px;overflow:auto;background:#0e1018;border:1px solid #242838;border-radius:8px;padding:10px">${esc((a.transcript || "").trim())}</pre></details>` : ""}
     <div style="margin-top:12px;background:#0e1018;border:1px solid #242838;border-radius:10px;padding:12px">
       <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;color:#FF7722">Crate Hackers script</span><button class="btn btn-ghost sm ad-copy" data-id="${esc(a.id)}">Copy</button></div>
       <pre style="white-space:pre-wrap;font:inherit;font-size:13px;margin:8px 0 0">${esc((a.ch_script || "").trim())}</pre>
@@ -1266,22 +1274,27 @@ if ($("#adAdd")) $("#adAdd").onclick = async () => {
   const file = $("#adFile") && $("#adFile").files && $("#adFile").files[0];
   const body = { sourceUrl: $("#adSourceUrl").value.trim(), mediaUrl: $("#adMediaUrl").value.trim(), transcript: $("#adTranscript").value.trim(), notes: $("#adNotes").value.trim() };
   if (!body.transcript && !body.mediaUrl && !file) return toast("Paste a transcript/caption, upload a video, or add a media URL.", "err");
-  if (file && file.size > 24 * 1024 * 1024) return toast("That video is over 24MB — trim it or paste the transcript.", "err");
+  if (file && file.size > 24 * 1024 * 1024) return toast("That video is over 24MB — trim it, or use the desktop Ad Clipper, or paste the transcript.", "err");
+  const setMsg = (t, err) => { const m = $("#adMsg"); if (m) { m.textContent = t; m.style.color = err ? "#ef6a6a" : ""; } };
   $("#adAdd").disabled = true;
-  $("#adMsg").textContent = (file || (body.mediaUrl && !body.transcript)) ? "Transcribing + analyzing… (uploads can take a bit)" : "Analyzing…";
+  setMsg((file || (body.mediaUrl && !body.transcript)) ? "Transcribing + analyzing… (uploads can take up to a minute)" : "Analyzing…");
   try {
     if (file) {
       body.fileName = file.name;
-      body.fileBase64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+      body.fileBase64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("couldn't read that file")); fr.readAsDataURL(file); });
     }
-  } catch { $("#adAdd").disabled = false; $("#adMsg").textContent = ""; return toast("Couldn't read that file.", "err"); }
-  const r = await post("/api/ads", body);
-  $("#adAdd").disabled = false; $("#adMsg").textContent = "";
-  if (r.error) return toast(r.error, "err");
-  AD_LIST.unshift(r.ad); renderAds();
-  $("#adSourceUrl").value = $("#adMediaUrl").value = $("#adTranscript").value = $("#adNotes").value = "";
-  if ($("#adFile")) $("#adFile").value = "";
-  toast("Ad analyzed + Crate Hackers script ready.", "ok");
+    const r = await post("/api/ads", body);
+    if (r.error) { setMsg("⚠ " + r.error, true); toast(r.error, "err"); return; }
+    if (!r.ad) { setMsg("⚠ No result came back — please try again.", true); return; }
+    AD_LIST.unshift(r.ad); renderAds();
+    $("#adSourceUrl").value = $("#adMediaUrl").value = $("#adTranscript").value = $("#adNotes").value = "";
+    if ($("#adFile")) $("#adFile").value = "";
+    setMsg(""); toast("Ad analyzed + Crate Hackers script ready.", "ok");
+  } catch (e) {
+    setMsg("⚠ Couldn't process that — " + ((e && e.message) || "unknown error") + ". Try a smaller file or paste the transcript.", true);
+  } finally {
+    $("#adAdd").disabled = false;
+  }
 };
 
 // opener message: persist per browser, default to a friendly intro
