@@ -431,6 +431,9 @@ function loadFailedPaymentsCache() {
 const ADS_FILE = path.join(DATA, "ads.json");
 function loadAds() { try { return JSON.parse(fs.readFileSync(ADS_FILE, "utf8")); } catch { return []; } }
 function saveAds(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(ADS_FILE, JSON.stringify(list, null, 2)); } catch {} }
+const INFLUENCERS_FILE = path.join(DATA, "influencers.json");
+function loadInfluencers() { try { return JSON.parse(fs.readFileSync(INFLUENCERS_FILE, "utf8")); } catch { return []; } }
+function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(INFLUENCERS_FILE, JSON.stringify(list, null, 2)); } catch {} }
 async function groqTranscribeBuffer(cfg, buf, filename) {
   if (buf.length > 24 * 1024 * 1024) throw new Error("media too large (>24MB) — trim it or paste the transcript");
   const fd = new FormData();
@@ -489,10 +492,11 @@ Return ONLY a JSON object (no prose) with:
   "structure": ["beat 1", "beat 2", "..."],
   "why_it_works": "the persuasion mechanics that make it convert",
   "ch_script": "a 30-45 second Crate Hackers VIDEO AD SCRIPT reusing this ad's structure + psychology but for DJs — spoken lines / shot directions, in the Crate Hackers voice",
-  "ch_hooks": ["3 alternative scroll-stopping opening hooks for the Crate Hackers version"]
+  "ch_hooks": ["3 alternative scroll-stopping opening hooks for the Crate Hackers version"],
+  "ideas": ["3 to 5 CONCRETE, distinct ways we could turn THIS ad into a Crate Hackers ad — each a single punchy sentence a creator could shoot (different angle/format each: e.g. talking-head, skit, screen-record demo, day-in-the-life, before/after)"]
 }`;
-  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2000, true);
-  return firstJson(raw) || { summary: "", hook: "", structure: [], why_it_works: "", ch_script: raw, ch_hooks: [] };
+  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2200, true);
+  return firstJson(raw) || { summary: "", hook: "", structure: [], why_it_works: "", ch_script: raw, ch_hooks: [], ideas: [] };
 }
 
 // ---------- PayPal ----------
@@ -807,6 +811,29 @@ async function getTwilioStats(cfg, fromDate, toDate) {
     mmsCount: mms.count, mmsCost: Math.round(mms.price * 100) / 100,
     totalCost: Math.round((sms.price + mms.price) * 100) / 100,
   };
+}
+
+// Send ONE email (used for influencer ad-briefs) via Postmark (preferred) or Mailgun.
+async function sendOneEmail(cfg, { to, toName, subject, html }) {
+  const text = htmlToText(html);
+  if (cfg.postmarkToken) {
+    const fromHeader = cfg.fromName ? `${cfg.fromName} <${cfg.fromEmail}>` : cfg.fromEmail;
+    await postmark("/email", "POST", {
+      From: fromHeader, To: toName ? `${toName} <${to}>` : to,
+      ...(cfg.replyTo ? { ReplyTo: cfg.replyTo } : {}),
+      Subject: subject, HtmlBody: html, TextBody: text,
+      MessageStream: cfg.stream, Tag: "ad-brief", TrackOpens: true, TrackLinks: "HtmlAndText",
+    }, cfg.postmarkToken);
+    return { provider: "postmark" };
+  }
+  if (cfg.mailgunApiKey && cfg.mailgunDomain) {
+    const fromEmail = cfg.mailgunFromEmail || cfg.fromEmail;
+    const fromName = cfg.mailgunFromName || cfg.fromName;
+    const fromHeader = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+    await mailgunSendBatch(cfg, { subject, html, text, fromHeader, replyTo: cfg.replyTo, tag: "ad-brief", clickTracking: cfg.mailgunClickTracking }, [{ email: to, name: toName || "" }]);
+    return { provider: "mailgun" };
+  }
+  throw new Error("No email provider configured — add Postmark or Mailgun in Settings.");
 }
 
 async function twilioSendOne(cfg, { to, from, body, mediaUrls }) {
@@ -1448,6 +1475,46 @@ const server = http.createServer(async (req, res) => {
         const ad = { id: "ad_" + Date.now(), created: new Date().toISOString(), sourceUrl: (b.sourceUrl || "").trim(), mediaUrl: (b.mediaUrl || "").trim(), notes: (b.notes || "").trim(), transcript, ...analysis };
         const list = loadAds(); list.unshift(ad); saveAds(list);
         return send(res, 200, { ad });
+      }
+      // send an influencer/affiliate a brief for a specific ad
+      if (p === "/api/ads/brief" && req.method === "POST") {
+        const b = await readBody(req);
+        const to = (b.to || "").trim();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return send(res, 400, { error: "Enter a valid recipient email." });
+        const subject = (b.subject || "").trim() || "A Crate Hackers content idea for you";
+        const html = (b.html || "").trim();
+        if (!html) return send(res, 400, { error: "The brief is empty." });
+        try { const r = await sendOneEmail(loadConfig(), { to, toName: (b.toName || "").trim(), subject, html }); return send(res, 200, { ok: true, provider: r.provider }); }
+        catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // influencer/affiliate list for the brief recipient picker
+      if (p === "/api/influencers" && req.method === "GET") {
+        return send(res, 200, { influencers: loadInfluencers() });
+      }
+      if (p === "/api/influencers/import" && req.method === "POST") {
+        const b = await readBody(req);
+        const rows = parseCSV(b.csv || "");
+        if (rows.length < 2) return send(res, 400, { error: "That CSV looks empty." });
+        const header = rows[0].map((h) => h.trim().toLowerCase());
+        const ci = (names) => { for (const n of names) { const i = header.indexOf(n); if (i >= 0) return i; } return -1; };
+        const iName = ci(["name", "full name", "contact"]);
+        const iEmail = ci(["email", "email address", "customer_email"]);
+        const iIg = ci(["instagram", "ig", "handle", "ig_normalized"]);
+        const iLtv = ci(["customer_value", "ltv", "value", "revenue"]);
+        if (iEmail < 0) return send(res, 400, { error: "No email column found in that CSV." });
+        const out = []; const seen = new Set();
+        for (const r of rows.slice(1)) {
+          const email = (r[iEmail] || "").trim().toLowerCase();
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || seen.has(email)) continue;
+          seen.add(email);
+          out.push({ name: (iName >= 0 ? r[iName] || "" : "").trim(), email, instagram: (iIg >= 0 ? r[iIg] || "" : "").trim(), ltv: parseFloat(String(iLtv >= 0 ? r[iLtv] || "" : "").replace(/[^0-9.]/g, "")) || 0 });
+        }
+        // merge into the existing list (dedupe by email) so influencers + affiliates coexist
+        const byEmail = new Map(loadInfluencers().map((x) => [x.email, x]));
+        for (const row of out) byEmail.set(row.email, { ...byEmail.get(row.email), ...row });
+        const merged = [...byEmail.values()].sort((a, b) => b.ltv - a.ltv);
+        saveInfluencers(merged);
+        return send(res, 200, { ok: true, count: merged.length, imported: out.length });
       }
       if (p.startsWith("/api/ads/") && req.method === "DELETE") {
         const id = p.slice("/api/ads/".length);

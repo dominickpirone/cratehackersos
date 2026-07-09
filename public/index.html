@@ -492,8 +492,14 @@
         <div class="panel-head">
           <span class="eyebrow">// Swipe file</span>
           <h1>Ad Library</h1>
-          <p>Save ads you love → transcribe → turn them into Crate Hackers scripts. Paste a transcript/caption (or a <b>direct</b> .mp4/.mp3 URL to auto-transcribe with Groq Whisper); the AI breaks down why it works and rewrites it for DJs. <span id="adConfigNote" class="muted"></span></p>
+          <p>Save ads you love → transcribe → turn them into Crate Hackers scripts. Paste a transcript/caption (or a <b>direct</b> .mp4/.mp3 URL to auto-transcribe with Groq Whisper); the AI breaks down why it works and rewrites it for DJs — then <b>send a brief to an influencer</b> to make it. <span id="adConfigNote" class="muted"></span></p>
         </div>
+        <div class="row" style="gap:10px;align-items:center;margin:-4px 0 16px;flex-wrap:wrap">
+          <span class="muted small" id="inflCount">Influencers: —</span>
+          <label class="btn btn-ghost sm" style="cursor:pointer">Import influencer list (CSV)<input id="inflFile" type="file" accept=".csv" style="display:none"></label>
+          <span id="inflMsg" class="muted small"></span>
+        </div>
+        <datalist id="influencerList"></datalist>
         <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
           <div class="card" style="flex:1;min-width:320px;max-width:420px">
             <h3>Add an ad</h3>

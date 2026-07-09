@@ -42,7 +42,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "funnel") loadFunnel();
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "failed-payments") loadFailedPayments();
-    if (btn.dataset.tab === "ad-library") loadAds();
+    if (btn.dataset.tab === "ad-library") { loadAds(); loadInfluencers(); }
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -1248,10 +1248,11 @@ async function loadAds() {
 function adCard(a) {
   const beats = (a.structure || []).map((s) => `<li>${esc(s)}</li>`).join("");
   const hooks = (a.ch_hooks || []).map((h) => `<li>${esc(h)}</li>`).join("");
+  const ideas = (a.ideas || []).map((h) => `<li>${esc(h)}</li>`).join("");
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex;justify-content:space-between;gap:10px">
       <div><b>${esc(a.summary || "(ad)")}</b>${a.sourceUrl ? ` · <a href="${esc(a.sourceUrl)}" target="_blank" rel="noopener" style="color:#FF7722">source ↗</a>` : ""}</div>
-      <button class="btn btn-ghost sm ad-del" data-id="${esc(a.id)}">✕</button>
+      <div style="display:flex;gap:6px;flex-shrink:0"><button class="btn btn-ghost sm ad-brief" data-id="${esc(a.id)}">✉ Brief</button><button class="btn btn-ghost sm ad-del" data-id="${esc(a.id)}">✕</button></div>
     </div>
     ${a.hook ? `<p class="muted small" style="margin:6px 0 0">Hook: ${esc(a.hook)}</p>` : ""}
     ${a.why_it_works ? `<p style="margin:10px 0 0;font-size:13px"><b>Why it works:</b> ${esc(a.why_it_works)}</p>` : ""}
@@ -1262,6 +1263,8 @@ function adCard(a) {
       <pre style="white-space:pre-wrap;font:inherit;font-size:13px;margin:8px 0 0">${esc((a.ch_script || "").trim())}</pre>
     </div>
     ${hooks ? `<details style="margin-top:8px"><summary class="muted small">Alt hooks</summary><ul style="margin:6px 0 0 18px;font-size:13px">${hooks}</ul></details>` : ""}
+    ${ideas ? `<div style="margin-top:12px"><div class="muted small" style="margin-bottom:4px">Ways to model this for Crate Hackers</div><ul style="margin:0 0 0 18px;font-size:13px">${ideas}</ul></div>` : ""}
+    <div class="brief-box hidden" id="brief-${esc(a.id)}" style="margin-top:12px;border-top:1px solid #242838;padding-top:12px"></div>
   </div>`;
 }
 function renderAds() {
@@ -1269,6 +1272,70 @@ function renderAds() {
   $("#adList").innerHTML = AD_LIST.map(adCard).join("");
   $$(".ad-del").forEach((b) => b.onclick = async () => { if (!confirm("Delete this ad?")) return; await fetch("/api/ads/" + b.dataset.id, { method: "DELETE" }); AD_LIST = AD_LIST.filter((a) => a.id !== b.dataset.id); renderAds(); });
   $$(".ad-copy").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) { navigator.clipboard.writeText(a.ch_script || ""); toast("Script copied.", "ok"); } });
+  $$(".ad-brief").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) toggleBrief(a); });
+}
+
+// ---------- influencer briefs ----------
+let INFLUENCERS = [];
+async function loadInfluencers() {
+  const d = await api("/api/influencers");
+  INFLUENCERS = (d && d.influencers) || [];
+  const dl = $("#influencerList");
+  if (dl) dl.innerHTML = INFLUENCERS.map((i) => `<option value="${esc(i.email)}">${esc(i.name || i.instagram || "")}${i.ltv ? " · $" + fmt(Math.round(i.ltv)) : ""}</option>`).join("");
+  if ($("#inflCount")) $("#inflCount").textContent = "Influencers: " + INFLUENCERS.length + (INFLUENCERS.length ? "" : " — import your CSV →");
+}
+if ($("#inflFile")) $("#inflFile").onchange = async () => {
+  const f = $("#inflFile").files && $("#inflFile").files[0]; if (!f) return;
+  $("#inflMsg").textContent = "Importing…";
+  try {
+    const csv = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("read")); fr.readAsText(f); });
+    const r = await post("/api/influencers/import", { csv });
+    if (r.error) { $("#inflMsg").textContent = "⚠ " + r.error; return; }
+    $("#inflMsg").textContent = r.count + " imported ✓"; await loadInfluencers();
+  } catch { $("#inflMsg").textContent = "Couldn't read that file."; }
+  $("#inflFile").value = "";
+};
+function briefBody(a, note) {
+  const ideas = (a.ideas && a.ideas.length ? a.ideas : (a.ch_hooks || []));
+  const ideaLis = ideas.map((x) => `<li>${esc(x)}</li>`).join("") || "<li>(re-analyze this ad to generate modeling ideas)</li>";
+  return `<p>Hey {{name}},</p>
+${note ? `<p>${esc(note)}</p>` : ""}
+<p>We spotted an ad we think you'd crush for <b>Crate Hackers</b> — wanted to send it your way to model. 🎧</p>
+<p><b>The ad to model:</b> ${a.sourceUrl ? `<a href="${esc(a.sourceUrl)}">${esc(a.sourceUrl)}</a>` : "(link)"}</p>
+${a.summary ? `<p><b>What it is:</b> ${esc(a.summary)}</p>` : ""}
+<p><b>Original transcript:</b></p>
+<blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555;white-space:pre-wrap">${esc((a.transcript || "").trim())}</blockquote>
+<p><b>3–5 ways to turn it into a Crate Hackers ad:</b></p>
+<ol>${ideaLis}</ol>
+<p>If you're in, just reply — we'll send everything you need. 🙌</p>
+<p>— The Crate Hackers team</p>`;
+}
+function toggleBrief(a) {
+  const box = $("#brief-" + a.id);
+  if (!box) return;
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="field" style="margin:0;flex:1;min-width:190px"><span class="lab">Send to (email)</span><input class="bf-to" list="influencerList" type="email" placeholder="pick or type an email"></div>
+      <div class="field" style="margin:0;flex:1;min-width:130px"><span class="lab">Name</span><input class="bf-name" type="text" placeholder="first name"></div>
+    </div>
+    <div class="field" style="margin:8px 0 0"><span class="lab">Subject</span><input class="bf-subj" type="text" value="Content idea for you 🎧 — model this for Crate Hackers"></div>
+    <div class="field" style="margin:8px 0 0"><span class="lab">Personal line <span class="muted">(optional)</span></span><input class="bf-note" type="text" placeholder="e.g. loved your last reel — this is right up your alley"></div>
+    <details style="margin:8px 0 0"><summary class="muted small">Preview the brief</summary><div class="bf-preview" style="background:#fff;color:#111;border-radius:8px;padding:12px;margin-top:6px;font-size:13px;max-height:340px;overflow:auto"></div></details>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="btn btn-primary sm bf-send">Send brief →</button><span class="bf-msg muted small"></span></div>`;
+  const toI = box.querySelector(".bf-to"), nameI = box.querySelector(".bf-name"), subjI = box.querySelector(".bf-subj"), noteI = box.querySelector(".bf-note"), prev = box.querySelector(".bf-preview"), msg = box.querySelector(".bf-msg");
+  const refresh = () => { prev.innerHTML = briefBody(a, noteI.value.trim()).replace(/\{\{name\}\}/g, nameI.value.trim() || "there"); };
+  refresh(); noteI.oninput = refresh; nameI.oninput = refresh;
+  toI.oninput = () => { const m = INFLUENCERS.find((i) => i.email.toLowerCase() === toI.value.trim().toLowerCase()); if (m && !nameI.value) { nameI.value = (m.name || "").split(" ")[0]; refresh(); } };
+  box.querySelector(".bf-send").onclick = async () => {
+    const to = toI.value.trim(); if (!to) { msg.textContent = "Enter a recipient email."; msg.style.color = "#ef6a6a"; return; }
+    const html = briefBody(a, noteI.value.trim()).replace(/\{\{name\}\}/g, nameI.value.trim() || "there");
+    msg.style.color = ""; msg.textContent = "Sending…";
+    const r = await post("/api/ads/brief", { adId: a.id, to, toName: nameI.value.trim(), subject: subjI.value.trim(), html });
+    if (r.error) { msg.style.color = "#ef6a6a"; msg.textContent = "⚠ " + r.error; return; }
+    msg.style.color = "#4ea36a"; msg.textContent = "✅ Sent to " + to; toast("Brief sent to " + to, "ok");
+  };
 }
 if ($("#adAdd")) $("#adAdd").onclick = async () => {
   const file = $("#adFile") && $("#adFile").files && $("#adFile").files[0];
