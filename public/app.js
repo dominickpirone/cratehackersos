@@ -116,8 +116,15 @@ async function loadAudienceOptions() {
   });
   // default to "members" only on the very first load — never override the user's selection on a refresh
   if (!hadOptions && !prev.size) { const m = sel.querySelector('[value="members"]'); if (m) m.selected = true; }
+  filterAudienceOptions();
   return segments.length;
 }
+// filter the Compose audience list by the search box (hides non-matching options)
+function filterAudienceOptions() {
+  const q = (($("#audSearch") && $("#audSearch").value) || "").trim().toLowerCase();
+  $$("#audience option").forEach((o) => { o.hidden = !!q && !o.textContent.toLowerCase().includes(q); });
+}
+if ($("#audSearch")) $("#audSearch").oninput = filterAudienceOptions;
 const selectedSegments = () => [...$("#audience").selectedOptions].map((o) => o.value);
 if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
   const n = await loadAudienceOptions();
@@ -275,27 +282,41 @@ async function pollJob(jobId, total) {
 }
 
 // ---------- audiences ----------
+let ALL_SEGMENTS = [];
 async function loadSegments() {
   const { segments } = await api("/api/segments");
-  const list = $("#segList");
-  list.innerHTML = "";
-  segments.forEach((s) => {
-    const div = document.createElement("div");
-    div.className = "seg-item";
-    div.innerHTML = `<span class="name">${s.name}</span>
-      <span><span class="count">${fmt(s.count)}</span> &nbsp;
-      <button class="secondary" data-del="${s.name}">Delete</button></span>`;
-    list.appendChild(div);
-  });
-  $$("[data-del]").forEach((b) => b.onclick = async () => {
-    if (!confirm(`Delete segment "${b.dataset.del}"?`)) return;
-    await fetch("/api/segments/" + encodeURIComponent(b.dataset.del), { method: "DELETE" });
-    loadSegments();
-  });
+  ALL_SEGMENTS = segments || [];
+  renderSegList();
   // load suppression
   const sup = await api("/api/suppression");
-  $("#suppressBox").value = sup.list.join("\n");
+  if ($("#suppressBox")) $("#suppressBox").value = (sup.list || []).join("\n");
 }
+function renderSegList() {
+  const list = $("#segList"); if (!list) return;
+  const q = (($("#segSearch") && $("#segSearch").value) || "").trim().toLowerCase();
+  const rows = ALL_SEGMENTS.filter((s) => !q || s.name.toLowerCase().includes(q));
+  list.innerHTML = "";
+  if (!rows.length) { list.innerHTML = `<p class="muted small" style="padding:8px 0">No audiences${q ? ` match “${esc(q)}”` : " yet"}.</p>`; }
+  rows.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "seg-item";
+    div.innerHTML = `<span class="name">${esc(s.name)}</span>
+      <span><span class="count">${fmt(s.count)}</span> &nbsp;
+      <button class="secondary" data-del="${esc(s.name)}">Delete</button></span>`;
+    list.appendChild(div);
+  });
+  if ($("#segCount")) $("#segCount").textContent = q ? `${rows.length} of ${ALL_SEGMENTS.length}` : `${ALL_SEGMENTS.length} list${ALL_SEGMENTS.length === 1 ? "" : "s"}`;
+  $$("[data-del]").forEach((b) => b.onclick = async () => {
+    if (!confirm(`Delete audience "${b.dataset.del}"? This can't be undone.`)) return;
+    const r = await api("/api/segments/" + encodeURIComponent(b.dataset.del), { method: "DELETE" });
+    if (r && r.error) { toast(r.error, "err"); return; }
+    ALL_SEGMENTS = ALL_SEGMENTS.filter((s) => s.name !== b.dataset.del);
+    renderSegList();
+    if (typeof loadAudienceOptions === "function") loadAudienceOptions(); // keep the Compose picker in sync
+    toast("Audience deleted.", "ok");
+  });
+}
+if ($("#segSearch")) $("#segSearch").oninput = renderSegList;
 
 // read a File as text → Promise (lets us upload several files in sequence)
 const readTextFile = (file) => new Promise((res, rej) => {
