@@ -308,6 +308,9 @@
           <aside>
             <div class="card">
               <h3>Send from</h3>
+              <div class="field" id="smsAccountField"><span class="lab">Account <span class="muted small">— which company's Twilio</span></span>
+                <select id="smsAccount"><option value="default">Crate Hackers</option></select>
+              </div>
               <div class="field"><span class="lab">Service</span>
                 <select id="smsProvider"><option value="twilio">Twilio (blast / MMS)</option><option value="quo">Quo (conversational — replies in Quo)</option></select>
               </div>
@@ -607,6 +610,24 @@
               <button id="setTwSave" class="btn btn-primary">Save Twilio</button>
               <button id="setTwTest" class="btn btn-secondary">Test connection</button>
               <span id="setTwMsg" class="inline-msg"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3><svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px"><use href="#i-mail"/></svg>SMS sender accounts <span class="muted small">— other companies</span></h3>
+            <p class="muted small" style="margin-top:-4px">Add a separate Twilio account (e.g. a client's) to blast SMS <b>as that company</b>. Uses an API Key (SK…) + secret + Account SID. Never touches your Crate Hackers Twilio.</p>
+            <div id="smsAcctList" style="margin:10px 0"></div>
+            <div class="field"><span class="lab">Label</span><input id="acctLabel" type="text" placeholder="e.g. Both Lighting USA" /></div>
+            <div class="field"><span class="lab">Account SID <span class="muted">(AC…)</span></span><input id="acctSid" type="text" placeholder="AC…" /></div>
+            <div class="field-row">
+              <div class="field"><span class="lab">API Key SID <span class="muted">(SK…)</span></span><input id="acctKeySid" type="text" placeholder="SK…" /></div>
+              <div class="field"><span class="lab">API Key Secret</span><input id="acctKeySecret" type="password" placeholder="secret (leave blank to keep)" /></div>
+            </div>
+            <div class="field"><span class="lab">From number(s) <span class="muted">(E.164, comma-separated)</span></span><input id="acctFrom" type="text" placeholder="+1…" /></div>
+            <div class="field"><span class="lab">Messaging Service SID <span class="muted">(optional, MG…)</span></span><input id="acctService" type="text" placeholder="MG…" /></div>
+            <div class="row">
+              <button id="acctSave" class="btn btn-primary">Add / update account</button>
+              <span id="acctMsg" class="inline-msg"></span>
             </div>
           </div>
 

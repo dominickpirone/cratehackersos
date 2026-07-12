@@ -78,6 +78,8 @@ function loadConfig() {
     twilioAuthToken: cfg.twilioAuthToken || process.env.TWILIO_AUTH_TOKEN || "",
     twilioFromNumbers: cfg.twilioFromNumbers || process.env.TWILIO_FROM_NUMBERS || "",
     twilioMessagingServiceSid: cfg.twilioMessagingServiceSid || process.env.TWILIO_MESSAGING_SERVICE_SID || "",
+    // additional Twilio sender accounts (e.g. other companies) — [{id,label,accountSid,apiKeySid,apiKeySecret,fromNumbers,messagingServiceSid}]
+    smsAccounts: Array.isArray(cfg.smsAccounts) ? cfg.smsAccounts : [],
     quoApiKey: cfg.quoApiKey || process.env.QUO_API_KEY || "",
     quoFromNumber: cfg.quoFromNumber || process.env.QUO_FROM_NUMBER || "",
     testEmail: cfg.testEmail || process.env.TEST_EMAIL || "dom@cratehackers.com",
@@ -769,9 +771,22 @@ function normalizePhone(raw) {
 function fromNumbersList(cfg) {
   return (cfg.twilioFromNumbers || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
 }
-async function twilioPost(cfg, path, form) {
-  const auth = Buffer.from(cfg.twilioAccountSid + ":" + cfg.twilioAuthToken).toString("base64");
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${cfg.twilioAccountSid}${path}`, {
+function twNums(s) { return (s || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean); }
+// Resolve a Twilio "sender account" → { id, label, accountSid, authUser, authPass, fromNumbers[], messagingServiceSid }.
+// accountId "default"/empty = Crate Hackers (Account SID + Auth Token). Named accounts in cfg.smsAccounts
+// may authenticate with an API Key (SK…) + secret, so the auth user/pass are separate from the URL Account SID.
+function resolveTwilio(cfg, accountId) {
+  if (accountId && accountId !== "default") {
+    const a = (cfg.smsAccounts || []).find((x) => x.id === accountId);
+    if (!a) return null;
+    return { id: a.id, label: a.label || a.id, accountSid: a.accountSid || "", authUser: a.apiKeySid || a.accountSid || "", authPass: a.apiKeySecret || a.authToken || "", fromNumbers: twNums(a.fromNumbers), messagingServiceSid: a.messagingServiceSid || "" };
+  }
+  return { id: "default", label: "Crate Hackers", accountSid: cfg.twilioAccountSid, authUser: cfg.twilioAccountSid, authPass: cfg.twilioAuthToken, fromNumbers: fromNumbersList(cfg), messagingServiceSid: cfg.twilioMessagingServiceSid || "" };
+}
+function twConfigured(tw) { return !!(tw && tw.accountSid && tw.authUser && tw.authPass); }
+async function twilioPost(tw, path, form) {
+  const auth = Buffer.from(tw.authUser + ":" + tw.authPass).toString("base64");
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${tw.accountSid}${path}`, {
     method: "POST",
     headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
     body: form.toString(),
@@ -781,9 +796,9 @@ async function twilioPost(cfg, path, form) {
   if (!res.ok) throw new Error(j.message || `Twilio ${res.status}`);
   return j;
 }
-async function twilioGetAccount(cfg) {
-  const auth = Buffer.from(cfg.twilioAccountSid + ":" + cfg.twilioAuthToken).toString("base64");
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${cfg.twilioAccountSid}.json`, {
+async function twilioGetAccount(tw) {
+  const auth = Buffer.from(tw.authUser + ":" + tw.authPass).toString("base64");
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${tw.accountSid}.json`, {
     headers: { Authorization: "Basic " + auth },
   });
   const text = await res.text();
@@ -791,13 +806,13 @@ async function twilioGetAccount(cfg) {
   if (!res.ok) throw new Error(j.message || `Twilio ${res.status}`);
   return j; // { friendly_name, status, ... }
 }
-async function getTwilioStats(cfg, fromDate, toDate) {
-  const auth = Buffer.from(cfg.twilioAccountSid + ":" + cfg.twilioAuthToken).toString("base64");
+async function getTwilioStats(tw, fromDate, toDate) {
+  const auth = Buffer.from(tw.authUser + ":" + tw.authPass).toString("base64");
   async function sumDaily(category) {
     const qs = new URLSearchParams({ Category: category, PageSize: "365" });
     if (fromDate) qs.set("StartDate", fromDate);
     if (toDate) qs.set("EndDate", toDate);
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${cfg.twilioAccountSid}/Usage/Records/Daily.json?${qs}`, { headers: { Authorization: "Basic " + auth } });
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${tw.accountSid}/Usage/Records/Daily.json?${qs}`, { headers: { Authorization: "Basic " + auth } });
     const text = await res.text();
     let j; try { j = JSON.parse(text); } catch { throw new Error("Twilio stats parse error"); }
     if (!res.ok) throw new Error(j.message || `Twilio ${res.status}`);
@@ -836,14 +851,14 @@ async function sendOneEmail(cfg, { to, toName, subject, html }) {
   throw new Error("No email provider configured — add Postmark or Mailgun in Settings.");
 }
 
-async function twilioSendOne(cfg, { to, from, body, mediaUrls }) {
+async function twilioSendOne(tw, { to, from, body, mediaUrls }) {
   const form = new URLSearchParams();
   form.set("To", to);
-  if (cfg.twilioMessagingServiceSid && from === "service") form.set("MessagingServiceSid", cfg.twilioMessagingServiceSid);
+  if (tw.messagingServiceSid && from === "service") form.set("MessagingServiceSid", tw.messagingServiceSid);
   else form.set("From", from);
   if (body) form.set("Body", body);
   for (const m of mediaUrls || []) form.append("MediaUrl", m);
-  return twilioPost(cfg, "/Messages.json", form);
+  return twilioPost(tw, "/Messages.json", form);
 }
 
 // ---------- Quo (business texting + calling; API carried over from OpenPhone) ----------
@@ -1074,6 +1089,7 @@ async function runSmsJob(jobId, opts) {
   const job = jobs.get(jobId);
   const { body, from, mediaUrls, targets } = opts;
   const provider = opts.provider === "quo" ? "quo" : "twilio";
+  const tw = resolveTwilio(cfg, opts.smsAccount); // Twilio sender account (Crate Hackers by default)
   if (!opts.isTest) {
     try { fs.mkdirSync(RECIPIENTS, { recursive: true }); fs.writeFileSync(path.join(RECIPIENTS, jobId + ".json"), JSON.stringify({ channel: "sms", phones: targets.map((t) => t.phone) })); } catch {}
   }
@@ -1084,7 +1100,7 @@ async function runSmsJob(jobId, opts) {
     try {
       const personalized = (body || "").replace(/\{\{first_name\}\}/g, r.name || "there");
       if (provider === "quo") await quoSendOne(cfg, { to: r.phone, from, body: personalized });
-      else await twilioSendOne(cfg, { to: r.phone, from, body: personalized, mediaUrls });
+      else await twilioSendOne(tw, { to: r.phone, from, body: personalized, mediaUrls });
       sent++;
     } catch (e) {
       failed.push({ To: r.phone, Message: e.message });
@@ -1222,9 +1238,10 @@ function launchSms(b) {
     from = (b.from && b.from !== "service" ? b.from : "") || cfg.quoFromNumber;
     if (!from) return { error: "No Quo number. Add your Quo number in Settings (or hit Test to auto-detect it)." };
   } else {
-    if (!cfg.twilioAccountSid || !cfg.twilioAuthToken) return { error: "Set your Twilio credentials in Settings first." };
-    from = b.from || (cfg.twilioMessagingServiceSid ? "service" : fromNumbersList(cfg)[0]);
-    if (!from) return { error: "No sending number. Add a Twilio number (or Messaging Service) in Settings." };
+    const tw = resolveTwilio(cfg, b.smsAccount);
+    if (!twConfigured(tw)) return { error: (tw && tw.id !== "default") ? `Add credentials for the “${tw.label}” SMS account in Settings.` : (b.smsAccount && b.smsAccount !== "default") ? "That SMS sender account wasn't found." : "Set your Twilio credentials in Settings first." };
+    from = b.from || (tw.messagingServiceSid ? "service" : tw.fromNumbers[0]);
+    if (!from) return { error: `No sending number for ${tw.label}. Add a Twilio number (or Messaging Service) for this account in Settings.` };
   }
   const isTest = !!b.test;
   const segments = b.segments || [];
@@ -1235,7 +1252,7 @@ function launchSms(b) {
   const now = new Date().toISOString();
   const jobId = "sms_" + now.replace(/[^0-9]/g, "").slice(0, 14) + "_" + targets.length;
   jobs.set(jobId, { id: jobId, total: targets.length, processed: 0, sent: 0, failed: 0, done: false, isTest });
-  runSmsJob(jobId, { body: b.body || "", from, provider, mediaUrls: (b.mediaUrls || []).filter(Boolean), targets, segments, isTest, now, preview: (b.body || "(MMS)").slice(0, 60) });
+  runSmsJob(jobId, { body: b.body || "", from, provider, smsAccount: b.smsAccount || "default", mediaUrls: (b.mediaUrls || []).filter(Boolean), targets, segments, isTest, now, preview: (b.body || "(MMS)").slice(0, 60) });
   return { jobId, total: targets.length };
 }
 
@@ -1696,12 +1713,13 @@ const server = http.createServer(async (req, res) => {
         } catch (e) { return send(res, 200, { connected: true, error: e.message }); }
       }
 
-      // SMS analytics (Twilio usage)
+      // SMS analytics (Twilio usage) — defaults to Crate Hackers; ?account=<id> for another sender
       if (p === "/api/analytics/sms" && req.method === "GET") {
         const cfg = loadConfig();
-        if (!cfg.twilioAccountSid || !cfg.twilioAuthToken) return send(res, 200, { connected: false });
+        const tw = resolveTwilio(cfg, u.searchParams.get("account") || "default");
+        if (!twConfigured(tw)) return send(res, 200, { connected: false });
         try {
-          const s = await getTwilioStats(cfg, u.searchParams.get("from") || "", u.searchParams.get("to") || "");
+          const s = await getTwilioStats(tw, u.searchParams.get("from") || "", u.searchParams.get("to") || "");
           return send(res, 200, { connected: true, ...s });
         } catch (e) { return send(res, 200, { connected: true, error: e.message }); }
       }
@@ -1887,9 +1905,43 @@ const server = http.createServer(async (req, res) => {
       // ----- Twilio / SMS -----
       if (p === "/api/twilio/test" && req.method === "POST") {
         const cfg = loadConfig();
-        if (!cfg.twilioAccountSid || !cfg.twilioAuthToken) return send(res, 200, { ok: false, error: "Add your Twilio Account SID and Auth Token first." });
-        try { const a = await twilioGetAccount(cfg); return send(res, 200, { ok: true, server: `${a.friendly_name || "Twilio"} · ${a.status}` }); }
+        const bt = await readBody(req);
+        const tw = resolveTwilio(cfg, (bt && bt.account) || "default");
+        if (!twConfigured(tw)) return send(res, 200, { ok: false, error: "Add this account's Twilio credentials first." });
+        try { const a = await twilioGetAccount(tw); return send(res, 200, { ok: true, server: `${a.friendly_name || tw.label} · ${a.status}` }); }
         catch (e) { return send(res, 200, { ok: false, error: e.message }); }
+      }
+      // extra SMS sender accounts (other companies) — list / add-or-update / delete
+      if (p === "/api/sms-accounts" && req.method === "GET") {
+        const cfg = loadConfig();
+        const list = (cfg.smsAccounts || []).map((a) => ({ id: a.id, label: a.label, accountSid: a.accountSid, fromNumbers: a.fromNumbers || "", messagingServiceSid: a.messagingServiceSid || "", configured: !!(a.accountSid && (a.apiKeySecret || a.authToken)) }));
+        return send(res, 200, { accounts: list });
+      }
+      if (p === "/api/sms-accounts" && req.method === "POST") {
+        const cfg = loadConfig();
+        const b = await readBody(req);
+        const label = (b.label || "").trim();
+        if (!label) return send(res, 400, { error: "Give the account a label (e.g. Both Lighting USA)." });
+        const accountSid = (b.accountSid || "").trim();
+        if (!/^AC[0-9a-zA-Z]{20,}$/.test(accountSid)) return send(res, 400, { error: "Enter a valid Account SID (starts with AC…)." });
+        const id = ((b.id || "").trim()) || slugify(label);
+        const accounts = (cfg.smsAccounts || []).slice();
+        const existing = accounts.find((a) => a.id === id);
+        const apiKeySid = (b.apiKeySid || "").trim() || (existing && existing.apiKeySid) || "";
+        const apiKeySecret = (b.apiKeySecret || "").trim() || (existing && existing.apiKeySecret) || "";
+        const authToken = (b.authToken || "").trim() || (existing && existing.authToken) || "";
+        if (!(apiKeySid && apiKeySecret) && !authToken) return send(res, 400, { error: "Enter an API Key SID + Secret (or an Account Auth Token)." });
+        const rec = { id, label, accountSid, apiKeySid, apiKeySecret, authToken, fromNumbers: (b.fromNumbers || "").trim(), messagingServiceSid: (b.messagingServiceSid || "").trim() };
+        const idx = accounts.findIndex((a) => a.id === id);
+        if (idx >= 0) accounts[idx] = rec; else accounts.push(rec);
+        saveConfig({ smsAccounts: accounts });
+        return send(res, 200, { ok: true, id, label });
+      }
+      if (p.startsWith("/api/sms-accounts/") && req.method === "DELETE") {
+        const cfg = loadConfig();
+        const id = decodeURIComponent(p.slice("/api/sms-accounts/".length));
+        saveConfig({ smsAccounts: (cfg.smsAccounts || []).filter((a) => a.id !== id) });
+        return send(res, 200, { ok: true });
       }
       if (p === "/api/sms/segments" && req.method === "GET") {
         return send(res, 200, { segments: listSmsSegments() });

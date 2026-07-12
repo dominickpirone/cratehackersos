@@ -493,8 +493,44 @@ async function loadSmsStats(from, to) {
 $("#anRefresh").onclick = loadAnalytics;
 if ($("#anProvider")) $("#anProvider").onchange = loadAnalytics;
 
+// ---------- SMS sender accounts (Settings) ----------
+async function renderSmsAcctList() {
+  const box = $("#smsAcctList"); if (!box) return;
+  const d = await api("/api/sms-accounts");
+  const accts = (d && d.accounts) || [];
+  if (!accts.length) { box.innerHTML = `<p class="muted small">No extra accounts yet — add one below to send SMS as another company.</p>`; return; }
+  box.innerHTML = accts.map((a) => `<div class="seg-item"><span class="name">${esc(a.label)} <span class="muted small">${esc(a.accountSid ? a.accountSid.slice(0, 10) + "…" : "")}${a.configured ? "" : " · ⚠ needs credentials"}</span></span><span><button class="btn btn-ghost sm acct-test" data-id="${esc(a.id)}">Test</button> <button class="secondary acct-del" data-id="${esc(a.id)}">Delete</button></span></div>`).join("");
+  $$(".acct-del").forEach((b) => b.onclick = async () => {
+    if (!confirm("Delete this SMS sender account?")) return;
+    await fetch("/api/sms-accounts/" + encodeURIComponent(b.dataset.id), { method: "DELETE" });
+    renderSmsAcctList(); if (typeof loadSmsAccounts === "function") loadSmsAccounts();
+  });
+  $$(".acct-test").forEach((b) => b.onclick = async () => {
+    const old = b.textContent; b.textContent = "Testing…";
+    const r = await post("/api/twilio/test", { account: b.dataset.id });
+    b.textContent = old;
+    toast(r.ok ? ("✓ " + r.server) : ("⚠ " + (r.error || "failed")), r.ok ? "ok" : "err");
+  });
+}
+if ($("#acctSave")) $("#acctSave").onclick = async () => {
+  const body = {
+    label: $("#acctLabel").value.trim(), accountSid: $("#acctSid").value.trim(),
+    apiKeySid: $("#acctKeySid").value.trim(), apiKeySecret: $("#acctKeySecret").value.trim(),
+    fromNumbers: $("#acctFrom").value.trim(), messagingServiceSid: $("#acctService").value.trim(),
+  };
+  if (!body.label) return toast("Give the account a label.", "err");
+  $("#acctSave").disabled = true; $("#acctMsg").textContent = "Saving…";
+  const r = await post("/api/sms-accounts", body);
+  $("#acctSave").disabled = false; $("#acctMsg").textContent = r.error ? "" : "Saved ✓";
+  if (r.error) return toast(r.error, "err");
+  $("#acctKeySecret").value = "";
+  renderSmsAcctList(); if (typeof loadSmsAccounts === "function") loadSmsAccounts();
+  toast(`"${r.label}" saved — pick it under SMS → Send from → Account.`, "ok");
+};
+
 // ---------- settings ----------
 async function loadSettings() {
+  renderSmsAcctList();
   const s = await api("/api/settings");
   $("#setFromEmail").value = s.fromEmail || "";
   $("#setFromName").value = s.fromName || "";
@@ -627,25 +663,55 @@ function smsCount() {
   const segs = len === 0 ? 1 : len <= per ? 1 : Math.ceil(len / perMulti);
   $("#smsCount").textContent = `${len} characters · ${segs} segment${segs > 1 ? "s" : ""}${unicode ? " (unicode)" : ""}${segs > 1 ? " — billed as " + segs : ""}`;
 }
+let SMS_ACCOUNTS = [];
+const currentSmsAccount = () => ($("#smsAccount") && $("#smsAccount").value) || "default";
 function refreshSmsFrom(s) {
   const sel = $("#smsFrom"); sel.innerHTML = "";
-  if (smsProvider() === "quo") {
+  const isQuo = smsProvider() === "quo";
+  // the account picker only applies to Twilio blasts; hide it for Quo or when there are no extra accounts
+  if ($("#smsAccountField")) $("#smsAccountField").style.display = (!isQuo && SMS_ACCOUNTS.length) ? "" : "none";
+  if (isQuo) {
     if (s.quoFromNumber) { const o = document.createElement("option"); o.value = s.quoFromNumber; o.textContent = s.quoFromNumber + " (Quo)"; sel.appendChild(o); }
     $("#smsFromNote").innerHTML = s.hasQuo
       ? (sel.options.length ? "Replies will land in your Quo inbox — text back or call from there. (Text-only — no MMS via Quo.)" : "⚠ No Quo number saved — hit <b>Test connection</b> in <b>Settings → Quo</b> to auto-fill it.")
       : "⚠ Quo not configured — add your API key in <b>Settings → Quo</b>.";
-  } else {
-    (s.twilioFromNumbers || []).forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
-    if (s.twilioMessagingServiceSid) { const o = document.createElement("option"); o.value = "service"; o.textContent = "Messaging Service (" + s.twilioMessagingServiceSid.slice(0, 8) + "…)"; sel.appendChild(o); }
-    $("#smsFromNote").innerHTML = s.hasTwilio
-      ? (sel.options.length ? "" : "⚠ No sending number saved — add one in <b>Settings → Twilio</b>.")
-      : "⚠ Twilio not configured — add it in <b>Settings → Twilio</b>.";
+    return;
   }
+  const acctId = currentSmsAccount();
+  if (acctId !== "default") {
+    const a = SMS_ACCOUNTS.find((x) => x.id === acctId);
+    const nums = a ? (a.fromNumbers || "").split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean) : [];
+    nums.forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+    if (a && a.messagingServiceSid) { const o = document.createElement("option"); o.value = "service"; o.textContent = "Messaging Service"; sel.appendChild(o); }
+    $("#smsFromNote").innerHTML = !a ? "⚠ Account not found."
+      : !a.configured ? `⚠ <b>${esc(a.label)}</b> isn't fully configured — add its credentials in <b>Settings → SMS sender accounts</b>.`
+      : sel.options.length ? `Sending as <b>${esc(a.label)}</b> — separate from Crate Hackers.`
+      : `⚠ No sending number for ${esc(a.label)} — add one in <b>Settings → SMS sender accounts</b>.`;
+    return;
+  }
+  (s.twilioFromNumbers || []).forEach((n) => { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+  if (s.twilioMessagingServiceSid) { const o = document.createElement("option"); o.value = "service"; o.textContent = "Messaging Service (" + s.twilioMessagingServiceSid.slice(0, 8) + "…)"; sel.appendChild(o); }
+  $("#smsFromNote").innerHTML = s.hasTwilio
+    ? (sel.options.length ? "" : "⚠ No sending number saved — add one in <b>Settings → Twilio</b>.")
+    : "⚠ Twilio not configured — add it in <b>Settings → Twilio</b>.";
 }
+async function loadSmsAccounts() {
+  const d = await api("/api/sms-accounts");
+  SMS_ACCOUNTS = (d && d.accounts) || [];
+  const sel = $("#smsAccount");
+  if (sel) {
+    const cur = sel.value || "default";
+    sel.innerHTML = `<option value="default">Crate Hackers</option>` + SMS_ACCOUNTS.map((a) => `<option value="${esc(a.id)}">${esc(a.label)}</option>`).join("");
+    sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "default";
+  }
+  refreshSmsFrom(PROVIDER_STATE || {});
+}
+if ($("#smsAccount")) $("#smsAccount").onchange = () => refreshSmsFrom(PROVIDER_STATE || {});
 async function loadSms() {
   const s = PROVIDER_STATE && PROVIDER_STATE.hasTwilio !== undefined ? PROVIDER_STATE : await api("/api/settings");
   PROVIDER_STATE = s;
   refreshSmsFrom(s);
+  loadSmsAccounts();
   $("#smsTestPhone").value = s.testPhone || "";
   // segments
   const { segments } = await api("/api/sms/segments");
@@ -689,7 +755,7 @@ if ($("#smsTestBtn")) $("#smsTestBtn").onclick = async () => {
   if (!testPhone) return toast("Enter a test phone number.", "err");
   if (!$("#smsBody").value && !mediaUrls().length) return toast("Add a message or MMS image.", "err");
   $("#smsTestBtn").disabled = true;
-  const r = await post("/api/sms/send", { body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom").value, provider: smsProvider(), test: true, testPhone });
+  const r = await post("/api/sms/send", { body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom").value, provider: smsProvider(), smsAccount: currentSmsAccount(), test: true, testPhone });
   $("#smsTestBtn").disabled = false;
   if (r.error) return toast(r.error, "err");
   toast("Test text sent to " + testPhone + " ✓", "ok");
@@ -700,9 +766,10 @@ if ($("#smsSendBtn")) $("#smsSendBtn").onclick = async () => {
   if (!segs.length && !$("#smsPaste").value.trim()) return toast("Pick a list or paste numbers.", "err");
   const pre = await post("/api/sms/preview", { segments: segs, pasted: $("#smsPaste").value });
   if (!pre.recipients) return toast("No valid recipients.", "err");
-  if (!confirm(`Text ${pre.recipients.toLocaleString()} recipients via ${smsProvider() === "quo" ? "Quo" : "Twilio"}?\n\nThis sends real ${mediaUrls().length ? "MMS" : "SMS"} messages. Continue?`)) return;
+  const acctLabel = (smsProvider() === "quo" || currentSmsAccount() === "default") ? "Crate Hackers" : ((SMS_ACCOUNTS.find((a) => a.id === currentSmsAccount()) || {}).label || currentSmsAccount());
+  if (!confirm(`Text ${pre.recipients.toLocaleString()} recipients via ${smsProvider() === "quo" ? "Quo" : "Twilio"}, sending as “${acctLabel}”?\n\nThis sends real ${mediaUrls().length ? "MMS" : "SMS"} messages. Continue?`)) return;
   $("#smsSendBtn").disabled = true;
-  const r = await post("/api/sms/send", { body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom").value, provider: smsProvider(), segments: segs, pasted: $("#smsPaste").value });
+  const r = await post("/api/sms/send", { body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom").value, provider: smsProvider(), smsAccount: currentSmsAccount(), segments: segs, pasted: $("#smsPaste").value });
   if (r.error) { $("#smsSendBtn").disabled = false; return toast(r.error, "err"); }
   $("#smsProgress").classList.remove("hidden");
   rememberJob(r.jobId, r.total, "sms");
