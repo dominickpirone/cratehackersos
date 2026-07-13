@@ -1,6 +1,10 @@
 // ---------- tiny helpers ----------
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
+// coerce any value to a string (AI fields sometimes come back as arrays/objects)
+const S = (v) => typeof v === "string" ? v
+  : Array.isArray(v) ? v.map((x) => typeof x === "string" ? x : (x && (x.line || x.text || x.idea || x.hook)) || JSON.stringify(x)).join("\n")
+  : v == null ? "" : String(v);
 const api = async (url, opts) => {
   let r;
   try { r = await fetch(url, opts); }
@@ -1334,9 +1338,9 @@ async function loadAds() {
   renderAds();
 }
 function adCard(a) {
-  const beats = (a.structure || []).map((s) => `<li>${esc(s)}</li>`).join("");
-  const hooks = (a.ch_hooks || []).map((h) => `<li>${esc(h)}</li>`).join("");
-  const ideas = (a.ideas || []).map((h) => `<li>${esc(h)}</li>`).join("");
+  const beats = (a.structure || []).map((s) => `<li>${esc(S(s))}</li>`).join("");
+  const hooks = (a.ch_hooks || []).map((h) => `<li>${esc(S(h))}</li>`).join("");
+  const ideas = (a.ideas || []).map((h) => `<li>${esc(S(h))}</li>`).join("");
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex;justify-content:space-between;gap:10px">
       <div><b>${esc(a.summary || "(ad)")}</b>${a.sourceUrl ? ` · <a href="${esc(a.sourceUrl)}" target="_blank" rel="noopener" style="color:#FF7722">source ↗</a>` : ""}</div>
@@ -1345,10 +1349,10 @@ function adCard(a) {
     ${a.hook ? `<p class="muted small" style="margin:6px 0 0">Hook: ${esc(a.hook)}</p>` : ""}
     ${a.why_it_works ? `<p style="margin:10px 0 0;font-size:13px"><b>Why it works:</b> ${esc(a.why_it_works)}</p>` : ""}
     ${beats ? `<details style="margin-top:8px"><summary class="muted small">Structure</summary><ol style="margin:6px 0 0 18px;font-size:13px">${beats}</ol></details>` : ""}
-    ${a.transcript ? `<details style="margin-top:8px"><summary class="muted small">Original transcript / script</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12.5px;margin:6px 0 0;color:#aeb6cc;max-height:280px;overflow:auto;background:#0e1018;border:1px solid #242838;border-radius:8px;padding:10px">${esc((a.transcript || "").trim())}</pre></details>` : ""}
+    ${a.transcript ? `<details style="margin-top:8px"><summary class="muted small">Original transcript / script</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12.5px;margin:6px 0 0;color:#aeb6cc;max-height:280px;overflow:auto;background:#0e1018;border:1px solid #242838;border-radius:8px;padding:10px">${esc(S(a.transcript).trim())}</pre></details>` : ""}
     <div style="margin-top:12px;background:#0e1018;border:1px solid #242838;border-radius:10px;padding:12px">
       <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;color:#FF7722">Crate Hackers script</span><button class="btn btn-ghost sm ad-copy" data-id="${esc(a.id)}">Copy</button></div>
-      <pre style="white-space:pre-wrap;font:inherit;font-size:13px;margin:8px 0 0">${esc((a.ch_script || "").trim())}</pre>
+      <pre style="white-space:pre-wrap;font:inherit;font-size:13px;margin:8px 0 0">${esc(S(a.ch_script).trim())}</pre>
     </div>
     ${hooks ? `<details style="margin-top:8px"><summary class="muted small">Alt hooks</summary><ul style="margin:6px 0 0 18px;font-size:13px">${hooks}</ul></details>` : ""}
     ${ideas ? `<div style="margin-top:12px"><div class="muted small" style="margin-bottom:4px">Ways to model this for Crate Hackers</div><ul style="margin:0 0 0 18px;font-size:13px">${ideas}</ul></div>` : ""}
@@ -1359,7 +1363,7 @@ function renderAds() {
   if (!AD_LIST.length) { $("#adList").innerHTML = `<p class="muted">No ads yet. Add one on the left — the AI breaks it down and writes your Crate Hackers version.</p>`; return; }
   $("#adList").innerHTML = AD_LIST.map(adCard).join("");
   $$(".ad-del").forEach((b) => b.onclick = async () => { if (!confirm("Delete this ad?")) return; await fetch("/api/ads/" + b.dataset.id, { method: "DELETE" }); AD_LIST = AD_LIST.filter((a) => a.id !== b.dataset.id); renderAds(); });
-  $$(".ad-copy").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) { navigator.clipboard.writeText(a.ch_script || ""); toast("Script copied.", "ok"); } });
+  $$(".ad-copy").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) { navigator.clipboard.writeText(S(a.ch_script)); toast("Script copied.", "ok"); } });
   $$(".ad-brief").forEach((b) => b.onclick = () => { const a = AD_LIST.find((x) => x.id === b.dataset.id); if (a) toggleBrief(a); });
 }
 
@@ -1385,14 +1389,14 @@ if ($("#inflFile")) $("#inflFile").onchange = async () => {
 };
 function briefBody(a, note) {
   const ideas = (a.ideas && a.ideas.length ? a.ideas : (a.ch_hooks || []));
-  const ideaLis = ideas.map((x) => `<li>${esc(x)}</li>`).join("") || "<li>(re-analyze this ad to generate modeling ideas)</li>";
+  const ideaLis = ideas.map((x) => `<li>${esc(S(x))}</li>`).join("") || "<li>(re-analyze this ad to generate modeling ideas)</li>";
   return `<p>Hey {{name}},</p>
 ${note ? `<p>${esc(note)}</p>` : ""}
 <p>We spotted an ad we think you'd crush for <b>Crate Hackers</b> — wanted to send it your way to model. 🎧</p>
 <p><b>The ad to model:</b> ${a.sourceUrl ? `<a href="${esc(a.sourceUrl)}">${esc(a.sourceUrl)}</a>` : "(link)"}</p>
 ${a.summary ? `<p><b>What it is:</b> ${esc(a.summary)}</p>` : ""}
 <p><b>Original transcript:</b></p>
-<blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555;white-space:pre-wrap">${esc((a.transcript || "").trim())}</blockquote>
+<blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#555;white-space:pre-wrap">${esc(S(a.transcript).trim())}</blockquote>
 <p><b>3–5 ways to turn it into a Crate Hackers ad:</b></p>
 <ol>${ideaLis}</ol>
 <p>If you're in, just reply — we'll send everything you need. 🙌</p>

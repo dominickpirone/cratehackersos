@@ -498,7 +498,16 @@ Return ONLY a JSON object (no prose) with:
   "ideas": ["3 to 5 CONCRETE, distinct ways we could turn THIS ad into a Crate Hackers ad — each a single punchy sentence a creator could shoot (different angle/format each: e.g. talking-head, skit, screen-record demo, day-in-the-life, before/after)"]
 }`;
   const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 2200, true);
-  return firstJson(raw) || { summary: "", hook: "", structure: [], why_it_works: "", ch_script: raw, ch_hooks: [], ideas: [] };
+  const j = firstJson(raw) || { ch_script: raw };
+  // the model sometimes returns fields as arrays/objects — normalize to strings / string-arrays
+  const asStr = (v) => typeof v === "string" ? v
+    : Array.isArray(v) ? v.map((x) => typeof x === "string" ? x : (x && (x.line || x.text || x.idea || x.hook)) || JSON.stringify(x)).join("\n")
+    : v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v));
+  const asArr = (v) => (Array.isArray(v) ? v : v ? [v] : []).map((x) => typeof x === "string" ? x : (x && (x.line || x.text || x.idea || x.hook)) || JSON.stringify(x)).filter(Boolean);
+  return {
+    summary: asStr(j.summary), hook: asStr(j.hook), why_it_works: asStr(j.why_it_works), ch_script: asStr(j.ch_script),
+    structure: asArr(j.structure), ch_hooks: asArr(j.ch_hooks), ideas: asArr(j.ideas),
+  };
 }
 
 // ---------- PayPal ----------
