@@ -1053,6 +1053,7 @@ function renderFunnel(d, m) {
     funMetric(lead ? "Leads" : "Conversions", fmt(t.conv)),
     funMetric(lead ? "Opt-in rate" : "Conv. rate", fmtPct(t.convRate)),
   ];
+  if (t.trial) totCells.push(funMetric("14-day trial clicks", fmt(t.trial)), funMetric("Lead → trial", fmtPct(t.conv ? t.trial / t.conv : 0)));
   if (!lead) totCells.push(funMetric("Revenue", fmtMoney(t.revenue)), funMetric("AOV", fmtMoney(t.aov)), funMetric("EPC / visitor", fmtMoney(t.epc)));
   $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">${totCells.join("")}</div>`;
   const variants = d.variants || [];
@@ -1068,7 +1069,7 @@ function renderFunnel(d, m) {
     return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
       ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
       <div style="font-size:15px;font-weight:800;letter-spacing:.04em;margin-bottom:10px">${vLabel(m, v.variant)}</div>
-      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}
+      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}${t.trial ? funBar("14-day trial", v.trial || 0, maxView, "#FF7722") : ""}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">${lead ? "Opt-in rate" : "Conv. rate"}</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>${extra}
       </div></div>`;

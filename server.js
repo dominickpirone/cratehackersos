@@ -948,7 +948,7 @@ function trackPixel(req, res, u) {
   try {
     const q = u.searchParams;
     const e = (q.get("e") || "").slice(0, 16);
-    if (["view", "cta", "conv", "assign"].includes(e)) {
+    if (["view", "cta", "conv", "trial", "assign"].includes(e)) {
       const rec = {
         ts: Date.now(),
         e,
@@ -968,7 +968,7 @@ function trackPixel(req, res, u) {
 function funnelPrices() { const c = loadConfig(); return { ...FUNNEL_PRICES, ...(c.funnelPrices || {}) }; }
 function aggregateFunnel(fromTs, toTs, funnel) {
   const prices = funnelPrices();
-  const V = () => ({ view: 0, cta: 0, conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } });
+  const V = () => ({ view: 0, cta: 0, conv: 0, trial: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } });
   const byVariant = {}; const totals = V();
   if (fs.existsSync(FUNNEL_LOG)) {
     const lines = fs.readFileSync(FUNNEL_LOG, "utf8").split("\n");
@@ -988,6 +988,7 @@ function aggregateFunnel(fromTs, toTs, funnel) {
         slot.revenue += val; totals.revenue += val;
         if (slot.tiers[r.tier] != null) { slot.tiers[r.tier]++; totals.tiers[r.tier]++; }
       }
+      else if (r.e === "trial") { slot.trial++; totals.trial++; } // downstream step (e.g. 14-day-trial click)
     }
   }
   const metrics = (s) => ({
