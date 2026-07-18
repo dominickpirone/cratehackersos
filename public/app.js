@@ -1014,7 +1014,8 @@ const FUNNELS = {
   level11: { title: "Level 11 Funnel", desc: 'Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.', lead: false },
   "july4-sale": { title: "🎆 July 4 Sale", desc: 'Live Kartra sales for the 4th-of-July funnel (<b>/home-july4-26 → /oto-july26</b>), broken out by price point. Pulled from your sales ledger (near-live, ~2-min cache).', saleReport: true },
   "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
-  "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
+  "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, trialLabel: "14-day trial", labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
+  "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Live A/B/C performance for <b>hh.cratehackers.com</b> — visitors → checkout clicks → <b>$67 purchases</b>, per variant, plus how many reached the $97 upsell.', lead: false, trialLabel: "Reached upsell", labels: { a: "A · Logo Hero", b: "B · Charcoal", c: "C · Orange" } },
   chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
   chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
 };
@@ -1053,7 +1054,8 @@ function renderFunnel(d, m) {
     funMetric(lead ? "Leads" : "Conversions", fmt(t.conv)),
     funMetric(lead ? "Opt-in rate" : "Conv. rate", fmtPct(t.convRate)),
   ];
-  if (t.trial) totCells.push(funMetric("14-day trial clicks", fmt(t.trial)), funMetric("Lead → trial", fmtPct(t.conv ? t.trial / t.conv : 0)));
+  const trialLbl = m.trialLabel || "14-day trial";
+  if (t.trial) totCells.push(funMetric(trialLbl, fmt(t.trial)), funMetric(`${lead ? "Lead" : "Buyer"} → ${trialLbl.toLowerCase()}`, fmtPct(t.conv ? t.trial / t.conv : 0)));
   if (!lead) totCells.push(funMetric("Revenue", fmtMoney(t.revenue)), funMetric("AOV", fmtMoney(t.aov)), funMetric("EPC / visitor", fmtMoney(t.epc)));
   $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">${totCells.join("")}</div>`;
   const variants = d.variants || [];
@@ -1069,16 +1071,21 @@ function renderFunnel(d, m) {
     return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
       ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
       <div style="font-size:15px;font-weight:800;letter-spacing:.04em;margin-bottom:10px">${vLabel(m, v.variant)}</div>
-      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}${t.trial ? funBar("14-day trial", v.trial || 0, maxView, "#FF7722") : ""}
+      ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}${t.trial ? funBar(trialLbl, v.trial || 0, maxView, "#FF7722") : ""}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">${lead ? "Opt-in rate" : "Conv. rate"}</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>${extra}
       </div></div>`;
   }).join("") + `</div>` : `<p class="muted">No funnel data yet for this range — once traffic hits the lander, it shows up here live.</p>`;
   if (!lead) {
     const tiers = ["monthly", "annual", "lifetime"];
-    const maxTier = Math.max(1, ...tiers.map((k) => t.tiers[k] || 0));
-    $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
-      tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
+    const anyTier = tiers.some((k) => (t.tiers[k] || 0) > 0);
+    // only show the monthly/annual/lifetime breakdown for funnels that actually use those tiers
+    if ($("#funTierWrap")) $("#funTierWrap").style.display = anyTier ? "" : "none";
+    if (anyTier) {
+      const maxTier = Math.max(1, ...tiers.map((k) => t.tiers[k] || 0));
+      $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
+        tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
+    }
   }
 }
 async function loadSaleReport(m) {

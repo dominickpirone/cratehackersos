@@ -942,7 +942,7 @@ function saveOutreach(all) { fs.writeFileSync(OUTREACH, JSON.stringify(all, null
 // ---------- funnel analytics (first-party pixel) ----------
 const FUNNEL_LOG = path.join(DATA, "funnel-events.jsonl");
 // $ value booked per tier conversion (initial cart value). Override in config.local.json → funnelPrices.
-const FUNNEL_PRICES = { monthly: 99, annual: 891, lifetime: 1500 };
+const FUNNEL_PRICES = { monthly: 99, annual: 891, lifetime: 1500, hh: 67, hhupsell: 97 };
 const GIF_1x1 = Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64");
 function trackPixel(req, res, u) {
   try {
