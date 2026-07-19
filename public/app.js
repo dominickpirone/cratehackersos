@@ -1014,16 +1014,18 @@ const FUNNELS = {
   level11: { title: "Level 11 Funnel", desc: 'Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.', lead: false },
   "july4-sale": { title: "🎆 July 4 Sale", desc: 'Live Kartra sales for the 4th-of-July funnel (<b>/home-july4-26 → /oto-july26</b>), broken out by price point. Pulled from your sales ledger (near-live, ~2-min cache).', saleReport: true },
   "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
-  "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, trialLabel: "14-day trial", labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
-  "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Live A/B/C performance for <b>hh.cratehackers.com</b> — visitors → checkout clicks → <b>$67 purchases</b>, per variant, plus how many reached the $97 upsell.', lead: false, trialLabel: "Reached upsell", labels: { a: "A · Logo Hero", b: "B · Charcoal", c: "C · Orange" } },
+  "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, trialLabel: "14-day trial", variants: ["a", "b", "c"], labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
+  "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Live A/B/C performance for <b>hh.cratehackers.com</b> — visitors → checkout clicks → <b>$67 purchases</b>, per variant, plus how many reached the $97 upsell.', lead: false, trialLabel: "Reached upsell", variants: ["a", "b", "c"], labels: { a: "A · Logo Hero", b: "B · Charcoal", c: "C · Orange" } },
   chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
   chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
 };
-function curFunnel() { return ($("#funSelect") && $("#funSelect").value) || "level11"; }
-function funMeta() { return FUNNELS[curFunnel()] || FUNNELS.level11; }
+const DEFAULT_FUNNEL = "hacker-hotel"; // what the Funnel tab opens on
+function curFunnel() { return ($("#funSelect") && $("#funSelect").value) || DEFAULT_FUNNEL; }
+function funMeta() { return FUNNELS[curFunnel()] || FUNNELS[DEFAULT_FUNNEL] || FUNNELS.level11; }
 (function initFunnelSelect() {
   const sel = $("#funSelect"); if (!sel) return;
   sel.innerHTML = Object.entries(FUNNELS).map(([id, m]) => `<option value="${id}">${m.title}</option>`).join("");
+  if (FUNNELS[DEFAULT_FUNNEL]) sel.value = DEFAULT_FUNNEL;
   sel.onchange = loadFunnel;
 })();
 function vLabel(m, v) { return (m && m.labels && m.labels[v]) || (v || "?").toUpperCase(); }
@@ -1058,7 +1060,14 @@ function renderFunnel(d, m) {
   if (t.trial) totCells.push(funMetric(trialLbl, fmt(t.trial)), funMetric(`${lead ? "Lead" : "Buyer"} → ${trialLbl.toLowerCase()}`, fmtPct(t.conv ? t.trial / t.conv : 0)));
   if (!lead) totCells.push(funMetric("Revenue", fmtMoney(t.revenue)), funMetric("AOV", fmtMoney(t.aov)), funMetric("EPC / visitor", fmtMoney(t.epc)));
   $("#funTotals").innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">${totCells.join("")}</div>`;
-  const variants = d.variants || [];
+  let variants = d.variants || [];
+  if (m.variants && m.variants.length) {
+    // always show every declared variant (e.g. A/B/C), even before it has any traffic
+    const byKey = {}; variants.forEach((v) => { byKey[v.variant] = v; });
+    const zero = { view: 0, cta: 0, conv: 0, trial: 0, revenue: 0, convRate: 0, ctaRate: 0, aov: 0, epc: 0, tiers: {} };
+    const declared = m.variants.map((k) => byKey[k] || Object.assign({ variant: k }, zero));
+    variants = declared.concat(variants.filter((v) => m.variants.indexOf(v.variant) < 0));
+  }
   const maxView = Math.max(1, ...variants.map((v) => v.view));
   let winner = null, winScore = -1;
   variants.filter((v) => v.view > 0).forEach((v) => { const s = lead ? v.convRate : v.epc; if (s > winScore) { winScore = s; winner = v; } });
@@ -1086,6 +1095,14 @@ function renderFunnel(d, m) {
       $("#funTiers").innerHTML = `<div style="background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px;max-width:520px">` +
         tiers.map((k) => funBar(k.charAt(0).toUpperCase() + k.slice(1) + " (" + fmtMoney(d.prices[k]) + ")", t.tiers[k] || 0, maxTier, "#22c55e")).join("") + `</div>`;
     }
+  }
+  // footnote, tailored to the funnel you're looking at
+  if ($("#funNote") && !lead) {
+    const fk = curFunnel();
+    $("#funNote").innerHTML =
+      `Visitors + checkout clicks are tracked by the lander pixel. <strong>Conversions + revenue are pulled live from your Kartra sales ledger</strong> — Kartra's thank-you redirect bypasses the lander, so the pixel can't see the sale. Totals are exact; per-variant conversions are <em>estimated</em> from each variant's checkout-click share.` +
+      (fk === "level11" ? ` Tier is inferred from amount charged — ~$99 monthly · ~$891 annual · ≥$1,200 lifetime.` : "") +
+      (fk === "hacker-hotel" ? ` Only the <b>$67 Virtual Access Pass</b> band is counted — that Kartra product also holds $27/$47 passes, the $97 upsell, and $497–$997 in-person tickets.` : "");
   }
 }
 async function loadSaleReport(m) {
