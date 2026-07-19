@@ -1039,16 +1039,25 @@ async function getMetaSpend(cfg, from, to) {
 // `conv` pixel never fires. We pull actual Level 11 sales (count + $) from the ledger
 // and fold them into the funnel. Tier is inferred from the charged amount; revenue is
 // the real amount charged (not the list price).
-function level11LedgerSales(rows, from, to) {
+// Which funnels reconcile against the Kartra ledger, and how to pick THEIR sales out of it.
+// `min`/`max` matter when one Kartra product covers several offers — e.g. "Crate Hackers
+// Hacker Hotel 2026" holds $27/$47 older passes, the $67 virtual pass, the $97 upsell and
+// $497–$997 in-person tickets, so the funnel must only count its own price band.
+const FUNNEL_LEDGER = {
+  "level11": { match: /level\s*-?\s*11/i, tier: (a) => (a >= 1200 ? "lifetime" : a >= 500 ? "annual" : "monthly") },
+  "hacker-hotel": { match: /hacker\s*hotel/i, min: 55, max: 80 }, // $67 Virtual Access Pass only
+};
+function ledgerSalesFor(rows, from, to, spec) {
   const inRange = (d) => (!from || d >= from) && (!to || d <= to);
   const out = { conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } };
   for (const r of rows) {
-    if (r.type !== "sale" || !/level\s*-?\s*11/i.test(r.product)) continue;
+    if (r.type !== "sale" || !spec.match.test(r.product)) continue;
     if (!inRange(r.date)) continue;
-    if (!(r.amount > 0)) continue;               // skip $0 comps / test rows
+    if (!(r.amount > 0)) continue;                                 // skip $0 comps / test rows
+    if (spec.min != null && r.amount < spec.min) continue;          // other offers on the same product
+    if (spec.max != null && r.amount > spec.max) continue;
     out.conv++; out.revenue += r.amount;
-    const tier = r.amount >= 1200 ? "lifetime" : r.amount >= 500 ? "annual" : "monthly";
-    out.tiers[tier]++;
+    if (spec.tier) { const t = spec.tier(r.amount); if (out.tiers[t] != null) out.tiers[t]++; }
   }
   out.revenue = Math.round(out.revenue * 100) / 100;
   return out;
@@ -1397,12 +1406,12 @@ const server = http.createServer(async (req, res) => {
         const fn = u.searchParams.get("funnel") || "level11";
         const result = aggregateFunnel(fromTs, toTs, fn);
         // Conversions come from the real Kartra ledger (the lander pixel can't see them).
-        if (fn === "level11") {
+        if (FUNNEL_LEDGER[fn]) {
           try {
             const cfg = loadConfig();
             if (cfg.salesLedgerCsvUrl) {
               const rows = await fetchLedger(cfg.salesLedgerCsvUrl);
-              mergeLedgerConversions(result, level11LedgerSales(rows, from, to));
+              mergeLedgerConversions(result, ledgerSalesFor(rows, from, to, FUNNEL_LEDGER[fn]));
             }
           } catch (e) { result.ledgerError = String(e && e.message || e); }
         }
