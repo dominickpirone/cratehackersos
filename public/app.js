@@ -134,6 +134,16 @@ if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
   const n = await loadAudienceOptions();
   toast(`Audiences refreshed — ${fmt(n)} list${n === 1 ? "" : "s"} available.`, "ok");
 };
+// Rename / delete the highlighted list without leaving Compose. One at a time —
+// the picker is multi-select, so anything else is ambiguous.
+function pickedOne() {
+  const sel = selectedSegments();
+  if (sel.length === 1) return sel[0];
+  toast(sel.length ? "Highlight just one list to rename or delete it." : "Highlight a list first.", "err");
+  return null;
+}
+if ($("#audienceRename")) $("#audienceRename").onclick = () => { const n = pickedOne(); if (n) renameSegment(n); };
+if ($("#audienceDelete")) $("#audienceDelete").onclick = () => { const n = pickedOne(); if (n) deleteSegment(n); };
 
 // Editor modes: HTML (raw) · Visual (WYSIWYG) · Preview (rendered, read-only)
 function setComposeMode(mode) {
@@ -306,19 +316,46 @@ function renderSegList() {
     div.className = "seg-item";
     div.innerHTML = `<span class="name">${esc(s.name)}</span>
       <span><span class="count">${fmt(s.count)}</span> &nbsp;
+      <button class="secondary" data-ren="${esc(s.name)}">Rename</button>
       <button class="secondary" data-del="${esc(s.name)}">Delete</button></span>`;
     list.appendChild(div);
   });
   if ($("#segCount")) $("#segCount").textContent = q ? `${rows.length} of ${ALL_SEGMENTS.length}` : `${ALL_SEGMENTS.length} list${ALL_SEGMENTS.length === 1 ? "" : "s"}`;
-  $$("[data-del]").forEach((b) => b.onclick = async () => {
-    if (!confirm(`Delete audience "${b.dataset.del}"? This can't be undone.`)) return;
-    const r = await api("/api/segments/" + encodeURIComponent(b.dataset.del), { method: "DELETE" });
-    if (r && r.error) { toast(r.error, "err"); return; }
-    ALL_SEGMENTS = ALL_SEGMENTS.filter((s) => s.name !== b.dataset.del);
-    renderSegList();
-    if (typeof loadAudienceOptions === "function") loadAudienceOptions(); // keep the Compose picker in sync
-    toast("Audience deleted.", "ok");
+  $$("[data-ren]").forEach((b) => b.onclick = () => renameSegment(b.dataset.ren));
+  $$("[data-del]").forEach((b) => b.onclick = () => deleteSegment(b.dataset.del));
+}
+// Rename / delete work from both the Audiences tab and the Compose picker, so they
+// live here on their own and both surfaces refresh afterwards.
+async function renameSegment(from) {
+  const typed = prompt(`Rename "${from}" to:`, from);
+  if (typed == null) return;
+  const name = typed.trim();
+  if (!name || name === from) return;
+  const r = await api("/api/segments/" + encodeURIComponent(from), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
   });
+  if (!r || r.error) return toast((r && r.error) || "Rename failed.", "err");
+  const wasPicked = selectedSegments().includes(from);
+  await loadSegments();
+  await loadAudienceOptions();
+  // the refresh keeps selections by name, so carry the pick over to the new name
+  if (wasPicked) {
+    const o = $("#audience") && $("#audience").querySelector(`[value="${r.name}"]`);
+    if (o) o.selected = true;
+  }
+  const also = r.rescheduled ? ` ${r.rescheduled} scheduled send${r.rescheduled === 1 ? "" : "s"} repointed.` : "";
+  // the server slugifies, so show what it actually saved
+  toast(`Renamed to “${r.name}”.${also}`, "ok");
+}
+async function deleteSegment(name) {
+  if (!confirm(`Delete audience "${name}"? This can't be undone.`)) return;
+  const r = await api("/api/segments/" + encodeURIComponent(name), { method: "DELETE" });
+  if (r && r.error) return toast(r.error, "err");
+  await loadSegments();
+  await loadAudienceOptions(); // keep the Compose picker in sync
+  toast("Audience deleted.", "ok");
 }
 if ($("#segSearch")) $("#segSearch").oninput = renderSegList;
 
@@ -725,8 +762,23 @@ async function loadSms() {
   const list = $("#smsSegList"); list.innerHTML = "";
   segments.forEach((g) => {
     const d = document.createElement("div"); d.className = "seg-item";
-    d.innerHTML = `<span class="name">${esc(g.name)}</span><span><span class="count">${fmt(g.count)}</span> &nbsp; <button class="secondary" data-smsdel="${esc(g.name)}">Delete</button></span>`;
+    d.innerHTML = `<span class="name">${esc(g.name)}</span><span><span class="count">${fmt(g.count)}</span> &nbsp; <button class="secondary" data-smsren="${esc(g.name)}">Rename</button> <button class="secondary" data-smsdel="${esc(g.name)}">Delete</button></span>`;
     list.appendChild(d);
+  });
+  $$("[data-smsren]").forEach((b) => b.onclick = async () => {
+    const from = b.dataset.smsren;
+    const typed = prompt(`Rename SMS list "${from}" to:`, from);
+    if (typed == null) return;
+    const name = typed.trim();
+    if (!name || name === from) return;
+    const r = await api("/api/sms/segments/" + encodeURIComponent(from), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!r || r.error) return toast((r && r.error) || "Rename failed.", "err");
+    loadSms();
+    toast(`Renamed to “${r.name}”.`, "ok");
   });
   $$("[data-smsdel]").forEach((b) => b.onclick = async () => {
     if (!confirm(`Delete SMS list "${b.dataset.smsdel}"?`)) return;

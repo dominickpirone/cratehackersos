@@ -1316,6 +1316,36 @@ function listScheduled() {
     .filter(Boolean).sort((a, b) => a.at - b.at);
 }
 function saveScheduled(s) { fs.mkdirSync(SCHEDULED, { recursive: true }); fs.writeFileSync(path.join(SCHEDULED, s.id + ".json"), JSON.stringify(s)); }
+
+// ---------- rename a list ----------
+// The CSV filename IS the list name, so a rename is a file move. Both segment
+// dirs share this; the caller passes SEGMENTS or SMS_SEGMENTS.
+function renameSegmentFile(dir, from, to) {
+  if (!from || !to) return { error: "Old and new name required." };
+  if (from === to) return { ok: true, name: to };
+  const src = path.join(dir, from + ".csv");
+  if (!fs.existsSync(src)) return { error: `No list named "${from}".` };
+  if (fs.existsSync(path.join(dir, to + ".csv"))) return { error: `A list named "${to}" already exists.` };
+  fs.renameSync(src, path.join(dir, to + ".csv"));
+  return { ok: true, name: to };
+}
+// A scheduled send stores its audience by name, so a rename would silently leave
+// it pointing at nothing. Repoint anything still waiting to fire.
+function repointScheduled(channel, from, to) {
+  let touched = 0;
+  const swap = (arr) => (Array.isArray(arr) && arr.includes(from) ? arr.map((n) => (n === from ? to : n)) : null);
+  for (const s of listScheduled()) {
+    if (s.status !== "scheduled" || s.channel !== channel) continue;
+    const aud = swap(s.audience);
+    const segs = s.payload && swap(s.payload.segments);
+    if (!aud && !segs) continue;
+    if (aud) s.audience = aud;
+    if (segs) s.payload.segments = segs;
+    saveScheduled(s);
+    touched++;
+  }
+  return touched;
+}
 function runScheduler() {
   const now = Date.now();
   for (const s of listScheduled()) {
@@ -1633,6 +1663,15 @@ const server = http.createServer(async (req, res) => {
         const f = path.join(SEGMENTS, name + ".csv");
         if (fs.existsSync(f)) fs.unlinkSync(f);
         return send(res, 200, { ok: true });
+      }
+      if (p.startsWith("/api/segments/") && req.method === "PATCH") {
+        const from = slugify(decodeURIComponent(p.split("/").pop()));
+        const b = await readBody(req);
+        const to = slugify(b.name || "");
+        if (!to) return send(res, 400, { error: "New name required." });
+        const r = renameSegmentFile(SEGMENTS, from, to);
+        if (r.error) return send(res, 400, r);
+        return send(res, 200, { ok: true, name: to, rescheduled: repointScheduled("email", from, to) });
       }
 
       // suppression
@@ -1980,6 +2019,15 @@ const server = http.createServer(async (req, res) => {
         const f = path.join(SMS_SEGMENTS, name + ".csv");
         if (fs.existsSync(f)) fs.unlinkSync(f);
         return send(res, 200, { ok: true });
+      }
+      if (p.startsWith("/api/sms/segments/") && req.method === "PATCH") {
+        const from = slugify(decodeURIComponent(p.split("/").pop()));
+        const b = await readBody(req);
+        const to = slugify(b.name || "");
+        if (!to) return send(res, 400, { error: "New name required." });
+        const r = renameSegmentFile(SMS_SEGMENTS, from, to);
+        if (r.error) return send(res, 400, r);
+        return send(res, 200, { ok: true, name: to, rescheduled: repointScheduled("sms", from, to) });
       }
       if (p === "/api/sms/preview" && req.method === "POST") {
         const b = await readBody(req);
