@@ -47,6 +47,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "failed-payments") loadFailedPayments();
     if (btn.dataset.tab === "ad-library") { loadAds(); loadInfluencers(); }
+    if (btn.dataset.tab === "creators") loadCreators();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -1549,6 +1550,193 @@ if ($("#outreachInsertName")) $("#outreachInsertName").onclick = () => {
   try { localStorage.setItem(OUTREACH_MSG_KEY, t.value); } catch {}
   const pos = s + token.length;
   t.focus(); t.setSelectionRange(pos, pos);
+};
+
+// ---------- creators (ScrapeCreators) ----------
+// Credits are the scarce resource here, so the UI always shows the balance and
+// never spends one without a click. Search results live in memory until saved.
+let CR_RESULTS = [];
+let CR_SAVED = [];
+const CR_PLATFORM_LABEL = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" };
+const crFollowers = (n) => (n >= 1000000 ? (n / 1000000).toFixed(1) + "M" : n >= 1000 ? Math.round(n / 1000) + "K" : String(n || 0));
+
+function crShowCredits(c) {
+  if (typeof c !== "number" || !$("#crCredits")) return;
+  $("#crCredits").textContent = `${fmt(c)} credit${c === 1 ? "" : "s"} left`;
+  $("#crCredits").style.color = c < 20 ? "var(--gold,#ff9e2c)" : "";
+}
+
+async function loadCreators() {
+  const d = await api("/api/creators");
+  CR_SAVED = d.creators || [];
+  crShowCredits(d.credits);
+  if ($("#crConfigNote")) $("#crConfigNote").textContent = d.configured ? "" : "⚠ Set SCRAPECREATORS_API_KEY in the Render environment to enable this tab.";
+  renderCrSaved();
+}
+
+function crCard(c, { selectable = true, saved = false } = {}) {
+  // YouTube has no per-post like data here, so its number is average views per video
+  // against subscribers — a reach ratio, not the engagement rate TikTok/IG report.
+  // Labelling them the same would invite comparing 38% against 1%.
+  const metric = c.platform === "youtube" ? "views/sub" : "eng";
+  const eng = c.engagement != null ? `${metric} ${c.engagement}%` : `${metric} —`;
+  const email = c.email
+    ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a> <button class="linkish" data-cremail="${esc(c.id)}">edit</button>`
+    : `<button class="linkish" data-cremail="${esc(c.id)}">+ add email</button>`;
+  const statuses = ["new", "contacted", "rejected"];
+  return `<div class="cr-item${c.saved && !saved ? " is-saved" : ""}">
+    <label>
+      ${selectable ? `<input type="checkbox" class="${saved ? "cr-pick-saved" : "cr-pick"}" value="${esc(c.id)}" style="margin-top:4px" />` : ""}
+      <span class="cr-main">
+        <span class="cr-name">${esc(c.name || c.handle)}</span>
+        ${c.verified ? ' <span class="muted small">✓</span>' : ""}
+        <span class="muted small"> · ${CR_PLATFORM_LABEL[c.platform] || c.platform}</span>
+        <br /><a href="${esc(c.url)}" target="_blank" rel="noopener" class="muted small">@${esc(c.handle)}</a>
+        ${c.link ? ` <a href="${esc(c.link)}" target="_blank" rel="noopener" class="muted small">· link</a>` : ""}
+        ${c.bio ? `<br /><span class="muted small">${esc(String(c.bio).slice(0, 120))}</span>` : ""}
+        ${saved ? `<br /><span class="small">${email}</span>` : ""}
+      </span>
+    </label>
+    <span class="cr-stats">
+      <span class="cr-count">${crFollowers(c.followers)}</span>
+      <span class="muted small">${c.enrichedAt || !saved ? eng : "not enriched"}</span>
+      ${saved ? `<select class="cr-status" data-crid="${esc(c.id)}">
+        ${statuses.map((s) => `<option value="${s}"${(c.status || "new") === s ? " selected" : ""}>${s}</option>`).join("")}
+      </select>
+      <button class="secondary" data-crdel="${esc(c.id)}">Remove</button>` : ""}
+    </span>
+  </div>`;
+}
+async function crPatch(id, patch) {
+  const r = await api("/api/creators/" + encodeURIComponent(id), {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+  });
+  if (!r || r.error) { toast((r && r.error) || "Update failed.", "err"); return false; }
+  return true;
+}
+
+function renderCrResults() {
+  const wrap = $("#crResultsWrap"), list = $("#crResults");
+  if (!wrap || !list) return;
+  wrap.classList.toggle("hidden", !CR_RESULTS.length);
+  list.className = "cr-list";
+  list.innerHTML = CR_RESULTS.map((c) => crCard(c, { selectable: !c.saved })).join("");
+}
+
+function renderCrSaved() {
+  const list = $("#crSaved"); if (!list) return;
+  const q = (($("#crFilter") && $("#crFilter").value) || "").trim().toLowerCase();
+  const st = ($("#crStatusFilter") && $("#crStatusFilter").value) || "";
+  const rows = CR_SAVED.filter((c) =>
+    (!q || `${c.name} ${c.handle} ${c.bio || ""}`.toLowerCase().includes(q)) &&
+    (!st || (c.status || "new") === st));
+  list.className = "cr-list";
+  list.innerHTML = rows.length
+    ? rows.map((c) => crCard(c, { saved: true })).join("")
+    : `<p class="muted small">No saved creators${q || st ? " match that filter" : " yet — run a search above"}.</p>`;
+  if ($("#crSavedCount")) $("#crSavedCount").textContent = `(${rows.length}${rows.length !== CR_SAVED.length ? ` of ${CR_SAVED.length}` : ""})`;
+  $$("[data-crdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Remove this creator?")) return;
+    await api("/api/creators/" + encodeURIComponent(b.dataset.crdel), { method: "DELETE" });
+    loadCreators();
+  });
+  // Most creators don't publish an email, so let them be typed in by hand —
+  // otherwise "→ Influencer list" has nothing to work with.
+  $$("[data-cremail]").forEach((b) => b.onclick = async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const id = b.dataset.cremail;
+    const cur = (CR_SAVED.find((c) => c.id === id) || {}).email || "";
+    const typed = prompt("Email for this creator:", cur);
+    if (typed == null) return;
+    const email = typed.trim();
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("That doesn't look like an email.", "err");
+    if (await crPatch(id, { email })) { await loadCreators(); toast(email ? "Email saved." : "Email cleared.", "ok"); }
+  });
+  $$(".cr-status").forEach((s) => s.onchange = async () => {
+    if (await crPatch(s.dataset.crid, { status: s.value })) {
+      const c = CR_SAVED.find((x) => x.id === s.dataset.crid);
+      if (c) c.status = s.value;
+      renderCrSaved();
+    }
+  });
+}
+if ($("#crFilter")) $("#crFilter").oninput = renderCrSaved;
+if ($("#crStatusFilter")) $("#crStatusFilter").onchange = renderCrSaved;
+
+if ($("#crSearch")) $("#crSearch").onclick = async () => {
+  const query = $("#crQuery").value.trim();
+  if (!query) return toast("Enter something to search for.", "err");
+  const btn = $("#crSearch");
+  btn.disabled = true; $("#crMsg").textContent = "Searching… (1 credit)";
+  try {
+    const r = await post("/api/creators/search", {
+      platform: $("#crPlatform").value,
+      query,
+      minFollowers: parseInt($("#crMinFollowers").value, 10) || 0,
+    });
+    if (r.error) { $("#crMsg").textContent = ""; return toast(r.error, "err"); }
+    CR_RESULTS = r.results || [];
+    crShowCredits(r.credits);
+    const already = CR_RESULTS.filter((c) => c.saved).length;
+    $("#crMsg").textContent = `${CR_RESULTS.length} creator${CR_RESULTS.length === 1 ? "" : "s"} for “${query}”${already ? ` — ${already} already saved` : ""}.`;
+    renderCrResults();
+  } catch (e) { $("#crMsg").textContent = ""; toast(String(e.message || e), "err"); }
+  finally { btn.disabled = false; }
+};
+if ($("#crQuery")) $("#crQuery").onkeydown = (e) => { if (e.key === "Enter") $("#crSearch").click(); };
+
+if ($("#crSelectAll")) $("#crSelectAll").onclick = () => {
+  const boxes = $$(".cr-pick");
+  const turnOn = boxes.some((b) => !b.checked);
+  boxes.forEach((b) => b.checked = turnOn);
+};
+
+if ($("#crSaveSelected")) $("#crSaveSelected").onclick = async () => {
+  const ids = new Set($$(".cr-pick").filter((b) => b.checked).map((b) => b.value));
+  if (!ids.size) return toast("Tick the creators you want to keep.", "err");
+  const r = await post("/api/creators/save", { creators: CR_RESULTS.filter((c) => ids.has(c.id)) });
+  if (r.error) return toast(r.error, "err");
+  CR_RESULTS = CR_RESULTS.map((c) => (ids.has(c.id) ? { ...c, saved: true } : c));
+  renderCrResults();
+  await loadCreators();
+  toast(`Saved ${r.added} new creator${r.added === 1 ? "" : "s"} — ${fmt(r.total)} total.`, "ok");
+};
+
+if ($("#crEnrich")) $("#crEnrich").onclick = async () => {
+  const ids = $$(".cr-pick-saved").filter((b) => b.checked).map((b) => b.value);
+  if (!ids.length) return toast("Tick the saved creators to enrich.", "err");
+  if (ids.length > 25) return toast("Enrich at most 25 at a time.", "err");
+  if (!confirm(`Enrich ${ids.length} creator${ids.length === 1 ? "" : "s"}? That costs ${ids.length} credit${ids.length === 1 ? "" : "s"}.`)) return;
+  const btn = $("#crEnrich");
+  btn.disabled = true; $("#crMsg").textContent = `Enriching ${ids.length}…`;
+  try {
+    const r = await post("/api/creators/enrich", { ids });
+    if (r.error) return toast(r.error, "err");
+    crShowCredits(r.credits);
+    await loadCreators();
+    const failed = (r.failed || []).length;
+    $("#crMsg").textContent = `Enriched ${r.enriched}${failed ? `, ${failed} failed` : ""}.`;
+    toast(`Enriched ${r.enriched} creator${r.enriched === 1 ? "" : "s"}.`, failed ? "err" : "ok");
+  } finally { btn.disabled = false; }
+};
+
+if ($("#crPush")) $("#crPush").onclick = async () => {
+  const ids = $$(".cr-pick-saved").filter((b) => b.checked).map((b) => b.value);
+  const r = await post("/api/creators/to-influencers", { ids });
+  if (r.error) return toast(r.error, "err");
+  toast(`${r.pushed} creator${r.pushed === 1 ? "" : "s"} added to the influencer list (${fmt(r.total)} total) — they're in the Ad Library brief picker now.`, "ok");
+};
+
+if ($("#crExport")) $("#crExport").onclick = () => {
+  if (!CR_SAVED.length) return toast("Nothing to export yet.", "err");
+  const cols = ["platform", "handle", "name", "followers", "engagement", "email", "link", "url", "status", "query"];
+  const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...CR_SAVED.map((c) => cols.map((k) => cell(c[k])).join(","))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "creators.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
 };
 
 // ---------- boot ----------

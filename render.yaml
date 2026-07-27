@@ -76,3 +76,5 @@ services:
         sync: false
       - key: TEST_PHONE
         sync: false
+      - key: SCRAPECREATORS_API_KEY   # Creators tab — metered, one credit per call
+        sync: false

@@ -42,6 +42,7 @@
       <button class="tab" data-tab="dashboards"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Dashboards</span></button>
       <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
       <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
+      <button class="tab" data-tab="creators"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="lbl">Creators</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -522,6 +523,65 @@
           </div>
           <div style="flex:2;min-width:340px"><div id="adList"></div></div>
         </div>
+      </section>
+
+      <!-- ===== CREATORS ===== -->
+      <section id="creators" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Creator research</span>
+          <h1>Creators</h1>
+          <p>Search TikTok, Instagram and YouTube for creators worth partnering with, keep the good ones, then pull their contact details. <b>Every search and every enrich costs one ScrapeCreators credit</b> — search is one credit for the whole page of results, enriching is one per creator. <span id="crConfigNote" class="muted"></span></p>
+        </div>
+
+        <div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+          <label class="field" style="margin:0;min-width:130px">
+            <span class="lab">Platform</span>
+            <select id="crPlatform">
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="youtube">YouTube</option>
+            </select>
+          </label>
+          <label class="field" style="margin:0;flex:1;min-width:220px">
+            <span class="lab">Search</span>
+            <input id="crQuery" type="search" placeholder="e.g. wedding dj, mobile dj, dj tips" />
+          </label>
+          <label class="field" style="margin:0;width:150px">
+            <span class="lab">Min followers</span>
+            <input id="crMinFollowers" type="number" min="0" step="1000" placeholder="0" />
+          </label>
+          <button id="crSearch" class="btn btn-primary">Search →</button>
+          <span id="crCredits" class="muted small"></span>
+        </div>
+        <div id="crMsg" class="muted small" style="margin-bottom:10px"></div>
+
+        <div id="crResultsWrap" class="hidden" style="margin-bottom:26px">
+          <div class="row between" style="align-items:center;margin-bottom:8px">
+            <h2 class="section-label" style="margin:0">Search results</h2>
+            <div class="row" style="gap:8px">
+              <button id="crSelectAll" class="btn btn-ghost sm">Select all</button>
+              <button id="crSaveSelected" class="btn btn-primary sm">Save selected →</button>
+            </div>
+          </div>
+          <div id="crResults"></div>
+        </div>
+
+        <div class="row between" style="align-items:center;margin-bottom:8px">
+          <h2 class="section-label" style="margin:0">Saved creators <span id="crSavedCount" class="muted small"></span></h2>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <input id="crFilter" type="search" placeholder="Filter saved…" style="width:170px" />
+            <select id="crStatusFilter" style="width:140px">
+              <option value="">All statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button id="crEnrich" class="btn btn-ghost sm">Enrich selected</button>
+            <button id="crPush" class="btn btn-ghost sm">→ Influencer list</button>
+            <button id="crExport" class="btn btn-ghost sm">Export CSV</button>
+          </div>
+        </div>
+        <div id="crSaved"></div>
       </section>
 
       <section id="settings" class="panel">

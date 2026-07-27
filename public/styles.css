@@ -284,6 +284,8 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 input[type="date"] { width: auto; }
+/* the width:100% above would otherwise stretch a checkbox across its whole row */
+input[type="checkbox"], input[type="radio"] { width: auto; flex: 0 0 auto; padding: 0; }
 select[multiple] { padding: 5px; }
 select[multiple] option { padding: 7px 9px; border-radius: 6px; }
 select[multiple] option:checked {
@@ -394,6 +396,29 @@ details[open] summary::before { content: "–"; }
 .seg-item .count { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 700; font-family: var(--font-head); }
 .seg-item .del { background: none; border: 0; color: var(--t3); cursor: pointer; padding: 6px; border-radius: 7px; }
 .seg-item .del:hover { color: var(--ch-ember); background: var(--s3); }
+/* inline text button — used for "+ add email" on a creator card */
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--gold); cursor: pointer; text-decoration: underline; }
+.linkish:hover { color: var(--ch-ember); }
+
+/* Creator cards. Deliberately NOT .seg-item — the compat block below rewrites
+   that class's last child into an inline-flex row, which fights the stacked
+   stats column here. min-width:0 lets long bios wrap instead of overflowing. */
+.cr-list { display: flex; flex-direction: column; gap: 9px; }
+.cr-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 13px 15px;
+  background: var(--s1); border: 1px solid var(--line); border-radius: var(--r-in);
+  transition: border-color .14s;
+}
+.cr-item:hover { border-color: var(--ch-brown); }
+.cr-item.is-saved { opacity: .45; }
+.cr-item > label { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 0; min-width: 0; cursor: pointer; }
+/* break-word, not anywhere: `anywhere` shrinks the min-content contribution to a
+   single character, which makes this flex item resolve to zero width. */
+.cr-item .cr-main { flex: 1 1 0; min-width: 0; overflow-wrap: break-word; }
+.cr-item .cr-name { font-family: var(--font-head); font-weight: 600; color: var(--t1); font-size: 14px; }
+.cr-item .cr-stats { flex: 0 0 auto; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.cr-item .cr-count { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 700; font-family: var(--font-head); }
+.cr-item .cr-stats select { font-size: 11px; padding: 1px 4px; }
 
 .guide-card { border-color: color-mix(in srgb, var(--gold) 40%, var(--line)); background: color-mix(in srgb, var(--gold) 5%, var(--s1)); }
 .guide-card h3 { color: var(--gold); }

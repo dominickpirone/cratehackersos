@@ -86,6 +86,7 @@ function loadConfig() {
     testPhone: cfg.testPhone || process.env.TEST_PHONE || "",
     groqApiKey: cfg.groqApiKey || process.env.GROQ_API_KEY || "",
     adIngestToken: cfg.adIngestToken || process.env.AD_INGEST_TOKEN || "",
+    scrapeCreatorsKey: cfg.scrapeCreatorsKey || process.env.SCRAPECREATORS_API_KEY || "",
   };
 }
 function saveConfig(patch) {
@@ -436,6 +437,136 @@ function saveAds(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.write
 const INFLUENCERS_FILE = path.join(DATA, "influencers.json");
 function loadInfluencers() { try { return JSON.parse(fs.readFileSync(INFLUENCERS_FILE, "utf8")); } catch { return []; } }
 function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(INFLUENCERS_FILE, JSON.stringify(list, null, 2)); } catch {} }
+
+// ---------- creators (ScrapeCreators: discover on TikTok / IG / YouTube, then enrich) ----------
+// Every call costs one API credit, so search returns everything it can in a single
+// hit (handle, name, followers) and a per-creator profile lookup is opt-in.
+const CREATORS_FILE = path.join(DATA, "creators.json");
+function loadCreators() { try { return JSON.parse(fs.readFileSync(CREATORS_FILE, "utf8")); } catch { return []; } }
+function saveCreators(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(CREATORS_FILE, JSON.stringify(list, null, 2)); } catch {} }
+const CREATOR_PLATFORMS = ["tiktok", "instagram", "youtube"];
+// last credit balance the API reported, so the UI can show it without spending one to ask
+let SC_CREDITS = null;
+
+async function scrapeCreators(cfg, pathname, params) {
+  if (!cfg.scrapeCreatorsKey) throw new Error("Add your ScrapeCreators API key in Settings first.");
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "")).toString();
+  const r = await fetch("https://api.scrapecreators.com" + pathname + (qs ? "?" + qs : ""), {
+    headers: { "x-api-key": cfg.scrapeCreatorsKey },
+  });
+  const text = await r.text();
+  let j; try { j = JSON.parse(text); } catch { j = null; }
+  if (r.status === 402) throw new Error("ScrapeCreators is out of credits.");
+  if (!r.ok || !j) throw new Error(`ScrapeCreators ${r.status}: ${text.slice(0, 200)}`);
+  if (typeof j.credits_remaining === "number") SC_CREDITS = j.credits_remaining;
+  return j;
+}
+
+const creatorId = (platform, handle) => platform + ":" + String(handle || "").replace(/^@/, "").toLowerCase();
+// Creators put their booking address in the bio far more often than in a real email field.
+function emailFromText(s) {
+  const m = String(s || "").match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  return m ? m[0].toLowerCase() : "";
+}
+const num = (v) => (typeof v === "number" && isFinite(v) ? v : 0);
+
+// --- search: one credit, returns as many creators as the platform will give us ---
+async function searchCreators(cfg, platform, query) {
+  if (platform === "tiktok") {
+    const j = await scrapeCreators(cfg, "/v1/tiktok/search/users", { query });
+    return (j.user_list || []).map((u) => u.user_info).filter(Boolean).map((i) => ({
+      platform, handle: i.unique_id, name: i.nickname || "",
+      followers: num(i.follower_count), posts: num(i.aweme_count),
+      bio: i.signature || "",
+      avatar: (i.avatar_168x168 && i.avatar_168x168.url_list && i.avatar_168x168.url_list[0]) || "",
+      url: "https://www.tiktok.com/@" + i.unique_id,
+    }));
+  }
+  if (platform === "youtube") {
+    const j = await scrapeCreators(cfg, "/v1/youtube/search", { query, type: "channels" });
+    return (j.channels || []).map((c) => {
+      const handle = String(c.handle || "").replace(/^@/, "");
+      return {
+        platform, handle, name: c.channelName || "",
+        followers: num(c.subscriberCountInt), verified: (c.badges || []).includes("Verified"),
+        bio: c.description || "", avatar: c.thumbnail || "", channelId: c.id || "",
+        url: "https://www.youtube.com/@" + handle,
+      };
+    }).filter((c) => c.handle);
+  }
+  if (platform === "instagram") {
+    // No profile search on IG — search reels and collapse them to their owners. Handy
+    // side effect: how many reels a creator landed for the query is a relevance signal,
+    // and the view counts give us reach before spending a credit on their profile.
+    const j = await scrapeCreators(cfg, "/v2/instagram/reels/search", { query });
+    const by = new Map();
+    for (const reel of j.reels || []) {
+      const o = reel.owner || {};
+      if (!o.username) continue;
+      const prev = by.get(o.username) || {
+        platform, handle: o.username, name: o.full_name || "",
+        followers: num(o.follower_count) || num(o.edge_followed_by && o.edge_followed_by.count),
+        verified: !!o.is_verified, avatar: o.profile_pic_url || "", bio: "",
+        url: "https://www.instagram.com/" + o.username, hits: 0, views: 0,
+      };
+      prev.hits++;
+      prev.views += num(reel.video_play_count) || num(reel.video_view_count);
+      by.set(o.username, prev);
+    }
+    return [...by.values()].map((c) => ({ ...c, avgViews: c.hits ? Math.round(c.views / c.hits) : 0 }));
+  }
+  throw new Error("Unknown platform: " + platform);
+}
+
+// --- enrich: one credit per creator, fills bio / email / engagement ---
+async function enrichCreator(cfg, platform, handle) {
+  if (platform === "tiktok") {
+    const j = await scrapeCreators(cfg, "/v1/tiktok/profile", { handle });
+    const u = j.user || {}, s = j.stats || {};
+    const followers = num(s.followerCount), posts = num(s.videoCount), hearts = num(s.heartCount);
+    const avgLikes = posts ? hearts / posts : 0;
+    return {
+      name: u.nickname || "", bio: u.signature || "", verified: !!u.verified,
+      followers, posts, link: (u.bioLink && u.bioLink.link) || "",
+      email: emailFromText(u.signature),
+      engagement: followers ? +((avgLikes / followers) * 100).toFixed(2) : null,
+    };
+  }
+  if (platform === "instagram") {
+    const j = await scrapeCreators(cfg, "/v1/instagram/profile", { handle });
+    const u = (j.data && j.data.user) || {};
+    const followers = num(u.edge_followed_by && u.edge_followed_by.count);
+    const edges = (u.edge_owner_to_timeline_media && u.edge_owner_to_timeline_media.edges) || [];
+    let eng = null;
+    if (followers && edges.length) {
+      const total = edges.reduce((sum, e) => {
+        const n = (e && e.node) || {};
+        return sum + num(n.edge_liked_by && n.edge_liked_by.count) + num(n.edge_media_to_comment && n.edge_media_to_comment.count);
+      }, 0);
+      eng = +(((total / edges.length) / followers) * 100).toFixed(2);
+    }
+    return {
+      name: u.full_name || "", bio: u.biography || "", verified: !!u.is_verified,
+      followers, posts: num(u.edge_owner_to_timeline_media && u.edge_owner_to_timeline_media.count),
+      link: u.external_url || "",
+      email: u.business_email || emailFromText(u.biography),
+      engagement: eng,
+    };
+  }
+  if (platform === "youtube") {
+    const j = await scrapeCreators(cfg, "/v1/youtube/channel", { handle });
+    const subs = num(j.subscriberCount), vids = num(j.videoCount), views = num(j.viewCount);
+    return {
+      name: j.name || "", bio: j.description || "", verified: !!j.isVerified,
+      followers: subs, posts: vids, link: j.instagram || j.tik_tok || "",
+      email: j.email || emailFromText(j.description),
+      // YouTube gives lifetime views, so this is average views per video vs subscribers
+      engagement: subs && vids ? +(((views / vids) / subs) * 100).toFixed(2) : null,
+      avgViews: vids ? Math.round(views / vids) : 0,
+    };
+  }
+  throw new Error("Unknown platform: " + platform);
+}
 async function groqTranscribeBuffer(cfg, buf, filename) {
   if (buf.length > 24 * 1024 * 1024) throw new Error("media too large (>24MB) — trim it or paste the transcript");
   const fd = new FormData();
@@ -1582,6 +1713,123 @@ const server = http.createServer(async (req, res) => {
         saveInfluencers(merged);
         return send(res, 200, { ok: true, count: merged.length, imported: out.length });
       }
+      // ---------- creators ----------
+      if (p === "/api/creators" && req.method === "GET") {
+        return send(res, 200, { creators: loadCreators(), credits: SC_CREDITS, configured: !!loadConfig().scrapeCreatorsKey });
+      }
+      // Live search — results are NOT saved, so you can look without committing.
+      if (p === "/api/creators/search" && req.method === "POST") {
+        const b = await readBody(req);
+        const platform = String(b.platform || "").toLowerCase();
+        const query = String(b.query || "").trim();
+        if (!CREATOR_PLATFORMS.includes(platform)) return send(res, 400, { error: "Pick TikTok, Instagram or YouTube." });
+        if (!query) return send(res, 400, { error: "Enter something to search for." });
+        try {
+          const found = await searchCreators(loadConfig(), platform, query);
+          const saved = new Set(loadCreators().map((c) => c.id));
+          const min = num(b.minFollowers);
+          const results = found
+            .map((c) => ({ ...c, id: creatorId(c.platform, c.handle), query, saved: saved.has(creatorId(c.platform, c.handle)) }))
+            .filter((c) => c.followers >= min)
+            .sort((a, b2) => b2.followers - a.followers);
+          return send(res, 200, { ok: true, results, credits: SC_CREDITS });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // Keep the ones worth chasing. Merges by id so re-saving updates rather than duplicates.
+      if (p === "/api/creators/save" && req.method === "POST") {
+        const b = await readBody(req);
+        const incoming = Array.isArray(b.creators) ? b.creators : [];
+        if (!incoming.length) return send(res, 400, { error: "Nothing selected." });
+        const byId = new Map(loadCreators().map((c) => [c.id, c]));
+        let added = 0;
+        for (const c of incoming) {
+          const platform = String(c.platform || "").toLowerCase();
+          const handle = String(c.handle || "").replace(/^@/, "");
+          if (!CREATOR_PLATFORMS.includes(platform) || !handle) continue;
+          const id = creatorId(platform, handle);
+          if (!byId.has(id)) added++;
+          byId.set(id, {
+            status: "new", foundAt: new Date().toISOString(), enrichedAt: null, email: "", bio: "", link: "",
+            ...byId.get(id),
+            id, platform, handle,
+            name: c.name || (byId.get(id) || {}).name || "",
+            followers: num(c.followers) || num((byId.get(id) || {}).followers),
+            posts: num(c.posts) || num((byId.get(id) || {}).posts),
+            avgViews: num(c.avgViews) || num((byId.get(id) || {}).avgViews),
+            verified: !!c.verified || !!(byId.get(id) || {}).verified,
+            avatar: c.avatar || (byId.get(id) || {}).avatar || "",
+            url: c.url || (byId.get(id) || {}).url || "",
+            query: c.query || (byId.get(id) || {}).query || "",
+          });
+        }
+        const merged = [...byId.values()].sort((a, b2) => b2.followers - a.followers);
+        saveCreators(merged);
+        return send(res, 200, { ok: true, added, total: merged.length });
+      }
+      // One credit per creator — the client sends a bounded batch and we report what it cost.
+      if (p === "/api/creators/enrich" && req.method === "POST") {
+        const b = await readBody(req);
+        const ids = (Array.isArray(b.ids) ? b.ids : []).slice(0, 25);
+        if (!ids.length) return send(res, 400, { error: "Nothing selected." });
+        const cfg = loadConfig();
+        const list = loadCreators();
+        const byId = new Map(list.map((c) => [c.id, c]));
+        let done = 0; const failed = [];
+        for (const id of ids) {
+          const c = byId.get(id);
+          if (!c) continue;
+          try {
+            const extra = await enrichCreator(cfg, c.platform, c.handle);
+            // a blank from the profile shouldn't wipe what search already gave us
+            for (const [k, v] of Object.entries(extra)) if (v !== "" && v != null) c[k] = v;
+            c.enrichedAt = new Date().toISOString();
+            done++;
+          } catch (e) {
+            failed.push({ id, error: String((e && e.message) || e) });
+            if (String(e && e.message).includes("out of credits")) break;
+          }
+        }
+        saveCreators([...byId.values()].sort((a, b2) => b2.followers - a.followers));
+        return send(res, 200, { ok: true, enriched: done, failed, credits: SC_CREDITS });
+      }
+      // Hand the ones with an email to the Ad Library brief sender.
+      if (p === "/api/creators/to-influencers" && req.method === "POST") {
+        const b = await readBody(req);
+        const ids = new Set(Array.isArray(b.ids) ? b.ids : []);
+        const picked = loadCreators().filter((c) => (ids.size ? ids.has(c.id) : true) && c.email);
+        if (!picked.length) return send(res, 400, { error: "None of those have an email yet — enrich them first." });
+        const byEmail = new Map(loadInfluencers().map((x) => [x.email, x]));
+        for (const c of picked) {
+          const prev = byEmail.get(c.email) || {};
+          byEmail.set(c.email, {
+            ...prev,
+            name: c.name || prev.name || c.handle,
+            email: c.email,
+            instagram: c.platform === "instagram" ? c.handle : (prev.instagram || ""),
+            ltv: prev.ltv || 0,
+          });
+        }
+        const merged = [...byEmail.values()].sort((a, b2) => (b2.ltv || 0) - (a.ltv || 0));
+        saveInfluencers(merged);
+        return send(res, 200, { ok: true, pushed: picked.length, total: merged.length });
+      }
+      if (p.startsWith("/api/creators/") && req.method === "PATCH") {
+        const id = decodeURIComponent(p.slice("/api/creators/".length));
+        const b = await readBody(req);
+        const list = loadCreators();
+        const c = list.find((x) => x.id === id);
+        if (!c) return send(res, 404, { error: "No such creator." });
+        if (b.status) c.status = String(b.status);
+        if ("email" in b) c.email = String(b.email || "").trim().toLowerCase();
+        if ("notes" in b) c.notes = String(b.notes || "");
+        saveCreators(list);
+        return send(res, 200, { ok: true, creator: c });
+      }
+      if (p.startsWith("/api/creators/") && req.method === "DELETE") {
+        const id = decodeURIComponent(p.slice("/api/creators/".length));
+        saveCreators(loadCreators().filter((c) => c.id !== id));
+        return send(res, 200, { ok: true });
+      }
       if (p.startsWith("/api/ads/") && req.method === "DELETE") {
         const id = p.slice("/api/ads/".length);
         saveAds(loadAds().filter((a) => a.id !== id));
@@ -1596,6 +1844,7 @@ const server = http.createServer(async (req, res) => {
           hasToken: !!c.postmarkToken, hasStripe: !!c.stripeKey,
           hasPaypal: !!(c.paypalClientId && c.paypalSecret), paypalEnv: c.paypalEnv,
           hasKartra: !!(c.kartraAppId && c.kartraApiKey),
+          hasScrapeCreators: !!c.scrapeCreatorsKey,
           hasMailgun: !!(c.mailgunApiKey && c.mailgunDomain),
           mailgunDomain: c.mailgunDomain, mailgunRegion: c.mailgunRegion,
           mailgunFromEmail: c.mailgunFromEmail, mailgunFromName: c.mailgunFromName,
@@ -1612,7 +1861,7 @@ const server = http.createServer(async (req, res) => {
         const b = await readBody(req);
         const patch = {};
         for (const k of ["fromEmail", "fromName", "stream", "replyTo", "testEmail", "paypalEnv",
-          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken",
+          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken", "scrapeCreatorsKey",
           "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber"]) if (k in b) patch[k] = b[k];
         if (b.postmarkToken) patch.postmarkToken = b.postmarkToken.trim();
         if (b.mailgunApiKey) patch.mailgunApiKey = b.mailgunApiKey.trim();
