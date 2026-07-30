@@ -481,6 +481,89 @@ function offerSalesFor(rows, from, to) {
   return out;
 }
 
+// The playbook's rules, compressed into a system prompt so the AI suggestions obey
+// the same process the reps are trained on rather than inventing a sales style.
+const SBC_DOCTRINE = `You are the sales copilot for CRATE HACKERS, which sells software, coaching and events to working DJs (mobile, wedding, corporate). You coach a Sell By Chat team: Dom (closer), Travis and Jaymie (openers), Nick Spinelli (closes fence-sitters).
+
+VOICE: DJ-to-DJ, confident, warm, anti-corporate. Short lines. Minimal punctuation. Emojis where natural (🤘🔥🎧). CAPS for emphasis, never for shouting. Never corporate-speak. Say things a chatbot couldn't.
+
+PROCESS, in order — never skip ahead:
+1. OPEN: name, appreciate the action, one personal observation, then an either-or question.
+2. QUALIFY: A–B method. Point A (gigs per month, average rate) → Point B (where they want it in 12 months) → roadblock (#1 thing in between) → what's missing.
+3. Reward every pain admission fast ("I hear you", "Struggle is real…", "That sucks"). Lean out when they lean out ("can only help the DJs swimming toward me").
+4. BUYING ZONE: only offer inside it. Too hopeless → reframe up (their plan was never built to work). Too confident/DIY → anchor to cost (every month this stays the same is another $2-3K of gigs left on the table).
+5. At least 9 messages before ANY offer talk. The sale happens in discovery.
+6. OBJECTIONS: never answer them, reframe them. You compete with inaction, not other coaches. Never make them feel wrong for hesitating.
+
+OFFERS (Hacker Hotel): MEGA bundle (everything, high ticket) · CH Lifetime $997 +jacket · DangerousDJs $997 +jacket · HH 2027 deposit $497 · Spinelli 6-Week Social Media Challenge $497 · Level 11 $150/mo or $1500/yr · Banger Button Lifetime $250.
+
+Never invent a price, a guarantee, a seat count or a deadline. If one is needed, write it as [PRICE] / [SEATS] / [DATE] for the rep to fill.`;
+
+async function sbcCopilot(cfg, { conversation, prospect }) {
+  const p = prospect || {};
+  const prompt = `${SBC_DOCTRINE}
+
+PROSPECT ON FILE: name=${p.name || "unknown"} · stage=${p.stage || "lead"} · offer=${p.offer || "none yet"}${p.pain ? " · pain=" + p.pain : ""}${p.pointB ? " · point B=" + p.pointB : ""}
+
+THE CONVERSATION SO FAR (oldest first; "them:" is the prospect, "me:" is us):
+"""${String(conversation || "").slice(0, 6000)}"""
+
+Read it and return ONLY a JSON object:
+{
+  "read": "2 sentences on where this conversation actually is and what they've revealed",
+  "stage": "one of: opening | qualifying | buying_zone | offer | objection | closing | dead",
+  "in_buying_zone": true or false,
+  "message_count": <how many messages have been exchanged, integer>,
+  "ready_for_offer": true or false,
+  "known": { "pointA": "...or empty", "pointB": "...or empty", "roadblock": "...or empty", "pain": "...or empty" },
+  "missing": ["the specific things still unknown that must be found before an offer"],
+  "next_move": "the ONE thing the rep should do next, in a short sentence",
+  "replies": ["3 send-ready messages, in the Crate Hackers voice, each on its own — short, ending in a question where natural"],
+  "avoid": "the mistake a rep is most likely to make right here"
+}`;
+  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 1800, true);
+  const j = firstJson(raw) || {};
+  const arr = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
+  return {
+    read: String(j.read || ""), stage: String(j.stage || "qualifying"),
+    inBuyingZone: !!j.in_buying_zone, messageCount: Number(j.message_count) || 0,
+    readyForOffer: !!j.ready_for_offer,
+    known: { pointA: String((j.known || {}).pointA || ""), pointB: String((j.known || {}).pointB || ""), roadblock: String((j.known || {}).roadblock || ""), pain: String((j.known || {}).pain || "") },
+    missing: arr(j.missing), nextMove: String(j.next_move || ""), replies: arr(j.replies).slice(0, 3),
+    avoid: String(j.avoid || ""),
+  };
+}
+
+async function sbcCoach(cfg, { conversation }) {
+  const prompt = `${SBC_DOCTRINE}
+
+Score this Sell By Chat conversation using the team's own review rubric.
+Buyer-journey score 1–10, where 1 = they only just followed, 7 = they've got real value from our stuff, 10 = they're asking to work with us.
+
+CONVERSATION:
+"""${String(conversation || "").slice(0, 6000)}"""
+
+Return ONLY a JSON object:
+{
+  "score": <1-10 integer>,
+  "evidence": "the single line from the conversation that proves that score, quoted",
+  "handoff": "where the opener should have handed to the closer — quote the line, or say 'not yet' / 'no handoff needed'",
+  "leak": "the one place this conversation lost momentum or money",
+  "did_well": ["1-3 things the rep genuinely did right"],
+  "fixes": ["2-4 specific, concrete changes — reference what they actually said"],
+  "rule_breaks": ["any playbook rules broken, e.g. offered before 9 messages, answered an objection instead of reframing, kept pushing when the lead leaned out. Empty array if none."]
+}`;
+  const raw = await groqChat(cfg, [{ role: "user", content: prompt }], 1600, true);
+  const j = firstJson(raw) || {};
+  const arr = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
+  let score = Math.round(Number(j.score));
+  if (!(score >= 1 && score <= 10)) score = null;
+  return {
+    score, evidence: String(j.evidence || ""), handoff: String(j.handoff || ""),
+    leak: String(j.leak || ""), didWell: arr(j.did_well), fixes: arr(j.fixes), ruleBreaks: arr(j.rule_breaks),
+  };
+}
+
 const SBC_FILE = path.join(DATA, "sbc.json");
 const SBC_STAGES = ["lead", "qualified", "offer_made", "closed_won", "closed_lost"];
 // Nick closes fence-sitters, so he's a rep like the others — prospects get escalated
@@ -1853,6 +1936,31 @@ const server = http.createServer(async (req, res) => {
           if (x.stage === "closed_won") { wonValue += v; rep.won += v; }
           else if (x.stage !== "closed_lost") pipelineValue += v;
         }
+        // Pipeline health — the numbers that tell you WHERE it's leaking, not just totals.
+        const now = Date.now();
+        const hrs = (a, b2) => (a && b2 ? (new Date(b2).getTime() - new Date(a).getTime()) / 36e5 : null);
+        const ttl = ps.map((x) => hrs(x.createdAt, x.firstTouchAt)).filter((v) => v != null && v >= 0);
+        const untouched = ps.filter((x) => !x.firstTouchAt && x.stage !== "closed_won" && x.stage !== "closed_lost");
+        const stalled = ps
+          .filter((x) => x.stage !== "closed_won" && x.stage !== "closed_lost")
+          .map((x) => ({ id: x.id, name: x.name || x.handle, rep: x.rep, stage: x.stage,
+            idleDays: Math.floor((now - new Date(x.lastTouchAt || x.createdAt).getTime()) / 864e5) }))
+          .filter((x) => x.idleDays >= 3)
+          .sort((a, b2) => b2.idleDays - a.idleDays);
+        const scored = ps.filter((x) => typeof x.lastScore === "number");
+        const health = {
+          speedToLeadHrs: ttl.length ? Math.round((ttl.reduce((a, v) => a + v, 0) / ttl.length) * 10) / 10 : null,
+          untouched: untouched.length,
+          stalled: stalled.slice(0, 12),
+          stalledCount: stalled.length,
+          avgScore: scored.length ? Math.round((scored.reduce((a, x) => a + x.lastScore, 0) / scored.length) * 10) / 10 : null,
+          scoredCount: scored.length,
+          // where conversations die: how many reached each stage at least once
+          reached: SBC_STAGES.reduce((acc, s) => {
+            acc[s] = ps.filter((x) => (x.history || []).some((h) => h.stage === s)).length;
+            return acc;
+          }, {}),
+        };
         // Money actually banked in the campaign window, per offer, off the Kartra ledger
         let offers = null, banked = 0, ledgerError = null;
         try {
@@ -1870,6 +1978,7 @@ const server = http.createServer(async (req, res) => {
           wonValue: Math.round(wonValue * 100) / 100,
           dueToday: ps.filter((x) => x.nextAt && x.nextAt <= today && x.stage !== "closed_won" && x.stage !== "closed_lost").length,
           today, offers, banked, remaining: Math.round((d.goal - banked) * 100) / 100, ledgerError,
+          health, aiReady: !!loadConfig().groqApiKey,
         });
       }
       if (p === "/api/sbc/goal" && req.method === "POST") {
@@ -1926,10 +2035,45 @@ const server = http.createServer(async (req, res) => {
           if (x.escalated) x.rep = "nick";
         }
         // "logged a touch" advances the cadence rather than making you pick a date
-        if (b.touched) { x.touches = (x.touches || 0) + 1; x.nextAt = sbcNextDate(x.touches); x.lastTouchAt = new Date().toISOString(); }
+        if (b.touched) {
+          x.touches = (x.touches || 0) + 1;
+          x.nextAt = sbcNextDate(x.touches);
+          x.lastTouchAt = new Date().toISOString();
+          if (!x.firstTouchAt) x.firstTouchAt = x.lastTouchAt;   // speed-to-lead baseline
+        }
         if (b.nextAt) x.nextAt = String(b.nextAt).slice(0, 10);
         saveSbc(d);
         return send(res, 200, { ok: true, prospect: x });
+      }
+      // Paste a DM thread → what to send next. The rep still works inside Instagram;
+      // we can't read the thread for them without Meta's Messaging API.
+      if (p === "/api/sbc/copilot" && req.method === "POST") {
+        const b = await readBody(req);
+        const cfg = loadConfig();
+        if (!cfg.groqApiKey) return send(res, 400, { error: "Add your Groq API key in Settings to use the copilot." });
+        const convo = String(b.conversation || "").trim();
+        if (convo.length < 20) return send(res, 400, { error: "Paste the conversation first." });
+        const prospect = b.id ? loadSbc().prospects.find((x) => x.id === b.id) : null;
+        try { return send(res, 200, { ok: true, ...(await sbcCopilot(cfg, { conversation: convo, prospect })) }); }
+        catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // Score a finished (or stalled) conversation against the playbook rubric.
+      if (p === "/api/sbc/coach" && req.method === "POST") {
+        const b = await readBody(req);
+        const cfg = loadConfig();
+        if (!cfg.groqApiKey) return send(res, 400, { error: "Add your Groq API key in Settings to use the coach." });
+        const convo = String(b.conversation || "").trim();
+        if (convo.length < 20) return send(res, 400, { error: "Paste the conversation first." });
+        try {
+          const out = await sbcCoach(cfg, { conversation: convo });
+          // keep the score on the prospect so the pipeline can show coaching history
+          if (b.id && out.score != null) {
+            const d = loadSbc();
+            const x = d.prospects.find((y) => y.id === b.id);
+            if (x) { x.lastScore = out.score; x.lastScoredAt = new Date().toISOString(); saveSbc(d); }
+          }
+          return send(res, 200, { ok: true, ...out });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
       }
       // Pull virtual-pass buyers out of the Kartra ledger and into the pipeline.
       // The ledger is the only place a purchase shows up, and it carries name + email
@@ -2016,6 +2160,7 @@ const server = http.createServer(async (req, res) => {
         x.touches = (x.touches || 0) + 1;
         x.nextAt = sbcNextDate(x.touches);
         x.lastTouchAt = new Date().toISOString();
+        if (!x.firstTouchAt) x.firstTouchAt = x.lastTouchAt;
         x.texts = (x.texts || []).concat([{ at: x.lastTouchAt, by: user.email, body }]);
         saveSbc(d);
         return send(res, 200, { ok: true, nextAt: x.nextAt, touches: x.touches });

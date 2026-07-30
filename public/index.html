@@ -552,13 +552,30 @@
           <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Checkout link</span><input id="sbcLink" type="text" placeholder="https://..." /></label>
         </div>
 
-        <div class="row between" style="align-items:center;margin-bottom:8px">
+        <h2 class="section-label" style="margin-top:24px">Copilot <span id="sbcAiNote" class="muted small"></span></h2>
+        <p class="section-sub">Paste the DM thread and get a read on where it actually is, what's still unknown, and three send-ready replies — held to the playbook (9 messages before an offer, reframe objections, never invent a price). Or score a finished chat against the team's 1–10 rubric.</p>
+        <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
+          <div style="flex:1;min-width:300px">
+            <textarea id="sbcConvo" class="code" rows="9" placeholder="them: yo appreciate the follow&#10;me: appreciate you man — that wedding clip was clean&#10;them: haha thanks, trying to book more of those&#10;…"></textarea>
+            <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+              <select id="sbcConvoProspect" style="width:210px"></select>
+              <button id="sbcRunCopilot" class="btn btn-primary sm">What do I send? →</button>
+              <button id="sbcRunCoach" class="btn btn-ghost sm">Score this chat</button>
+              <span id="sbcAiMsg" class="muted small"></span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:300px"><div id="sbcAiOut"></div></div>
+        </div>
+
+        <div class="row between" style="align-items:center;margin:26px 0 8px">
           <h2 class="section-label" style="margin:0">Scripts</h2>
           <input id="sbcSearch" type="search" placeholder="Search scripts…" style="width:220px" />
         </div>
         <div id="sbcScripts"></div>
 
-        <h2 class="section-label" style="margin-top:28px">Pipeline <span id="sbcCount" class="muted small"></span></h2>
+        <div id="sbcHealth" style="margin-top:28px"></div>
+
+        <h2 class="section-label" style="margin-top:22px">Pipeline <span id="sbcCount" class="muted small"></span></h2>
         <p class="section-sub">Shared across all three reps so nobody DMs a prospect someone else is already working. Logging a touch auto-sets the next follow-up on the 0·1·1·2·3·5·8·13 cadence.</p>
         <div class="card" style="margin-bottom:14px">
           <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">

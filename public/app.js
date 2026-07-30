@@ -1877,12 +1877,95 @@ async function loadSbc() {
   fill($("#sbcFilterRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })), "All reps");
   fill($("#sbcFilterStage"), (d.stages || []).map((s) => ({ v: s, l: SBC_STAGE_LABEL[s] || s })), "All stages");
   fill($("#sbcOffer"), (d.offers || []).map((o) => ({ v: o.label, l: `${o.label} — ${fmtMoney(o.price)}` })), "No offer yet");
+  fill($("#sbcConvoProspect"), (d.prospects || []).map((x) => ({ v: x.id, l: `${x.name || x.handle} (${sbcTitle(x.rep)})` })), "Not linked to a prospect");
+  if ($("#sbcAiNote")) $("#sbcAiNote").textContent = d.aiReady ? "" : "— add your Groq API key in Settings to enable";
   renderSbcGoal();
+  renderSbcHealth();
   renderSbcPipeline();
   renderSbcScripts();
 }
 ["sbcFilterRep", "sbcFilterStage"].forEach((id) => { if ($("#" + id)) $("#" + id).onchange = renderSbcPipeline; });
 if ($("#sbcDueOnly")) $("#sbcDueOnly").onchange = renderSbcPipeline;
+
+// ---- Copilot / Coach ----
+const sbcPill = (label, val, color) =>
+  `<span style="display:inline-block;background:${color || "var(--s2)"};border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:11px;margin:0 6px 6px 0">${esc(label)} <b>${esc(String(val))}</b></span>`;
+
+function renderCopilot(d) {
+  const known = d.known || {};
+  const gap = (k, v) => `<div style="font-size:12px;margin-bottom:3px"><span class="muted">${k}:</span> ${v ? esc(v) : '<span style="color:#ffd98a">still unknown</span>'}</div>`;
+  $("#sbcAiOut").innerHTML = `<div class="card" style="padding:14px">
+    <div style="margin-bottom:8px">
+      ${sbcPill("stage", d.stage)}
+      ${sbcPill("messages", d.messageCount)}
+      ${sbcPill("buying zone", d.inBuyingZone ? "yes" : "no", d.inBuyingZone ? "#152b1b" : "#2b1f15")}
+      ${sbcPill("offer now", d.readyForOffer ? "yes" : "not yet", d.readyForOffer ? "#152b1b" : "#2b1f15")}
+    </div>
+    <p style="font-size:13px;line-height:1.55;margin:0 0 10px">${esc(d.read)}</p>
+    <div style="border-top:1px solid var(--line);padding-top:10px;margin-bottom:10px">
+      ${gap("Point A", known.pointA)}${gap("Point B", known.pointB)}${gap("Roadblock", known.roadblock)}${gap("Pain", known.pain)}
+    </div>
+    ${(d.missing || []).length ? `<div style="font-size:12px;margin-bottom:10px"><b>Still need:</b> ${d.missing.map(esc).join(" · ")}</div>` : ""}
+    <div style="background:#1c1608;border:1px solid #8a5a00;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#ffe9c2;margin-bottom:10px">
+      <b>Next move:</b> ${esc(d.nextMove)}${d.avoid ? `<br /><b>Don't:</b> ${esc(d.avoid)}` : ""}</div>
+    <b style="font-size:12px">Send one of these</b>
+    <div class="cr-list" style="margin-top:6px">
+      ${(d.replies || []).map((r) => `<div class="sbc-line" data-sbccopy="${esc(r)}" title="Click to copy">${sbcMark(r)}</div>`).join("")}
+    </div></div>`;
+  $$("#sbcAiOut [data-sbccopy]").forEach((el) => el.onclick = () => { SBC_LAST_COPIED = el.dataset.sbccopy; sbcCopy(el.dataset.sbccopy, el); });
+}
+
+function renderCoach(d) {
+  const col = d.score >= 7 ? "#22c55e" : d.score >= 4 ? "#FF7722" : "#ef4444";
+  $("#sbcAiOut").innerHTML = `<div class="card" style="padding:14px">
+    <div class="row" style="gap:12px;align-items:center;margin-bottom:10px">
+      <div style="font-family:var(--font-head);font-weight:800;font-size:30px;color:${col}">${d.score == null ? "—" : d.score}<span style="font-size:14px;color:var(--t3)">/10</span></div>
+      <div class="muted small" style="flex:1">buyer-journey score</div>
+    </div>
+    ${d.evidence ? `<p class="muted small" style="margin:0 0 10px;font-style:italic">“${esc(d.evidence)}”</p>` : ""}
+    ${d.handoff ? `<div style="font-size:12.5px;margin-bottom:8px"><b>Handoff:</b> ${esc(d.handoff)}</div>` : ""}
+    ${d.leak ? `<div style="background:#1c1608;border:1px solid #8a5a00;border-radius:8px;padding:8px 10px;font-size:12.5px;color:#ffe9c2;margin-bottom:10px"><b>Where it leaked:</b> ${esc(d.leak)}</div>` : ""}
+    ${(d.didWell || []).length ? `<div style="font-size:12.5px;margin-bottom:8px"><b>Did well:</b><ul style="margin:4px 0 0 18px;padding:0">${d.didWell.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${(d.fixes || []).length ? `<div style="font-size:12.5px;margin-bottom:8px"><b>Fix next time:</b><ul style="margin:4px 0 0 18px;padding:0">${d.fixes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${(d.ruleBreaks || []).length ? `<div style="font-size:12.5px;color:#ffd98a"><b>Playbook broken:</b> ${d.ruleBreaks.map(esc).join(" · ")}</div>` : ""}
+  </div>`;
+}
+
+async function sbcRunAi(kind) {
+  const convo = $("#sbcConvo").value.trim();
+  if (convo.length < 20) return toast("Paste the conversation first.", "err");
+  const btns = [$("#sbcRunCopilot"), $("#sbcRunCoach")].filter(Boolean);
+  btns.forEach((b) => b.disabled = true);
+  $("#sbcAiMsg").textContent = kind === "coach" ? "Scoring…" : "Reading the thread…";
+  try {
+    const r = await post("/api/sbc/" + kind, { conversation: convo, id: $("#sbcConvoProspect").value || "" });
+    if (r.error) { $("#sbcAiMsg").textContent = ""; return toast(r.error, "err"); }
+    $("#sbcAiMsg").textContent = "";
+    if (kind === "coach") { renderCoach(r); loadSbc(); } else renderCopilot(r);
+  } catch (e) { $("#sbcAiMsg").textContent = ""; toast(String(e.message || e), "err"); }
+  finally { btns.forEach((b) => b.disabled = false); }
+}
+if ($("#sbcRunCopilot")) $("#sbcRunCopilot").onclick = () => sbcRunAi("copilot");
+if ($("#sbcRunCoach")) $("#sbcRunCoach").onclick = () => sbcRunAi("coach");
+
+function renderSbcHealth() {
+  const el = $("#sbcHealth"); if (!el || !SBC || !SBC.health) return;
+  const h = SBC.health;
+  const st = h.stalled || [];
+  el.innerHTML = `<h2 class="section-label" style="margin:0 0 4px">Pipeline health</h2>
+    <p class="section-sub">Speed-to-lead is the metric that decides whether warm leads stay warm — the playbook's rule is same-day, no exceptions.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:10px">
+      ${funMetric("Speed to lead", h.speedToLeadHrs == null ? "—" : h.speedToLeadHrs + "h")}
+      ${funMetric("Never touched", fmt(h.untouched))}
+      ${funMetric("Stalled 3d+", fmt(h.stalledCount))}
+      ${funMetric("Avg chat score", h.avgScore == null ? "—" : h.avgScore + "/10")}
+    </div>
+    ${st.length ? `<div class="tbl-wrap" style="overflow-x:auto"><table class="camp-table" style="min-width:460px"><thead><tr>
+        <th>Going cold</th><th>Rep</th><th>Stage</th><th class="num">Idle</th></tr></thead><tbody>
+        ${st.map((x) => `<tr><td>${esc(x.name)}</td><td>${sbcTitle(x.rep)}</td><td>${SBC_STAGE_LABEL[x.stage] || x.stage}</td>
+          <td class="num" style="color:#ffd98a;font-weight:700">${x.idleDays}d</td></tr>`).join("")}
+      </tbody></table></div>` : `<p class="muted small">Nothing has gone quiet for 3+ days.</p>`}`;
+}
 
 if ($("#sbcSync")) $("#sbcSync").onclick = async () => {
   const btn = $("#sbcSync"); btn.disabled = true;
