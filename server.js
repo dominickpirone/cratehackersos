@@ -1122,13 +1122,21 @@ function aggregateFunnel(fromTs, toTs, funnel) {
       else if (r.e === "trial") { slot.trial++; totals.trial++; } // downstream step (e.g. 14-day-trial click)
     }
   }
-  const metrics = (s) => ({
-    ...s,
-    convRate: s.view ? s.conv / s.view : 0,       // visitor → buyer
-    ctaRate: s.view ? s.cta / s.view : 0,         // visitor → checkout click
-    aov: s.conv ? s.revenue / s.conv : 0,         // average order value
-    epc: s.view ? s.revenue / s.view : 0,         // earnings per click/visitor
-  });
+  // Visitors come from our own pixel but conversions can come from the Kartra ledger, so
+  // the two can disagree badly — if a lander stops pinging /t.gif you get 27 sales over 1
+  // visitor and a 2700% "conversion rate". Anything derived from an impossible denominator
+  // is returned as null (the UI shows "—") instead of a confident wrong number.
+  const metrics = (s) => {
+    const broken = s.conv > s.view;   // more conversions than visitors ⇒ views aren't being recorded
+    return {
+      ...s,
+      convRate: s.view && !broken ? s.conv / s.view : null,  // visitor → buyer
+      ctaRate: s.view ? s.cta / s.view : null,               // visitor → checkout click
+      aov: s.conv ? s.revenue / s.conv : null,               // average order value
+      epc: s.view && !broken ? s.revenue / s.view : null,    // earnings per visitor
+      trackingBroken: broken,
+    };
+  };
   const variants = Object.keys(byVariant).sort().map((v) => ({ variant: v, ...metrics(byVariant[v]) }));
   return { funnel: funnel || "level11", prices, variants, totals: metrics(totals) };
 }
@@ -1174,23 +1182,40 @@ async function getMetaSpend(cfg, from, to) {
 // `min`/`max` matter when one Kartra product covers several offers — e.g. "Crate Hackers
 // Hacker Hotel 2026" holds $27/$47 older passes, the $67 virtual pass, the $97 upsell and
 // $497–$997 in-person tickets, so the funnel must only count its own price band.
+// Price points we report separately for Hacker Hotel — $47 is the affiliate-code price,
+// so the $47-vs-$67 split is the closest thing to affiliate-vs-house the ledger supports.
+// (Declared before FUNNEL_LEDGER because that object references it.)
+const HH_BANDS = [
+  { id: "p17", label: "$17 deep discount", lo: 10, hi: 20 },
+  { id: "p27", label: "$27 early bird", lo: 21, hi: 35 },
+  { id: "p47", label: "$47 affiliate code", lo: 40, hi: 55 },
+  { id: "p67", label: "$67 house price", lo: 56, hi: 80 },
+  { id: "p97", label: "$97 full price", lo: 85, hi: 110 },
+];
 const FUNNEL_LEDGER = {
   "level11": { match: /level\s*-?\s*11/i, tier: (a) => (a >= 1200 ? "lifetime" : a >= 500 ? "annual" : "monthly") },
-  "hacker-hotel": { match: /hacker\s*hotel/i, min: 55, max: 80 }, // $67 Virtual Access Pass only
+  // Every virtual pass, not just the $67 one. The pass has sold at $17 / $27 (early
+  // bird) / $47 (affiliate-code price) / $67 (current house) / $97 (full), so the old
+  // 55-80 band counted 27 of ~192 sales and hid every affiliate order. Anything from
+  // $497 up is an in-person ticket on the same Kartra product; $0 rows are comps.
+  "hacker-hotel": { match: /hacker\s*hotel/i, min: 1, max: 150, bands: HH_BANDS },
 };
 function ledgerSalesFor(rows, from, to, spec) {
   const inRange = (d) => (!from || d >= from) && (!to || d <= to);
-  const out = { conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 } };
+  const out = { conv: 0, revenue: 0, tiers: { monthly: 0, annual: 0, lifetime: 0 }, bands: null, excluded: { comps: 0, aboveBand: 0 } };
+  const bands = spec.bands ? spec.bands.map((b) => ({ ...b, count: 0, revenue: 0 })) : null;
   for (const r of rows) {
     if (r.type !== "sale" || !spec.match.test(r.product)) continue;
     if (!inRange(r.date)) continue;
-    if (!(r.amount > 0)) continue;                                 // skip $0 comps / test rows
-    if (spec.min != null && r.amount < spec.min) continue;          // other offers on the same product
-    if (spec.max != null && r.amount > spec.max) continue;
+    if (!(r.amount > 0)) { out.excluded.comps++; continue; }        // $0 comps / test rows
+    if (spec.max != null && r.amount > spec.max) { out.excluded.aboveBand++; continue; } // e.g. in-person tickets
+    if (spec.min != null && r.amount < spec.min) continue;
     out.conv++; out.revenue += r.amount;
     if (spec.tier) { const t = spec.tier(r.amount); if (out.tiers[t] != null) out.tiers[t]++; }
+    if (bands) { const b = bands.find((x) => r.amount >= x.lo && r.amount <= x.hi); if (b) { b.count++; b.revenue += r.amount; } }
   }
   out.revenue = Math.round(out.revenue * 100) / 100;
+  if (bands) { bands.forEach((b) => b.revenue = Math.round(b.revenue * 100) / 100); out.bands = bands; }
   return out;
 }
 // Fold real ledger conversions into a pixel-built funnel. Totals are exact. Per-variant
@@ -1199,28 +1224,54 @@ function ledgerSalesFor(rows, from, to, spec) {
 function mergeLedgerConversions(funnel, sales) {
   const t = funnel.totals;
   t.conv = sales.conv; t.revenue = sales.revenue; t.tiers = sales.tiers;
-  t.convRate = t.view ? t.conv / t.view : 0;
-  t.aov = t.conv ? t.revenue / t.conv : 0;
-  t.epc = t.view ? t.revenue / t.view : 0;
+  t.trackingBroken = t.conv > t.view;   // same guard as aggregateFunnel's metrics()
+  t.convRate = t.view && !t.trackingBroken ? t.conv / t.view : null;
+  t.aov = t.conv ? t.revenue / t.conv : null;
+  t.epc = t.view && !t.trackingBroken ? t.revenue / t.view : null;
+  funnel.bands = sales.bands || null;
+  funnel.ledgerExcluded = sales.excluded || null;
   const vs = funnel.variants || [];
   const totalCta = vs.reduce((a, v) => a + (v.cta || 0), 0);
   const totalView = vs.reduce((a, v) => a + (v.view || 0), 0);
   const basis = totalCta > 0 ? "cta" : "view";
   const denom = totalCta > 0 ? totalCta : totalView;
   let convLeft = sales.conv, revLeft = sales.revenue;
+  // The rounding remainder goes to the variant with the biggest share, not to whichever
+  // one happens to sort last — otherwise a page with zero checkout clicks gets credited
+  // with a sale (and, once rounding overshoots, negative revenue).
+  let dumpIdx = 0, dumpShare = -1;
   vs.forEach((v, i) => {
-    const last = i === vs.length - 1;
+    const s = denom > 0 ? (v[basis] || 0) / denom : 0;
+    if (s > dumpShare) { dumpShare = s; dumpIdx = i; }
+  });
+  vs.forEach((v) => {
     const share = denom > 0 ? (v[basis] || 0) / denom : 0;
-    v.conv = last ? convLeft : Math.round(sales.conv * share);
-    v.revenue = last ? Math.round(revLeft * 100) / 100 : Math.round(sales.revenue * share * 100) / 100;
+    v.conv = Math.round(sales.conv * share);
+    v.revenue = Math.round(sales.revenue * share * 100) / 100;
     convLeft -= v.conv; revLeft -= v.revenue;
-    v.convRate = v.view ? v.conv / v.view : 0;
-    v.aov = v.conv ? v.revenue / v.conv : 0;
-    v.epc = v.view ? v.revenue / v.view : 0;
+  });
+  if (vs.length) {
+    vs[dumpIdx].conv = Math.max(0, vs[dumpIdx].conv + convLeft);
+    vs[dumpIdx].revenue = Math.max(0, Math.round((vs[dumpIdx].revenue + revLeft) * 100) / 100);
+  }
+  vs.forEach((v) => {
+    v.trackingBroken = v.conv > v.view;
+    v.convRate = v.view && !v.trackingBroken ? v.conv / v.view : null;
+    v.aov = v.conv ? v.revenue / v.conv : null;
+    v.epc = v.view && !v.trackingBroken ? v.revenue / v.view : null;
     v.estimated = true;
   });
   funnel.conversionSource = "ledger";
   funnel.variantConvEstimated = true;
+  // Data health — the signature of this whole class of bug is "sales but no impressions".
+  // Surfacing it beats waiting for someone to notice a 2700% rate.
+  funnel.health = {
+    pixelViews: t.view,
+    ledgerConv: sales.conv,
+    trackingBroken: !!t.trackingBroken,
+    convNoViews: vs.filter((v) => v.conv > 0 && !v.view).map((v) => v.variant),
+    viewsNoConv: vs.filter((v) => v.view > 0 && !v.conv).map((v) => v.variant),
+  };
   return funnel;
 }
 

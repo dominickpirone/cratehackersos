@@ -1081,8 +1081,10 @@ if ($("#outreachFilter")) $("#outreachFilter").onchange = renderOutreach;
 if ($("#outreachSort")) $("#outreachSort").onchange = renderOutreach;
 
 // ---------- Level 11 funnel ----------
-const fmtMoney = (n) => "$" + Math.round(n || 0).toLocaleString();
-const fmtPct = (r) => ((r || 0) * 100).toFixed(1) + "%";
+// null means "we can't compute this honestly" (e.g. more sales than recorded visitors),
+// which is different from zero — show a dash rather than a confident wrong figure.
+const fmtMoney = (n) => (n == null ? "—" : "$" + Math.round(n).toLocaleString());
+const fmtPct = (r) => (r == null ? "—" : (r * 100).toFixed(1) + "%");
 const funMetric = (label, value) =>
   `<div style="flex:1;min-width:120px;background:#151823;border:1px solid #242838;border-radius:12px;padding:14px 16px">
     <div style="font-size:12px;color:#8b93a7;text-transform:uppercase;letter-spacing:.04em">${label}</div>
@@ -1098,7 +1100,10 @@ const FUNNELS = {
   "july4-sale": { title: "🎆 July 4 Sale", desc: 'Live Kartra sales for the 4th-of-July funnel (<b>/home-july4-26 → /oto-july26</b>), broken out by price point. Pulled from your sales ledger (near-live, ~2-min cache).', saleReport: true },
   "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
   "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, trialLabel: "14-day trial", variants: ["a", "b", "c"], labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
-  "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Live A/B/C performance for <b>hh.cratehackers.com</b> — visitors → checkout clicks → <b>$67 purchases</b>, per variant, plus how many reached the $97 upsell.', lead: false, trialLabel: "Reached upsell", variants: ["a", "b", "c"], labels: { a: "A · Logo Hero", b: "B · Charcoal", c: "C · Orange" } },
+  // B·Charcoal and C·Orange were retired — those pages no longer exist. The live house
+  // split is A (/) and B (/b); the seven partner-* pages are affiliate attribution pages,
+  // not split-test arms, so they're listed but excluded from winner logic.
+  "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Performance for <b>hh.cratehackers.com</b> — every virtual pass ($17–$97), plus the affiliate pages. House split test is A vs B.', lead: false, trialLabel: "Reached upsell", variants: ["a", "b"], labels: { a: "A · House (/)", b: "B · House control (/b)", "partner-jack": "Jack Cheshire · JACK", "partner-jaymie": "Jaymie Perez · JAYMIE", "partner-nate": "Nate Acosta · NATE", "partner-nick": "Nick Spinelli · SPINELLI", "partner-polo": "Polo · POLO", "partner-travis": "Travis · THEFUTUREDJ", "partner-mischievous": "Mischievous · MISCHIEVOUS" }, partnerPrefix: "partner-" },
   chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
   chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
 };
@@ -1111,7 +1116,13 @@ function funMeta() { return FUNNELS[curFunnel()] || FUNNELS[DEFAULT_FUNNEL] || F
   if (FUNNELS[DEFAULT_FUNNEL]) sel.value = DEFAULT_FUNNEL;
   sel.onchange = loadFunnel;
 })();
-function vLabel(m, v) { return (m && m.labels && m.labels[v]) || (v || "?").toUpperCase(); }
+// An unregistered variant id must still render — silently dropping them is exactly how
+// seven affiliate pages went unnoticed.
+function vLabel(m, v) {
+  if (m && m.labels && m.labels[v]) return m.labels[v];
+  const id = v || "?";
+  return id.length <= 3 ? id.toUpperCase() : `Unknown · ${esc(id)}`;
+}
 async function loadFunnel() {
   const m = funMeta();
   if ($("#funTitle")) $("#funTitle").textContent = m.title;
@@ -1147,27 +1158,40 @@ function renderFunnel(d, m) {
   if (m.variants && m.variants.length) {
     // always show every declared variant (e.g. A/B/C), even before it has any traffic
     const byKey = {}; variants.forEach((v) => { byKey[v.variant] = v; });
-    const zero = { view: 0, cta: 0, conv: 0, trial: 0, revenue: 0, convRate: 0, ctaRate: 0, aov: 0, epc: 0, tiers: {} };
+    // no traffic yet ⇒ the rates are unknown, not zero
+    const zero = { view: 0, cta: 0, conv: 0, trial: 0, revenue: 0, convRate: null, ctaRate: null, aov: null, epc: null, tiers: {} };
     const declared = m.variants.map((k) => byKey[k] || Object.assign({ variant: k }, zero));
     variants = declared.concat(variants.filter((v) => m.variants.indexOf(v.variant) < 0));
   }
-  const maxView = Math.max(1, ...variants.map((v) => v.view));
+  // Affiliate pages are separate audiences with their own discount codes, not arms of the
+  // house split test — comparing them head-to-head would be meaningless.
+  const isPartner = (v) => !!(m.partnerPrefix && String(v.variant || "").indexOf(m.partnerPrefix) === 0);
+  const partners = variants.filter(isPartner).sort((a, b) => (b.conv || 0) - (a.conv || 0));
+  variants = variants.filter((v) => !isPartner(v));
+  const maxView = Math.max(1, ...variants.map((v) => v.view), ...partners.map((v) => v.view));
   let winner = null, winScore = -1;
-  variants.filter((v) => v.view > 0).forEach((v) => { const s = lead ? v.convRate : v.epc; if (s > winScore) { winScore = s; winner = v; } });
+  // a variant whose tracking is broken can't win — its EPC is unknowable, not high
+  variants.filter((v) => v.view > 0 && !v.trackingBroken).forEach((v) => {
+    const s = lead ? v.convRate : v.epc;
+    if (s != null && s > winScore) { winScore = s; winner = v; }
+  });
+  renderFunnelHealth(d, m);
   $("#funVariants").innerHTML = variants.length ? `<div style="display:flex;gap:14px;flex-wrap:wrap">` + variants.map((v) => {
     const win = winner && v.variant === winner.variant && t.conv > 0;
     const extra = lead ? "" : `
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">AOV</div><div style="font-weight:700">${fmtMoney(v.aov)}</div></div>
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">EPC</div><div style="font-weight:700;color:#FF7722">${fmtMoney(v.epc)}</div></div>
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">Revenue</div><div style="font-weight:700">${fmtMoney(v.revenue)}</div></div>`;
-    return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : "#242838"};border-radius:14px;padding:16px;position:relative">
+    return `<div style="flex:1;min-width:240px;background:#151823;border:1px solid ${win ? "#FF7722" : v.trackingBroken ? "#8a5a00" : "#242838"};border-radius:14px;padding:16px;position:relative">
       ${win ? `<span style="position:absolute;top:-10px;right:14px;background:#FF7722;color:#1a1206;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">★ WINNER</span>` : ""}
+      ${v.trackingBroken ? `<span title="More conversions than recorded visitors — this page isn't reporting impressions to the OS pixel, so rate and EPC can't be computed." style="position:absolute;top:-10px;right:14px;background:#8a5a00;color:#ffe9c2;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px">⚠ NO VISITOR DATA</span>` : ""}
       <div style="font-size:15px;font-weight:800;letter-spacing:.04em;margin-bottom:10px">${vLabel(m, v.variant)}</div>
       ${funBar("Visitors", v.view, maxView, "#3b82f6")}${funBar(lead ? "Opt-in clicks" : "Checkout clicks", v.cta, maxView, "#a855f7")}${funBar(lead ? "Leads" : "Conversions", v.conv, maxView, "#22c55e")}${t.trial ? funBar(trialLbl, v.trial || 0, maxView, "#FF7722") : ""}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;border-top:1px solid #242838;padding-top:10px">
         <div style="flex:1;min-width:64px"><div style="font-size:11px;color:#8b93a7">${lead ? "Opt-in rate" : "Conv. rate"}</div><div style="font-weight:700">${fmtPct(v.convRate)}</div></div>${extra}
       </div></div>`;
   }).join("") + `</div>` : `<p class="muted">No funnel data yet for this range — once traffic hits the lander, it shows up here live.</p>`;
+  renderFunnelPartners(partners, m, d);
   if (!lead) {
     const tiers = ["monthly", "annual", "lifetime"];
     const anyTier = tiers.some((k) => (t.tiers[k] || 0) > 0);
@@ -1182,11 +1206,50 @@ function renderFunnel(d, m) {
   // footnote, tailored to the funnel you're looking at
   if ($("#funNote") && !lead) {
     const fk = curFunnel();
+    const ex = d.ledgerExcluded;
     $("#funNote").innerHTML =
       `Visitors + checkout clicks are tracked by the lander pixel. <strong>Conversions + revenue are pulled live from your Kartra sales ledger</strong> — Kartra's thank-you redirect bypasses the lander, so the pixel can't see the sale. Totals are exact; per-variant conversions are <em>estimated</em> from each variant's checkout-click share.` +
       (fk === "level11" ? ` Tier is inferred from amount charged — ~$99 monthly · ~$891 annual · ≥$1,200 lifetime.` : "") +
-      (fk === "hacker-hotel" ? ` Only the <b>$67 Virtual Access Pass</b> band is counted — that Kartra product also holds $27/$47 passes, the $97 upsell, and $497–$997 in-person tickets.` : "");
+      (fk === "hacker-hotel" ? ` Counts <b>every virtual pass from $1–$150</b> ($17 / $27 early bird / $47 affiliate code / $67 house / $97 full).` +
+        (ex ? ` Excluded from this range: <b>${fmt(ex.aboveBand)}</b> in-person ticket${ex.aboveBand === 1 ? "" : "s"} ($497+) and <b>${fmt(ex.comps)}</b> $0 comp${ex.comps === 1 ? "" : "s"} on the same Kartra product.` : "") +
+        ` The ledger carries no coupon or price-point column, so per-affiliate revenue can't be split out — the $47 band is the proxy for affiliate-driven sales.` : "");
   }
+}
+
+// Affiliate pages: reported side by side but never ranked against each other.
+function renderFunnelPartners(partners, m, d) {
+  const wrap = $("#funPartners"); if (!wrap) return;
+  if (!m.partnerPrefix) { wrap.innerHTML = ""; return; }
+  const rows = partners || [];
+  const anyTraffic = rows.some((v) => v.view || v.conv);
+  wrap.innerHTML = `<h2 class="section-label" style="margin:26px 0 4px">Affiliate pages</h2>
+    <p class="section-sub">Each partner page carries its own discount code, so these are separate audiences — no winner is picked across them.</p>` +
+    (rows.length && anyTraffic
+      ? `<div class="tbl-wrap" style="overflow-x:auto"><table class="camp-table" style="min-width:620px"><thead><tr>
+          <th>Partner</th><th class="num">Visitors</th><th class="num">Checkout clicks</th><th class="num">Conversions</th><th class="num">Conv. rate</th><th class="num">Revenue</th></tr></thead><tbody>` +
+        rows.map((v) => `<tr><td>${vLabel(m, v.variant)}</td><td class="num">${fmt(v.view)}</td><td class="num">${fmt(v.cta)}</td>
+          <td class="num">${fmt(v.conv)}</td><td class="num">${fmtPct(v.convRate)}</td><td class="num">${fmtMoney(v.revenue)}</td></tr>`).join("") +
+        `</tbody></table></div>`
+      : `<p class="muted small">No affiliate-page traffic recorded for this range. The seven partner pages on <b>hh.cratehackers.com</b> report to GA4 via GTM but never call this app's <code>/t.gif</code> pixel, so the OS receives nothing for them — see the data-health note above.</p>`);
+}
+
+// Small strip that names the failure instead of leaving you to infer it from a silly number.
+function renderFunnelHealth(d, m) {
+  const el = $("#funHealth"); if (!el) return;
+  const h = d.health;
+  if (!h) { el.innerHTML = ""; return; }
+  const bits = [];
+  if (h.trackingBroken) {
+    bits.push(`<b>Visitor tracking is not working for this funnel.</b> The ledger recorded ${fmt(h.ledgerConv)} conversion${h.ledgerConv === 1 ? "" : "s"} against just ${fmt(h.pixelViews)} recorded visitor${h.pixelViews === 1 ? "" : "s"}, so conversion rate and EPC are shown as “—” rather than a made-up figure.`);
+  }
+  if (h.convNoViews && h.convNoViews.length) bits.push(`Conversions but zero impressions: <b>${h.convNoViews.map(esc).join(", ")}</b>.`);
+  if (h.viewsNoConv && h.viewsNoConv.length) bits.push(`Impressions but zero conversions: <b>${h.viewsNoConv.map(esc).join(", ")}</b>.`);
+  if (d.bands && d.bands.some((b) => b.count)) {
+    bits.push("Price points in range: " + d.bands.filter((b) => b.count).map((b) => `${esc(b.label)} — <b>${fmt(b.count)}</b> ($${b.revenue.toLocaleString()})`).join(" · ") + ".");
+  }
+  el.innerHTML = bits.length
+    ? `<div style="background:#1c1608;border:1px solid #8a5a00;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;line-height:1.6;color:#ffe9c2">⚠ ${bits.join(" ")}</div>`
+    : "";
 }
 async function loadSaleReport(m) {
   if ($("#funTierWrap")) $("#funTierWrap").style.display = "none";
