@@ -1742,8 +1742,8 @@ function renderSbcScripts() {
     }
   }
   wrap.innerHTML = html || `<p class="muted small">No scripts match “${esc(q)}”.</p>`;
-  $$("[data-sbccopy]").forEach((el) => el.onclick = () => sbcCopy(el.dataset.sbccopy, el));
-  $$("[data-sbccopyall]").forEach((el) => el.onclick = () => { sbcCopy(el.dataset.sbccopyall, el); toast("Whole sequence copied.", "ok"); });
+  $$("[data-sbccopy]").forEach((el) => el.onclick = () => { SBC_LAST_COPIED = el.dataset.sbccopy; sbcCopy(el.dataset.sbccopy, el); });
+  $$("[data-sbccopyall]").forEach((el) => el.onclick = () => { SBC_LAST_COPIED = el.dataset.sbccopyall; sbcCopy(el.dataset.sbccopyall, el); toast("Whole sequence copied — the Text button will offer it.", "ok"); });
 }
 ["sbcName", "sbcPointB", "sbcPain", "sbcPrice", "sbcSeats", "sbcDay", "sbcLink"].forEach((id) => {
   if ($("#" + id)) $("#" + id).oninput = renderSbcScripts;
@@ -1807,10 +1807,15 @@ function renderSbcPipeline() {
         <td><b>${esc(x.name || x.handle)}</b><br /><span class="muted small">${esc(x.platform)} · @${esc(x.handle)}</span></td>
         <td><select data-sbcrep="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.reps || []).map((r) => `<option value="${r}"${x.rep === r ? " selected" : ""}>${sbcTitle(r)}</option>`).join("")}</select></td>
         <td><select data-sbcstage="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.stages || []).map((s) => `<option value="${s}"${x.stage === s ? " selected" : ""}>${SBC_STAGE_LABEL[s] || s}</option>`).join("")}</select></td>
-        <td class="muted small">${esc(x.offer || "—")}</td>
+        <td class="muted small">${esc(x.offer || "—")}${x.escalated ? '<br /><span style="color:#ffd98a">⚑ on the fence</span>' : ""}</td>
         <td class="num">${fmtMoney(x.value)}</td>
         <td class="num"${due ? ' style="color:#ffd98a;font-weight:700"' : ""}>${esc(x.nextAt || "—")}<br /><span class="muted small">${fmt(x.touches || 0)} touch${(x.touches || 0) === 1 ? "" : "es"}</span></td>
-        <td style="white-space:nowrap"><button class="secondary" data-sbctouch="${esc(x.id)}" title="Log a touch — sets the next follow-up date">Touched</button>
+        <td style="white-space:nowrap">
+          ${x.phone
+            ? `<button class="secondary" data-sbctext="${esc(x.id)}" title="Text from Hacker Hotel HQ">Text</button>`
+            : `<button class="secondary" data-sbcphone="${esc(x.id)}" title="No number yet — add one">+ phone</button>`}
+          <button class="secondary" data-sbctouch="${esc(x.id)}" title="Log a touch — sets the next follow-up date">Touched</button>
+          ${x.escalated ? "" : `<button class="secondary" data-sbcesc="${esc(x.id)}" title="Hand to Nick to close">⚑ Nick</button>`}
           <button class="secondary" data-sbcdel="${esc(x.id)}">✕</button></td></tr>`;
     }).join("") + `</tbody></table></div>`;
   const patch = async (id, body) => {
@@ -1826,6 +1831,33 @@ function renderSbcPipeline() {
     await api("/api/sbc/prospect/" + encodeURIComponent(b.dataset.sbcdel), { method: "DELETE" });
     loadSbc();
   });
+  $$("[data-sbcphone]").forEach((b) => b.onclick = async () => {
+    const typed = prompt("Mobile number for this prospect:");
+    if (typed == null || !typed.trim()) return;
+    if (await patch(b.dataset.sbcphone, { phone: typed.trim() })) loadSbc();
+  });
+  $$("[data-sbcesc]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Flag as on-the-fence and hand to Nick?")) return;
+    if (await patch(b.dataset.sbcesc, { escalated: true })) { loadSbc(); toast("Handed to Nick.", "ok"); }
+  });
+  $$("[data-sbctext]").forEach((b) => b.onclick = () => {
+    const x = (SBC.prospects || []).find((y) => y.id === b.dataset.sbctext);
+    if (x) sbcOpenText(x);
+  });
+}
+
+// Text composer — prefilled from whichever script line you last copied, so the
+// scripts above and the HQ number are one workflow rather than two.
+let SBC_LAST_COPIED = "";
+function sbcOpenText(x) {
+  const body = prompt(`Text ${x.name || x.handle} at ${x.phone} from Hacker Hotel HQ:\n\n{{first_name}} is substituted. This counts as a touch and moves the follow-up date.`, SBC_LAST_COPIED || "");
+  if (body == null || !body.trim()) return;
+  (async () => {
+    const r = await post("/api/sbc/text", { id: x.id, body: body.trim() });
+    if (r.error) return toast(r.error, "err");
+    await loadSbc();
+    toast(`Sent — next follow-up ${r.nextAt}.`, "ok");
+  })();
 }
 
 async function loadSbc() {
@@ -1840,6 +1872,8 @@ async function loadSbc() {
     if (keep) sel.value = keep;
   };
   fill($("#sbcRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })));
+  fill($("#sbcSyncRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })));
+  if ($("#sbcSyncRep") && !$("#sbcSyncRep").value) $("#sbcSyncRep").value = "travis";
   fill($("#sbcFilterRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })), "All reps");
   fill($("#sbcFilterStage"), (d.stages || []).map((s) => ({ v: s, l: SBC_STAGE_LABEL[s] || s })), "All stages");
   fill($("#sbcOffer"), (d.offers || []).map((o) => ({ v: o.label, l: `${o.label} — ${fmtMoney(o.price)}` })), "No offer yet");
@@ -1849,6 +1883,30 @@ async function loadSbc() {
 }
 ["sbcFilterRep", "sbcFilterStage"].forEach((id) => { if ($("#" + id)) $("#" + id).onchange = renderSbcPipeline; });
 if ($("#sbcDueOnly")) $("#sbcDueOnly").onchange = renderSbcPipeline;
+
+if ($("#sbcSync")) $("#sbcSync").onclick = async () => {
+  const btn = $("#sbcSync"); btn.disabled = true;
+  $("#sbcSyncMsg").textContent = "Reading the ledger…";
+  try {
+    const r = await post("/api/sbc/sync", { rep: $("#sbcSyncRep").value });
+    if (r.error) { $("#sbcSyncMsg").textContent = ""; return toast(r.error, "err"); }
+    await loadSbc();
+    $("#sbcSyncMsg").textContent = `${r.added} added${r.skipped ? `, ${r.skipped} already in` : ""}.`;
+    toast(r.added ? `${r.added} pass buyer${r.added === 1 ? "" : "s"} pulled in.` : "No new pass buyers in the window.", "ok");
+  } finally { btn.disabled = false; }
+};
+if ($("#sbcEnrich")) $("#sbcEnrich").onclick = async () => {
+  const need = (SBC && SBC.prospects || []).filter((x) => x.email && !x.phone).slice(0, 25).map((x) => x.id);
+  if (!need.length) return toast("Everyone with an email already has a number.", "ok");
+  const btn = $("#sbcEnrich"); btn.disabled = true;
+  $("#sbcSyncMsg").textContent = `Asking Kartra for ${need.length} number${need.length === 1 ? "" : "s"}…`;
+  try {
+    const r = await post("/api/sbc/enrich", { ids: need });
+    if (r.error) { $("#sbcSyncMsg").textContent = ""; return toast(r.error, "err"); }
+    await loadSbc();
+    $("#sbcSyncMsg").textContent = `${r.found} number${r.found === 1 ? "" : "s"} found${r.misses && r.misses.length ? `, ${r.misses.length} without one` : ""}.`;
+  } finally { btn.disabled = false; }
+};
 
 if ($("#sbcAdd")) $("#sbcAdd").onclick = async () => {
   const handle = $("#sbcHandle").value.trim();
@@ -2089,6 +2147,14 @@ if ($("#crExport")) $("#crExport").onclick = () => {
     const r = await fetch("/api/me");
     if (!r.ok) return;
     const me = await r.json();
+    // Reps only have the Sell By Chat endpoints, so hide everything else and land
+    // them on that tab. The server enforces this too — this is just so the UI
+    // doesn't show doors that won't open.
+    if (me && me.role === "rep") {
+      $$(".tab").forEach((t) => { if (t.dataset.tab !== "sbc") t.style.display = "none"; });
+      const sbcTab = $('.tab[data-tab="sbc"]');
+      if (sbcTab && !sbcTab.classList.contains("active")) sbcTab.click();
+    }
     if (!me || !me.authEnabled || !me.email) return;
     const pill = document.createElement("div");
     pill.style.cssText =

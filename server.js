@@ -82,6 +82,8 @@ function loadConfig() {
     smsAccounts: Array.isArray(cfg.smsAccounts) ? cfg.smsAccounts : [],
     quoApiKey: cfg.quoApiKey || process.env.QUO_API_KEY || "",
     quoFromNumber: cfg.quoFromNumber || process.env.QUO_FROM_NUMBER || "",
+    // dedicated "Hacker Hotel HQ" Quo number for Sell By Chat texts; falls back to the main one
+    hhFromNumber: cfg.hhFromNumber || process.env.HH_FROM_NUMBER || "",
     testEmail: cfg.testEmail || process.env.TEST_EMAIL || "dom@cratehackers.com",
     testPhone: cfg.testPhone || process.env.TEST_PHONE || "",
     groqApiKey: cfg.groqApiKey || process.env.GROQ_API_KEY || "",
@@ -481,7 +483,9 @@ function offerSalesFor(rows, from, to) {
 
 const SBC_FILE = path.join(DATA, "sbc.json");
 const SBC_STAGES = ["lead", "qualified", "offer_made", "closed_won", "closed_lost"];
-const SBC_REPS = ["dom", "travis", "jaymie"];
+// Nick closes fence-sitters, so he's a rep like the others — prospects get escalated
+// to him rather than assigned from the start.
+const SBC_REPS = ["dom", "travis", "jaymie", "nick"];
 const SBC_CADENCE = [0, 1, 1, 2, 3, 5, 8, 13];
 function loadSbc() {
   const dflt = { goal: 250000, from: "2026-07-30", to: "2026-08-31", prospects: [] };
@@ -1670,7 +1674,13 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith("/api/")) {
       // who am I (for the UI's "signed in as … · Log out")
       if (p === "/api/me" && req.method === "GET") {
-        return send(res, 200, { email: user.email, name: user.name, authEnabled: auth.enabled });
+        return send(res, 200, { email: user.email, name: user.name, role: user.role, authEnabled: auth.enabled });
+      }
+      // Reps (outside sales team) only get Sell By Chat. Enforced here, not just by
+      // hiding tabs — otherwise anyone could curl /api/settings and read the keys.
+      if (user.role === "rep") {
+        const repAllowed = p === "/api/sbc" || p.startsWith("/api/sbc/");
+        if (!repAllowed) return send(res, 403, { error: "Your login only has access to Sell By Chat." });
       }
       // funnel analytics (visitors → checkout clicks → conversions → revenue, per variant)
       if (p === "/api/funnel" && req.method === "GET") {
@@ -1887,6 +1897,8 @@ const server = http.createServer(async (req, res) => {
         d.prospects.unshift({
           id, platform, handle, name: String(b.name || "").trim(), rep,
           stage: "lead", offer: String(b.offer || "").trim(), value: Number(b.value) || 0,
+          email: String(b.email || "").trim().toLowerCase(), phone: normalizePhone(b.phone || ""),
+          escalated: false, source: String(b.source || "manual"),
           pointA: "", pointB: "", roadblock: "", pain: "", notes: String(b.notes || "").trim(),
           touches: 0, nextAt: sbcNextDate(0), createdAt: new Date().toISOString(), history: [{ at: new Date().toISOString(), stage: "lead" }],
         });
@@ -1906,11 +1918,107 @@ const server = http.createServer(async (req, res) => {
         if (b.rep && SBC_REPS.includes(b.rep)) x.rep = b.rep;
         for (const k of ["name", "offer", "pointA", "pointB", "roadblock", "pain", "notes"]) if (k in b) x[k] = String(b[k] || "");
         if ("value" in b) x.value = Number(b.value) || 0;
+        if ("email" in b) x.email = String(b.email || "").trim().toLowerCase();
+        if ("phone" in b) x.phone = normalizePhone(b.phone || "");
+        // "on the fence" → hand to Nick to close
+        if ("escalated" in b) {
+          x.escalated = !!b.escalated;
+          if (x.escalated) x.rep = "nick";
+        }
         // "logged a touch" advances the cadence rather than making you pick a date
         if (b.touched) { x.touches = (x.touches || 0) + 1; x.nextAt = sbcNextDate(x.touches); x.lastTouchAt = new Date().toISOString(); }
         if (b.nextAt) x.nextAt = String(b.nextAt).slice(0, 10);
         saveSbc(d);
         return send(res, 200, { ok: true, prospect: x });
+      }
+      // Pull virtual-pass buyers out of the Kartra ledger and into the pipeline.
+      // The ledger is the only place a purchase shows up, and it carries name + email
+      // but NOT a phone, so phones are filled in per-prospect (see /api/sbc/enrich).
+      if (p === "/api/sbc/sync" && req.method === "POST") {
+        const cfg = loadConfig();
+        if (!cfg.salesLedgerCsvUrl) return send(res, 400, { error: "No sales ledger URL configured." });
+        const b = await readBody(req);
+        const d = loadSbc();
+        const rep = SBC_REPS.includes(b.rep) ? b.rep : "travis";
+        let rows;
+        try { rows = await fetchLedger(cfg.salesLedgerCsvUrl); }
+        catch (e) { return send(res, 400, { error: "Ledger fetch failed: " + String((e && e.message) || e) }); }
+        const seen = new Set(d.prospects.map((x) => x.id));
+        const byEmail = new Set(d.prospects.map((x) => (x.email || "").toLowerCase()).filter(Boolean));
+        const spec = FUNNEL_LEDGER["hacker-hotel"];
+        let added = 0, skipped = 0;
+        for (const r of rows) {
+          if (r.type !== "sale" || !spec.match.test(r.product)) continue;
+          if (!(r.amount >= spec.min && r.amount <= spec.max)) continue;   // virtual passes only
+          if (d.from && r.date < d.from) continue;
+          if (d.to && r.date > d.to) continue;
+          const email = (r.email || "").toLowerCase();
+          if (!email) { skipped++; continue; }
+          const id = "kartra:" + email;
+          if (seen.has(id) || byEmail.has(email)) { skipped++; continue; }
+          seen.add(id); byEmail.add(email);
+          const first = (r.name || "").trim().split(/\s+/)[0] || "";
+          d.prospects.unshift({
+            id, platform: "kartra", handle: email, name: first, rep,
+            stage: "lead", offer: "HH 2026 Virtual Pass", value: 0,
+            email, phone: "", escalated: false, source: "kartra-ledger",
+            pointA: "", pointB: "", roadblock: "", pain: "",
+            notes: `Bought the virtual pass for $${r.amount} on ${r.date}.`,
+            touches: 0, nextAt: sbcNextDate(0), createdAt: new Date().toISOString(),
+            history: [{ at: new Date().toISOString(), stage: "lead" }],
+          });
+          added++;
+        }
+        saveSbc(d);
+        return send(res, 200, { ok: true, added, skipped, total: d.prospects.length });
+      }
+      // Best-effort phone lookup. Kartra's get_lead is the only source we have for a
+      // number — the ledger sheet has no phone column at all.
+      if (p === "/api/sbc/enrich" && req.method === "POST") {
+        const b = await readBody(req);
+        const cfg = loadConfig();
+        if (!(cfg.kartraAppId && cfg.kartraApiKey)) return send(res, 400, { error: "Add your Kartra credentials in Settings to look up phone numbers." });
+        const d = loadSbc();
+        const ids = (Array.isArray(b.ids) ? b.ids : []).slice(0, 25);
+        let found = 0; const misses = [];
+        for (const id of ids) {
+          const x = d.prospects.find((y) => y.id === id);
+          if (!x || !x.email || x.phone) continue;
+          try {
+            const j = await kartraGetLead(cfg, x.email);
+            const det = j && (j.lead_details || j.lead || {});
+            const raw = det.phone || det.phone_number || det.mobile || det.cell || "";
+            const ph = normalizePhone(raw);
+            if (ph) { x.phone = ph; found++; } else misses.push(x.email);
+          } catch (e) { misses.push(x.email + " (" + String((e && e.message) || e).slice(0, 60) + ")"); }
+        }
+        saveSbc(d);
+        return send(res, 200, { ok: true, found, misses });
+      }
+      // Text a prospect from the Hacker Hotel HQ Quo number.
+      if (p === "/api/sbc/text" && req.method === "POST") {
+        const b = await readBody(req);
+        const cfg = loadConfig();
+        if (!cfg.quoApiKey) return send(res, 400, { error: "Add your Quo API key in Settings first." });
+        const d = loadSbc();
+        const x = d.prospects.find((y) => y.id === b.id);
+        if (!x) return send(res, 404, { error: "No such prospect." });
+        const phone = normalizePhone(x.phone || b.phone || "");
+        if (!phone) return send(res, 400, { error: "No phone number for this prospect yet." });
+        const body = String(b.body || "").trim();
+        if (!body) return send(res, 400, { error: "Write something to send." });
+        const from = cfg.hhFromNumber || cfg.quoFromNumber;
+        if (!from) return send(res, 400, { error: "No Quo number set. Add one in Settings." });
+        try {
+          await quoSendOne(cfg, { to: phone, from, body: personalize(body, x.name) });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+        x.phone = phone;
+        x.touches = (x.touches || 0) + 1;
+        x.nextAt = sbcNextDate(x.touches);
+        x.lastTouchAt = new Date().toISOString();
+        x.texts = (x.texts || []).concat([{ at: x.lastTouchAt, by: user.email, body }]);
+        saveSbc(d);
+        return send(res, 200, { ok: true, nextAt: x.nextAt, touches: x.touches });
       }
       if (p.startsWith("/api/sbc/prospect/") && req.method === "DELETE") {
         const id = decodeURIComponent(p.slice("/api/sbc/prospect/".length));
@@ -2073,7 +2181,7 @@ const server = http.createServer(async (req, res) => {
           hasTwilio: !!(c.twilioAccountSid && c.twilioAuthToken),
           twilioFromNumbers: fromNumbersList(c), twilioMessagingServiceSid: c.twilioMessagingServiceSid,
           twilioAccountSid: c.twilioAccountSid ? c.twilioAccountSid.slice(0, 6) + "…" + c.twilioAccountSid.slice(-4) : "",
-          hasQuo: !!c.quoApiKey, quoFromNumber: c.quoFromNumber,
+          hasQuo: !!c.quoApiKey, quoFromNumber: c.quoFromNumber, hhFromNumber: c.hhFromNumber,
           testPhone: c.testPhone,
         });
       }
@@ -2082,7 +2190,7 @@ const server = http.createServer(async (req, res) => {
         const patch = {};
         for (const k of ["fromEmail", "fromName", "stream", "replyTo", "testEmail", "paypalEnv",
           "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken", "scrapeCreatorsKey",
-          "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber"]) if (k in b) patch[k] = b[k];
+          "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber", "hhFromNumber"]) if (k in b) patch[k] = b[k];
         if (b.postmarkToken) patch.postmarkToken = b.postmarkToken.trim();
         if (b.mailgunApiKey) patch.mailgunApiKey = b.mailgunApiKey.trim();
         if ("mailgunClickTracking" in b) patch.mailgunClickTracking = !!b.mailgunClickTracking;

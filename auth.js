@@ -23,6 +23,20 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "";
 const ALLOWED_DOMAIN = (process.env.ALLOWED_DOMAIN || "cratehackers.com").toLowerCase();
+// Outside reps (Travis, Jaymie, Nick Spinelli) don't have @cratehackers.com Google
+// accounts, so they're allowed in by exact email — and only as role "rep", which
+// server.js limits to the Sell By Chat endpoints. Anyone on the company domain is
+// an "owner" and sees everything, as before.
+//   SBC_REP_EMAILS="travis@example.com, nick@nickspinelli.com"
+const REP_EMAILS = new Set(
+  (process.env.SBC_REP_EMAILS || "").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@"))
+);
+function roleFor(email) {
+  const e = (email || "").toLowerCase();
+  if (e.endsWith("@" + ALLOWED_DOMAIN)) return "owner";
+  if (REP_EMAILS.has(e)) return "rep";
+  return null;
+}
 const OAUTH_BASE_URL = (process.env.OAUTH_BASE_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "");
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -133,7 +147,7 @@ function loginPage(res, returnTo) {
     `<h1>Email Console</h1>
      <p>Sign in with your Crate Hackers Google account to continue.</p>
      <a class="btn" href="/auth/google?return=${encodeURIComponent(r)}">${GOOGLE_G}<span>Sign in with Google</span></a>
-     <div class="muted">Restricted to @${ALLOWED_DOMAIN} accounts.</div>`);
+     <div class="muted">@${ALLOWED_DOMAIN} accounts${REP_EMAILS.size ? " and invited sales reps" : ""}.</div>`);
 }
 
 // ---------- OAuth route handler ----------
@@ -160,7 +174,10 @@ async function handleAuthRoute(req, res, u) {
     a.searchParams.set("redirect_uri", redirectUri(req));
     a.searchParams.set("response_type", "code");
     a.searchParams.set("scope", "openid email profile");
-    a.searchParams.set("hd", ALLOWED_DOMAIN);
+    // `hd` hard-limits Google's account picker to the company domain, which would
+    // stop an invited outside rep from even choosing their account. Only apply it
+    // when no reps are invited; the callback validates the address either way.
+    if (!REP_EMAILS.size) a.searchParams.set("hd", ALLOWED_DOMAIN);
     a.searchParams.set("state", state);
     a.searchParams.set("prompt", "select_account");
     return redirect(res, a.toString());
@@ -204,17 +221,20 @@ async function handleAuthRoute(req, res, u) {
          <a class="btn" href="/auth/login">Try again</a>`);
     }
     const email = (claims.email || "").toLowerCase();
-    const domainOk = claims.email_verified && email.endsWith("@" + ALLOWED_DOMAIN) &&
-      (!claims.hd || String(claims.hd).toLowerCase() === ALLOWED_DOMAIN);
-    if (!domainOk) {
+    const role = claims.email_verified ? roleFor(email) : null;
+    // company-domain accounts must also carry a matching `hd` claim; invited reps
+    // are matched on the exact address instead, so they have no `hd` to check
+    const hdOk = role !== "owner" || !claims.hd || String(claims.hd).toLowerCase() === ALLOWED_DOMAIN;
+    if (!role || !hdOk) {
       return page(res, 403, "Access restricted",
         `<h1>Access restricted</h1>
-         <p>This console is limited to <b>@${ALLOWED_DOMAIN}</b> accounts.
+         <p>This console is for <b>@${ALLOWED_DOMAIN}</b> accounts and invited reps.
          You signed in as ${email ? "<b>" + email + "</b>" : "an outside account"}.</p>
+         <p class="muted">If you're on the sales team and this is your work email, ask Dom to add it.</p>
          <a class="btn" href="/auth/login">Use a different account</a>`);
     }
-    setCookie(res, req, "chsess", sign({ email, name: claims.name || email, exp: Date.now() + SESSION_TTL_MS }), { maxAgeMs: SESSION_TTL_MS });
-    return redirect(res, st.ret && st.ret.startsWith("/") ? st.ret : "/");
+    setCookie(res, req, "chsess", sign({ email, name: claims.name || email, role, exp: Date.now() + SESSION_TTL_MS }), { maxAgeMs: SESSION_TTL_MS });
+    return redirect(res, st.ret && st.ret.startsWith("/") ? st.ret : (role === "rep" ? "/#sbc" : "/"));
   }
 
   return redirect(res, "/auth/login");
@@ -224,9 +244,10 @@ async function handleAuthRoute(req, res, u) {
 // Returns the signed-in user, or null (in which case it has already responded
 // with a redirect-to-login or a 401 for API calls).
 function requireUser(req, res, { isApi } = {}) {
-  if (!enabled) return { email: "local@localhost", name: "Local", local: true };
+  if (!enabled) return { email: "local@localhost", name: "Local", role: "owner", local: true };
   const sess = verify(parseCookies(req).chsess);
-  if (sess && sess.email) return sess;
+  // sessions minted before roles existed have no role — re-derive it from the email
+  if (sess && sess.email) return { ...sess, role: sess.role || roleFor(sess.email) || "rep" };
   if (isApi) {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "auth required", login: "/auth/login" }));

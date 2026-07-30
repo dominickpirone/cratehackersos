@@ -533,7 +533,7 @@
         <div class="panel-head">
           <span class="eyebrow">// Sell By Chat</span>
           <h1>Sell By Chat</h1>
-          <p>Scripts, shared pipeline and goal tracking for Dom · Travis · Jaymie. Fill the boxes once and every script below personalizes itself — click any line to copy it.</p>
+          <p>Scripts, shared pipeline and goal tracking for Dom · Travis · Jaymie · Nick. Fill the boxes once and every script below personalizes itself — click any line to copy it. Flag a fence-sitter with <b>⚑ Nick</b> and it moves to him to close.</p>
         </div>
 
         <div id="sbcGoal"></div>
@@ -561,6 +561,13 @@
         <h2 class="section-label" style="margin-top:28px">Pipeline <span id="sbcCount" class="muted small"></span></h2>
         <p class="section-sub">Shared across all three reps so nobody DMs a prospect someone else is already working. Logging a touch auto-sets the next follow-up on the 0·1·1·2·3·5·8·13 cadence.</p>
         <div class="card" style="margin-bottom:14px">
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <b style="font-size:13px">Virtual pass buyers</b>
+            <label class="field" style="margin:0;width:120px"><span class="lab">Assign to</span><select id="sbcSyncRep"></select></label>
+            <button id="sbcSync" class="btn btn-primary sm">Pull from Kartra →</button>
+            <button id="sbcEnrich" class="btn btn-ghost sm">Look up phone numbers</button>
+            <span id="sbcSyncMsg" class="muted small"></span>
+          </div>
           <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
             <label class="field" style="margin:0;width:110px"><span class="lab">Platform</span><select id="sbcPlatform"><option value="ig">IG</option><option value="fb">Facebook</option><option value="group">DJ Group</option></select></label>
             <label class="field" style="margin:0;width:150px"><span class="lab">Handle</span><input id="sbcHandle" type="text" placeholder="@djmike" /></label>

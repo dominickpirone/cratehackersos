@@ -78,3 +78,7 @@ services:
         sync: false
       - key: SCRAPECREATORS_API_KEY   # Creators tab — metered, one credit per call
         sync: false
+      - key: SBC_REP_EMAILS           # outside sales reps; Sell By Chat access only
+        sync: false
+      - key: HH_FROM_NUMBER           # "Hacker Hotel HQ" Quo number for SBC texts
+        sync: false
