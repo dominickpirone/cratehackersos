@@ -441,6 +441,69 @@ function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); 
 // ---------- creators (ScrapeCreators: discover on TikTok / IG / YouTube, then enrich) ----------
 // Every call costs one API credit, so search returns everything it can in a single
 // hit (handle, name, followers) and a per-creator profile lookup is opt-in.
+// ---------- Sell By Chat (shared pipeline for Dom / Travis / Jaymie) ----------
+// One prospect per conversation. Three reps work the same IG/FB inboxes, so the
+// point of keeping this server-side is that nobody opens a DM someone else is
+// already working. Follow-up dates come off the playbook's 0-1-1-2-3-5-8-13 cadence.
+// The Hacker Hotel offer lineup. Each offer is matched in the Kartra ledger by
+// product + price band, because five of these have never sold before and amount
+// alone isn't enough to tell them apart.
+//   · mega starts at $2,900 so it can't swallow the historical $2,750 in-person ticket
+//   · spinelli starts at $380 so it catches the $397 the Challenge has already taken
+//   · bb-life is safe at $250 because Banger Button has only ever sold at
+//     $9.99 / $67 / $90 / $91 / $99.99 — but "Crate Hackers" HAS 69 sales at $250
+//     (the July 4 BOGO), which is why this matches on product too
+const HH_OFFERS = [
+  { id: "mega", label: "MEGA Offer (everything)", price: 3500, priceNote: "$3K–$4K — CONFIRM", match: /crate\s*hackers|hacker\s*hotel/i, min: 2900, max: 6000 },
+  { id: "ch-life", label: "CH Lifetime (+ jacket)", price: 997, match: /^crate\s*hackers$/i, min: 950, max: 1050 },
+  { id: "ddj-life", label: "DangerousDJs (+ jacket)", price: 997, match: /dangerous/i, min: 950, max: 1050, warn: "needs its own Kartra product — otherwise a $997 here is indistinguishable from CH Lifetime" },
+  { id: "hh2027", label: "HH 2027 deposit", price: 497, match: /hacker\s*hotel/i, min: 470, max: 520 },
+  { id: "spinelli", label: "Spinelli Social Media Challenge", price: 497, match: /spinelli/i, min: 380, max: 520 },
+  { id: "l11-year", label: "Level 11 annual", price: 1500, match: /level\s*-?\s*11/i, min: 1400, max: 1600 },
+  { id: "bb-life", label: "BB Lifetime", price: 250, match: /banger\s*button/i, min: 230, max: 270 },
+  { id: "l11-mo", label: "Level 11 monthly", price: 150, match: /level\s*-?\s*11/i, min: 140, max: 160 },
+];
+function offerSalesFor(rows, from, to) {
+  const out = [];
+  for (const o of HH_OFFERS) {
+    let conv = 0, revenue = 0;
+    for (const r of rows) {
+      if (r.type !== "sale" || !o.match.test(r.product)) continue;
+      if (from && r.date < from) continue;
+      if (to && r.date > to) continue;
+      if (r.amount < o.min || r.amount > o.max) continue;
+      conv++; revenue += r.amount;
+    }
+    out.push({ id: o.id, label: o.label, price: o.price, priceNote: o.priceNote || null, warn: o.warn || null, conv, revenue: Math.round(revenue * 100) / 100 });
+  }
+  return out;
+}
+
+const SBC_FILE = path.join(DATA, "sbc.json");
+const SBC_STAGES = ["lead", "qualified", "offer_made", "closed_won", "closed_lost"];
+const SBC_REPS = ["dom", "travis", "jaymie"];
+const SBC_CADENCE = [0, 1, 1, 2, 3, 5, 8, 13];
+function loadSbc() {
+  const dflt = { goal: 250000, from: "2026-07-30", to: "2026-08-31", prospects: [] };
+  try {
+    const d = JSON.parse(fs.readFileSync(SBC_FILE, "utf8"));
+    return {
+      goal: typeof d.goal === "number" ? d.goal : dflt.goal,
+      from: d.from || dflt.from, to: d.to || dflt.to,
+      prospects: Array.isArray(d.prospects) ? d.prospects : [],
+    };
+  } catch { return dflt; }
+}
+function saveSbc(d) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(SBC_FILE, JSON.stringify(d, null, 2)); } catch {} }
+const todayISO = () => new Date().toISOString().slice(0, 10);
+// next touch = today + the nth gap in the cadence; past the end we hold at 13 days
+function sbcNextDate(touches) {
+  const i = Math.min(Math.max(0, touches), SBC_CADENCE.length - 1);
+  const d = new Date();
+  d.setDate(d.getDate() + SBC_CADENCE[i]);
+  return d.toISOString().slice(0, 10);
+}
+
 const CREATORS_FILE = path.join(DATA, "creators.json");
 function loadCreators() { try { return JSON.parse(fs.readFileSync(CREATORS_FILE, "utf8")); } catch { return []; } }
 function saveCreators(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(CREATORS_FILE, JSON.stringify(list, null, 2)); } catch {} }
@@ -1764,6 +1827,99 @@ const server = http.createServer(async (req, res) => {
         saveInfluencers(merged);
         return send(res, 200, { ok: true, count: merged.length, imported: out.length });
       }
+      // ---------- Sell By Chat ----------
+      if (p === "/api/sbc" && req.method === "GET") {
+        const d = loadSbc();
+        const today = todayISO();
+        const ps = d.prospects;
+        const byStage = {}; SBC_STAGES.forEach((s) => byStage[s] = 0);
+        const byRep = {}; SBC_REPS.forEach((r) => byRep[r] = { lead: 0, qualified: 0, offer_made: 0, closed_won: 0, closed_lost: 0, won: 0 });
+        let pipelineValue = 0, wonValue = 0;
+        for (const x of ps) {
+          if (byStage[x.stage] != null) byStage[x.stage]++;
+          const rep = byRep[x.rep] || (byRep[x.rep] = { lead: 0, qualified: 0, offer_made: 0, closed_won: 0, closed_lost: 0, won: 0 });
+          if (rep[x.stage] != null) rep[x.stage]++;
+          const v = Number(x.value) || 0;
+          if (x.stage === "closed_won") { wonValue += v; rep.won += v; }
+          else if (x.stage !== "closed_lost") pipelineValue += v;
+        }
+        // Money actually banked in the campaign window, per offer, off the Kartra ledger
+        let offers = null, banked = 0, ledgerError = null;
+        try {
+          const cfg = loadConfig();
+          if (cfg.salesLedgerCsvUrl) {
+            const rows = await fetchLedger(cfg.salesLedgerCsvUrl);
+            offers = offerSalesFor(rows, d.from, d.to);
+            banked = Math.round(offers.reduce((a, o) => a + o.revenue, 0) * 100) / 100;
+          }
+        } catch (e) { ledgerError = String((e && e.message) || e); }
+        return send(res, 200, {
+          goal: d.goal, from: d.from, to: d.to,
+          reps: SBC_REPS, stages: SBC_STAGES, cadence: SBC_CADENCE,
+          prospects: ps, byStage, byRep, pipelineValue: Math.round(pipelineValue * 100) / 100,
+          wonValue: Math.round(wonValue * 100) / 100,
+          dueToday: ps.filter((x) => x.nextAt && x.nextAt <= today && x.stage !== "closed_won" && x.stage !== "closed_lost").length,
+          today, offers, banked, remaining: Math.round((d.goal - banked) * 100) / 100, ledgerError,
+        });
+      }
+      if (p === "/api/sbc/goal" && req.method === "POST") {
+        const b = await readBody(req);
+        const d = loadSbc();
+        if ("goal" in b) {
+          const g = parseFloat(b.goal);
+          if (!(g >= 0)) return send(res, 400, { error: "Enter a dollar goal." });
+          d.goal = Math.round(g);
+        }
+        if (b.from) d.from = String(b.from).slice(0, 10);
+        if (b.to) d.to = String(b.to).slice(0, 10);
+        saveSbc(d);
+        return send(res, 200, { ok: true, goal: d.goal, from: d.from, to: d.to });
+      }
+      if (p === "/api/sbc/prospect" && req.method === "POST") {
+        const b = await readBody(req);
+        const handle = String(b.handle || "").trim().replace(/^@/, "");
+        if (!handle) return send(res, 400, { error: "Handle is required." });
+        const d = loadSbc();
+        const platform = String(b.platform || "ig").toLowerCase();
+        const id = platform + ":" + handle.toLowerCase();
+        if (d.prospects.some((x) => x.id === id)) return send(res, 400, { error: `${handle} is already in the pipeline — check who owns it before you DM.` });
+        const rep = SBC_REPS.includes(b.rep) ? b.rep : "dom";
+        d.prospects.unshift({
+          id, platform, handle, name: String(b.name || "").trim(), rep,
+          stage: "lead", offer: String(b.offer || "").trim(), value: Number(b.value) || 0,
+          pointA: "", pointB: "", roadblock: "", pain: "", notes: String(b.notes || "").trim(),
+          touches: 0, nextAt: sbcNextDate(0), createdAt: new Date().toISOString(), history: [{ at: new Date().toISOString(), stage: "lead" }],
+        });
+        saveSbc(d);
+        return send(res, 200, { ok: true, id, total: d.prospects.length });
+      }
+      if (p.startsWith("/api/sbc/prospect/") && req.method === "PATCH") {
+        const id = decodeURIComponent(p.slice("/api/sbc/prospect/".length));
+        const b = await readBody(req);
+        const d = loadSbc();
+        const x = d.prospects.find((y) => y.id === id);
+        if (!x) return send(res, 404, { error: "No such prospect." });
+        if (b.stage && SBC_STAGES.includes(b.stage) && b.stage !== x.stage) {
+          x.stage = b.stage;
+          x.history = (x.history || []).concat([{ at: new Date().toISOString(), stage: b.stage }]);
+        }
+        if (b.rep && SBC_REPS.includes(b.rep)) x.rep = b.rep;
+        for (const k of ["name", "offer", "pointA", "pointB", "roadblock", "pain", "notes"]) if (k in b) x[k] = String(b[k] || "");
+        if ("value" in b) x.value = Number(b.value) || 0;
+        // "logged a touch" advances the cadence rather than making you pick a date
+        if (b.touched) { x.touches = (x.touches || 0) + 1; x.nextAt = sbcNextDate(x.touches); x.lastTouchAt = new Date().toISOString(); }
+        if (b.nextAt) x.nextAt = String(b.nextAt).slice(0, 10);
+        saveSbc(d);
+        return send(res, 200, { ok: true, prospect: x });
+      }
+      if (p.startsWith("/api/sbc/prospect/") && req.method === "DELETE") {
+        const id = decodeURIComponent(p.slice("/api/sbc/prospect/".length));
+        const d = loadSbc();
+        d.prospects = d.prospects.filter((x) => x.id !== id);
+        saveSbc(d);
+        return send(res, 200, { ok: true });
+      }
+
       // ---------- creators ----------
       if (p === "/api/creators" && req.method === "GET") {
         return send(res, 200, { creators: loadCreators(), credits: SC_CREDITS, configured: !!loadConfig().scrapeCreatorsKey });

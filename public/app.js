@@ -48,6 +48,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "failed-payments") loadFailedPayments();
     if (btn.dataset.tab === "ad-library") { loadAds(); loadInfluencers(); }
     if (btn.dataset.tab === "creators") loadCreators();
+    if (btn.dataset.tab === "sbc") loadSbc();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -1643,6 +1644,225 @@ if ($("#outreachInsertName")) $("#outreachInsertName").onclick = () => {
   try { localStorage.setItem(OUTREACH_MSG_KEY, t.value); } catch {}
   const pos = s + token.length;
   t.focus(); t.setSelectionRange(pos, pos);
+};
+
+// ---------- Sell By Chat ----------
+// Scripts are transcribed from the Sell By Chat playbook + script library. The
+// Hacker Hotel offer sequences are new (the docs only covered Level 11 and the
+// old $3K Spinelli Sprint) and deliberately keep price/seats as placeholders so
+// nobody ships an invented number.
+const SBC_SCRIPTS = [
+  { section: "Opens", note: "Name → appreciate the action → a personal line a bot couldn't write → either-or question.", items: [
+    { title: "New follower (IG or FB)", lines: ["[Name]! 🤘", "Appreciate the follow man", "[Personal comment about their latest post/gig — something a bot couldn't say]", "You here for the crate videos or working on growing the DJ biz too?"] },
+    { title: "Story reply / comment", lines: ["[Name]! Glad that one hit 🔥", "You dealing with that too or past it already?"] },
+    { title: "New DJ Playlist Group member", lines: ["[Name]! Welcome to the group 🎧", "Saw you just joined — solid crew of DJs in here", "What kind of gigs you spinning these days?"] },
+    { title: "Repeat engager (likes everything, never talks)", lines: ["[Name] — keep seeing you in the notifications 😂", "Figured I'd finally say what's up", "How long you been DJing?"] },
+    { title: "Inbound question about Crate Hackers / Banger Button", lines: ["Great q — [answer it, actually help]", "Btw what are you working with — Serato? Rekordbox?", "And is DJing the side hustle or the main thing?"] },
+  ]},
+  { section: "Qualifying", note: "Weave in naturally, never all at once. At least 9 messages before any offer talk.", items: [
+    { title: "The flow", lines: ["Tell me a bit about the DJ biz — solo or you got a team?", "How many gigs a month right now?", "What do you love most about it?", "What's the biggest thing you're wrestling with?", "Want to dig in a bit and see if we can help?"] },
+    { title: "A–B Method", lines: ["So where's the business at right now — gigs per month, average rate?", "And 12 months from now… where do you WANT it?", "Ok so what's the #1 thing standing between those two?", "What do you feel is missing to get there?"] },
+    { title: "Reward every pain admission", lines: ["I hear you", "Struggle is real…", "That sucks", "Ok so making progress", "Sounds like you've been busy", "100%"] },
+    { title: "Lean out (when they lean out)", lines: ["Not a problem — can only help the DJs swimming toward me", "Here when you're ready to level up", "Circle back when you want to move faster"] },
+    { title: "Testing commitment", lines: ["Scale of 1–10 — how important is fixing this?", "Now thing or later thing?", "Nice-to-have or must-have?", "I only work with action-takers. Ready to commit or you'd rather settle?"] },
+    { title: "Reframe up (they sound hopeless)", lines: ["It's not that you can't grow — your plan was never built to work. Nobody taught you the business side of DJing.", "Forget the next 12 months. If we just fixed your lead flow first, would life get easier?", "Had a DJ just like you last month — same story. Fixed one piece and bookings started moving.", "Nothing you tried was wasted. It showed us exactly what doesn't work."] },
+    { title: "Anchor to cost (ego / DIY)", lines: ["Makes sense — you clearly got the drive. Most DJs don't even get this far.", "Out of curiosity, if it's working… what's stopped you from already being at [Point B]?", "Being the guy who does everything is exactly what keeps the calendar where it is.", "Every month this stays the same, that's another $2–3K of gigs left on the table."] },
+  ]},
+  { section: "Hacker Hotel offers", note: "Dom only, 9+ messages in, pain confirmed. Send as rapid-fire separate messages, not one block.", items: [
+    { title: "MEGA Offer — everything", lines: ["Ok [Name] — here's the one I'd actually put you in", "We built a MEGA bundle for Hacker Hotel week only", "Everything we've ever made — Crate Hackers lifetime, Banger Button lifetime, Level 11, the Spinelli challenge, DangerousDJs. All of it.", "One payment. Lifetime. Nothing else to buy after this.", "$[PRICE]", "Only [SEATS] going out at this price and it dies when the event does", "Want the link? 👊"] },
+    { title: "CH Lifetime — $997 (+ jacket)", lines: ["[Name] here's the play", "Crate Hackers lifetime — one payment, never pay again", "Every crate, every update, forever", "And you get the jacket 🧥", "$[PRICE]", "Hacker Hotel week only, then it goes back to monthly", "In? 👊"] },
+    { title: "DangerousDJs — $997 (+ jacket)", lines: ["[Name] — this one's different", "DangerousDJs. Lifetime access.", "[CONFIRM: one line on what DangerousDJs actually is]", "Comes with the jacket 🧥", "$[PRICE] one payment", "Only doing this at Hacker Hotel", "You want in?"] },
+    { title: "HH 2027 deposit — $497", lines: ["[Name] before you go —", "We're announcing Hacker Hotel 2027 and locking the room block now", "$[PRICE] deposit holds your seat at this year's price", "2026 sold out and people got shut out — don't be that guy", "Deposit credits fully toward your ticket", "Want me to lock one for you?"] },
+    { title: "Spinelli Social Media Challenge — $497", lines: ["Alright [Name] — you're a fit for this", "6-Week Social Media Challenge with Nick Spinelli", "Yeah — THE Spinelli. 700K followers. The GOAT of DJ social.", "Weekly live masterclass + group coaching where he reviews YOUR content", "$[PRICE] for the 6 weeks", "Small group, doors close when the event does", "IN, or questions? 🔥"] },
+    { title: "Level 11 — open doors", lines: ["Ok here's the deal", "We run a program called LEVEL 11", "Weekly live calls, AI tools that do your prep + marketing WITH you, and a crew of DJs actually building — not just talking", "Built to get you [Point B] without guessing", "You show up, do the work, we make sure you don't fail", "$[PRICE] — or grab the year and save a chunk", "Want in? 👊"] },
+    { title: "BB Lifetime — $250", lines: ["Quick one [Name]", "Banger Button lifetime is on the table this week", "The button that finds your next banger mid-set — yours forever, no subscription", "$[PRICE] one time", "Cheapest thing we've ever put on the table", "Want it?"] },
+    { title: "Payment push", lines: ["Here's the link ^ takes 10 seconds", "[LINK]", "Lmk when it's done — got some goodies to send ya ;)", "Standing by"] },
+    { title: "Post-close", lines: ["LET'S GO 🔥 Pumped to work with you!!", "How you feeling — nervous? excited? ready?", "(wait for the answer)", "Haha all good emotions", "Calls are [DAY] — lock your calendar", "Get in the app + run the onboarding checklist", "Show up every week. You commit, I make sure you don't fail 🚀"] },
+  ]},
+  { section: "Follow-ups", note: "Cadence 0·1·1·2·3·5·8·13. Logging a touch in the pipeline below sets the next date for you.", items: [
+    { title: "Ghosted mid-convo", lines: ["30 min: like their last message / engage their newest post", "Get my note?", "Ping^ ;)", "[Name]?", "Sorry, got busy", "[Name] I'm worried about you :-o — everything alright?", "Day 6: 🕵️ / DJ meme / funny gif", "Haven't heard back… keep this going or should I close your file?"] },
+    { title: "Reactivation (1–2x/month)", lines: ["Hey [Name] — just dropped a new training on [PAIN]", "Thought of you: [LINK]", "Been getting some unreal wins with the Level 11 DJs lately and thought of you", "What would it need to look like to be a no-brainer for you?", "Still trying to figure out [PAIN]?"] },
+    { title: "Hacker Hotel week (Aug 3–7)", lines: ["We're covering exactly this at Hacker Hotel this week — grab the virtual pass and catch it live.", "[Name] we're live all week — you catching any of it?", "Doors on everything close when the event does. Want me to walk you through the options?"] },
+  ]},
+  { section: "Objections", note: "Don't answer objections — reframe them. You're competing with inaction, not other coaches.", items: [
+    { title: "Spouse", lines: ["Besides the green light at home, do YOU feel this gets you to [Point B]?", "What do you think their main concern will be?", "You run a DJ business. You make a hundred calls a night on the fly. Why's this one different?"] },
+    { title: "Too busy", lines: ["That's literally why DJs join — the whole point is buying your time back.", "Besides finding the time, do you feel this would help?", "Most guys save hours a week on prep alone. Want that?"] },
+    { title: "Too expensive", lines: ["Is money the only thing holding you back — or other concerns?", "If money wasn't an issue, would you start today?", "Then would breaking it up help?", "What's more expensive — staying stuck another year, or fixing it? ONE extra wedding covers it."] },
+    { title: "Bad timing", lines: ["Timing matters, for sure. What makes it feel off?", "After hundreds of DJs I've learned it's rarely timing — it's priorities. How big a priority is [PAIN]?"] },
+    { title: "Tried before", lines: ["What specifically didn't work?", "Right — no plan, no accountability. That's exactly what this is.", "If you had that, do you feel you'd get results? Willing to show up and be pushed?"] },
+    { title: "Doing fine", lines: ["Love it. This is less about fixing what's broken and more about accelerating what works.", "If you could change ONE thing to speed it up, what would it be?"] },
+    { title: "Think about it", lines: ["Besides thinking on it, do you feel this gets you to [Point B]?", "What do you want to run through — maybe I can help now.", "How long you been thinking about fixing this? What's the thinking cost so far?"] },
+    { title: "Not interested", lines: ["All good! Curious — is it the price, the plan, or me? :-)", "Helps me help the next DJ either way."] },
+  ]},
+];
+
+let SBC = null;
+const SBC_STAGE_LABEL = { lead: "Lead", qualified: "Qualified", offer_made: "Offer made", closed_won: "Closed won", closed_lost: "Closed lost" };
+const sbcTitle = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Substitute the context boxes into a script line; anything left in [brackets]
+// is wrapped so it's obvious it still needs a human.
+function sbcFill(line) {
+  const g = (id) => (($("#" + id) && $("#" + id).value) || "").trim();
+  // the scripts already carry the "$" (as "$[PRICE]"), so strip one if it's typed too
+  const map = {
+    "[Name]": g("sbcName"), "[PRICE]": g("sbcPrice").replace(/^\$/, ""),
+    "[SEATS]": g("sbcSeats"), "[Point B]": g("sbcPointB"), "[PAIN]": g("sbcPain"),
+    "[DAY]": g("sbcDay"), "[LINK]": g("sbcLink"),
+  };
+  let out = line;
+  for (const [k, v] of Object.entries(map)) if (v) out = out.split(k).join(v);
+  return out;
+}
+const sbcMark = (s) => esc(s).replace(/\[[^\]]+\]/g, (m) => `<span style="background:#3a2c07;color:#ffd98a;border-radius:4px;padding:0 3px">${m}</span>`);
+
+async function sbcCopy(text, el) {
+  try { await navigator.clipboard.writeText(text); } catch { return toast("Couldn't copy — clipboard blocked.", "err"); }
+  if (el) { const p = el.style.background; el.style.background = "#1d3a24"; setTimeout(() => el.style.background = p, 400); }
+}
+
+function renderSbcScripts() {
+  const wrap = $("#sbcScripts"); if (!wrap) return;
+  const q = (($("#sbcSearch") && $("#sbcSearch").value) || "").trim().toLowerCase();
+  let html = "";
+  for (const sec of SBC_SCRIPTS) {
+    const items = sec.items.filter((it) => !q || (it.title + " " + it.lines.join(" ")).toLowerCase().includes(q));
+    if (!items.length) continue;
+    html += `<h3 style="margin:18px 0 2px;font-size:14px">${esc(sec.section)}</h3>
+      <p class="muted small" style="margin:0 0 10px">${esc(sec.note)}</p>`;
+    for (const it of items) {
+      const filled = it.lines.map(sbcFill);
+      html += `<div class="card" style="margin-bottom:10px;padding:12px 14px">
+        <div class="row between" style="align-items:center;margin-bottom:6px">
+          <b style="font-size:13px">${esc(it.title)}</b>
+          <button class="btn btn-ghost sm" data-sbccopyall="${esc(filled.join("\n"))}">Copy all</button>
+        </div>
+        ${filled.map((l) => `<div class="sbc-line" data-sbccopy="${esc(l)}" title="Click to copy this line">${sbcMark(l)}</div>`).join("")}
+      </div>`;
+    }
+  }
+  wrap.innerHTML = html || `<p class="muted small">No scripts match “${esc(q)}”.</p>`;
+  $$("[data-sbccopy]").forEach((el) => el.onclick = () => sbcCopy(el.dataset.sbccopy, el));
+  $$("[data-sbccopyall]").forEach((el) => el.onclick = () => { sbcCopy(el.dataset.sbccopyall, el); toast("Whole sequence copied.", "ok"); });
+}
+["sbcName", "sbcPointB", "sbcPain", "sbcPrice", "sbcSeats", "sbcDay", "sbcLink"].forEach((id) => {
+  if ($("#" + id)) $("#" + id).oninput = renderSbcScripts;
+});
+if ($("#sbcSearch")) $("#sbcSearch").oninput = renderSbcScripts;
+
+function renderSbcGoal() {
+  const el = $("#sbcGoal"); if (!el || !SBC) return;
+  const pct = SBC.goal ? Math.min(100, (SBC.banked / SBC.goal) * 100) : 0;
+  const offers = SBC.offers || [];
+  const warns = offers.filter((o) => o.warn);
+  el.innerHTML = `
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      ${funMetric("Banked", fmtMoney(SBC.banked))}
+      ${funMetric("Goal", fmtMoney(SBC.goal))}
+      ${funMetric("Remaining", fmtMoney(SBC.remaining))}
+      ${funMetric("In pipeline", fmtMoney(SBC.pipelineValue))}
+      ${funMetric("Due today", fmt(SBC.dueToday))}
+    </div>
+    <div style="height:12px;background:#0e0f12;border-radius:6px;overflow:hidden;margin-bottom:6px">
+      <div style="height:100%;width:${pct}%;background:${pct >= 100 ? "#22c55e" : "#FF7722"}"></div>
+    </div>
+    <p class="muted small" style="margin:0 0 14px">${pct.toFixed(1)}% of goal · window ${esc(SBC.from)} → ${esc(SBC.to)}
+      <button id="sbcEditGoal" class="linkish" style="margin-left:8px">edit</button>
+      ${SBC.ledgerError ? ` · <span style="color:var(--err)">ledger: ${esc(SBC.ledgerError)}</span>` : ""}</p>
+    <div class="tbl-wrap" style="overflow-x:auto"><table class="camp-table" style="min-width:560px"><thead><tr>
+      <th>Offer</th><th class="num">List price</th><th class="num">Sold</th><th class="num">Revenue</th><th class="num">% of goal</th></tr></thead><tbody>
+      ${offers.map((o) => `<tr><td>${esc(o.label)}${o.priceNote ? ` <span class="muted small">(${esc(o.priceNote)})</span>` : ""}</td>
+        <td class="num">${fmtMoney(o.price)}</td><td class="num">${fmt(o.conv)}</td><td class="num">${fmtMoney(o.revenue)}</td>
+        <td class="num">${SBC.goal ? ((o.revenue / SBC.goal) * 100).toFixed(1) + "%" : "—"}</td></tr>`).join("")}
+    </tbody></table></div>
+    ${warns.length ? `<p class="muted small" style="margin-top:8px;color:#ffd98a">⚠ ${warns.map((w) => `<b>${esc(w.label)}</b> — ${esc(w.warn)}`).join(" · ")}</p>` : ""}`;
+  if ($("#sbcEditGoal")) $("#sbcEditGoal").onclick = async () => {
+    const goal = prompt("Dollar goal for the campaign:", String(SBC.goal));
+    if (goal == null) return;
+    const from = prompt("Count sales from (YYYY-MM-DD):", SBC.from);
+    if (from == null) return;
+    const to = prompt("Count sales to (YYYY-MM-DD):", SBC.to);
+    if (to == null) return;
+    const r = await post("/api/sbc/goal", { goal: parseFloat(goal), from, to });
+    if (r.error) return toast(r.error, "err");
+    loadSbc();
+  };
+}
+
+function renderSbcPipeline() {
+  const el = $("#sbcPipeline"); if (!el || !SBC) return;
+  const repF = ($("#sbcFilterRep") && $("#sbcFilterRep").value) || "";
+  const stF = ($("#sbcFilterStage") && $("#sbcFilterStage").value) || "";
+  const dueOnly = $("#sbcDueOnly") && $("#sbcDueOnly").checked;
+  const rows = (SBC.prospects || []).filter((x) =>
+    (!repF || x.rep === repF) && (!stF || x.stage === stF) &&
+    (!dueOnly || (x.nextAt && x.nextAt <= SBC.today && x.stage !== "closed_won" && x.stage !== "closed_lost")));
+  if ($("#sbcCount")) $("#sbcCount").textContent = `(${rows.length}${rows.length !== (SBC.prospects || []).length ? ` of ${SBC.prospects.length}` : ""})`;
+  if (!rows.length) { el.innerHTML = `<p class="muted small">No prospects${(SBC.prospects || []).length ? " match that filter" : " yet — add one above"}.</p>`; return; }
+  el.innerHTML = `<div class="tbl-wrap" style="overflow-x:auto"><table class="camp-table" style="min-width:820px"><thead><tr>
+    <th>Prospect</th><th>Rep</th><th>Stage</th><th>Offer</th><th class="num">Value</th><th class="num">Next</th><th></th></tr></thead><tbody>` +
+    rows.map((x) => {
+      const due = x.nextAt && x.nextAt <= SBC.today && x.stage !== "closed_won" && x.stage !== "closed_lost";
+      return `<tr>
+        <td><b>${esc(x.name || x.handle)}</b><br /><span class="muted small">${esc(x.platform)} · @${esc(x.handle)}</span></td>
+        <td><select data-sbcrep="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.reps || []).map((r) => `<option value="${r}"${x.rep === r ? " selected" : ""}>${sbcTitle(r)}</option>`).join("")}</select></td>
+        <td><select data-sbcstage="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.stages || []).map((s) => `<option value="${s}"${x.stage === s ? " selected" : ""}>${SBC_STAGE_LABEL[s] || s}</option>`).join("")}</select></td>
+        <td class="muted small">${esc(x.offer || "—")}</td>
+        <td class="num">${fmtMoney(x.value)}</td>
+        <td class="num"${due ? ' style="color:#ffd98a;font-weight:700"' : ""}>${esc(x.nextAt || "—")}<br /><span class="muted small">${fmt(x.touches || 0)} touch${(x.touches || 0) === 1 ? "" : "es"}</span></td>
+        <td style="white-space:nowrap"><button class="secondary" data-sbctouch="${esc(x.id)}" title="Log a touch — sets the next follow-up date">Touched</button>
+          <button class="secondary" data-sbcdel="${esc(x.id)}">✕</button></td></tr>`;
+    }).join("") + `</tbody></table></div>`;
+  const patch = async (id, body) => {
+    const r = await api("/api/sbc/prospect/" + encodeURIComponent(id), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (r && r.error) { toast(r.error, "err"); return false; }
+    return true;
+  };
+  $$("[data-sbcrep]").forEach((s) => s.onchange = async () => { if (await patch(s.dataset.sbcrep, { rep: s.value })) loadSbc(); });
+  $$("[data-sbcstage]").forEach((s) => s.onchange = async () => { if (await patch(s.dataset.sbcstage, { stage: s.value })) loadSbc(); });
+  $$("[data-sbctouch]").forEach((b) => b.onclick = async () => { if (await patch(b.dataset.sbctouch, { touched: true })) { loadSbc(); toast("Touch logged — next follow-up set.", "ok"); } });
+  $$("[data-sbcdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Remove this prospect?")) return;
+    await api("/api/sbc/prospect/" + encodeURIComponent(b.dataset.sbcdel), { method: "DELETE" });
+    loadSbc();
+  });
+}
+
+async function loadSbc() {
+  const d = await api("/api/sbc");
+  if (!d || d.error) return;
+  SBC = d;
+  // populate the rep / stage / offer selects once we know what the server supports
+  const fill = (sel, opts, blank) => {
+    if (!sel) return;
+    const keep = sel.value;
+    sel.innerHTML = (blank ? `<option value="">${blank}</option>` : "") + opts.map((o) => `<option value="${o.v}">${o.l}</option>`).join("");
+    if (keep) sel.value = keep;
+  };
+  fill($("#sbcRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })));
+  fill($("#sbcFilterRep"), (d.reps || []).map((r) => ({ v: r, l: sbcTitle(r) })), "All reps");
+  fill($("#sbcFilterStage"), (d.stages || []).map((s) => ({ v: s, l: SBC_STAGE_LABEL[s] || s })), "All stages");
+  fill($("#sbcOffer"), (d.offers || []).map((o) => ({ v: o.label, l: `${o.label} — ${fmtMoney(o.price)}` })), "No offer yet");
+  renderSbcGoal();
+  renderSbcPipeline();
+  renderSbcScripts();
+}
+["sbcFilterRep", "sbcFilterStage"].forEach((id) => { if ($("#" + id)) $("#" + id).onchange = renderSbcPipeline; });
+if ($("#sbcDueOnly")) $("#sbcDueOnly").onchange = renderSbcPipeline;
+
+if ($("#sbcAdd")) $("#sbcAdd").onclick = async () => {
+  const handle = $("#sbcHandle").value.trim();
+  if (!handle) return toast("Enter their handle.", "err");
+  const offerLabel = $("#sbcOffer").value;
+  const offer = (SBC && (SBC.offers || []).find((o) => o.label === offerLabel)) || null;
+  const r = await post("/api/sbc/prospect", {
+    platform: $("#sbcPlatform").value, handle, name: $("#sbcPName").value.trim(),
+    rep: $("#sbcRep").value, offer: offerLabel, value: offer ? offer.price : 0,
+  });
+  if (r.error) { $("#sbcMsg").textContent = r.error; $("#sbcMsg").style.color = "var(--err)"; return; }
+  $("#sbcMsg").textContent = ""; $("#sbcHandle").value = ""; $("#sbcPName").value = "";
+  await loadSbc();
+  toast(`Added — ${fmt(r.total)} in the pipeline.`, "ok");
 };
 
 // ---------- creators (ScrapeCreators) ----------

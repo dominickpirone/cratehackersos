@@ -43,6 +43,7 @@
       <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
       <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
       <button class="tab" data-tab="creators"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="lbl">Creators</span></button>
+      <button class="tab" data-tab="sbc"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Sell By Chat</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -525,6 +526,57 @@
           </div>
           <div style="flex:2;min-width:340px"><div id="adList"></div></div>
         </div>
+      </section>
+
+      <!-- ===== SELL BY CHAT ===== -->
+      <section id="sbc" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Sell By Chat</span>
+          <h1>Sell By Chat</h1>
+          <p>Scripts, shared pipeline and goal tracking for Dom · Travis · Jaymie. Fill the boxes once and every script below personalizes itself — click any line to copy it.</p>
+        </div>
+
+        <div id="sbcGoal"></div>
+
+        <h2 class="section-label" style="margin-top:24px">Conversation details</h2>
+        <p class="section-sub">Typed once, substituted into every script. Anything still in <code>[brackets]</code> is highlighted so you never paste a placeholder.</p>
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <label class="field" style="margin:0;width:150px"><span class="lab">First name</span><input id="sbcName" type="text" placeholder="Mike" /></label>
+          <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Their Point B <span class="muted small">— where they want to be</span></span><input id="sbcPointB" type="text" placeholder="booked solid at $1,500 a wedding" /></label>
+          <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Their pain <span class="muted small">— in their words</span></span><input id="sbcPain" type="text" placeholder="price shoppers who ghost" /></label>
+        </div>
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:16px">
+          <label class="field" style="margin:0;width:150px"><span class="lab">Price</span><input id="sbcPrice" type="text" placeholder="997" /></label>
+          <label class="field" style="margin:0;width:130px"><span class="lab">Seats left</span><input id="sbcSeats" type="text" placeholder="12" /></label>
+          <label class="field" style="margin:0;width:130px"><span class="lab">Call day</span><input id="sbcDay" type="text" placeholder="Tuesdays" /></label>
+          <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Checkout link</span><input id="sbcLink" type="text" placeholder="https://..." /></label>
+        </div>
+
+        <div class="row between" style="align-items:center;margin-bottom:8px">
+          <h2 class="section-label" style="margin:0">Scripts</h2>
+          <input id="sbcSearch" type="search" placeholder="Search scripts…" style="width:220px" />
+        </div>
+        <div id="sbcScripts"></div>
+
+        <h2 class="section-label" style="margin-top:28px">Pipeline <span id="sbcCount" class="muted small"></span></h2>
+        <p class="section-sub">Shared across all three reps so nobody DMs a prospect someone else is already working. Logging a touch auto-sets the next follow-up on the 0·1·1·2·3·5·8·13 cadence.</p>
+        <div class="card" style="margin-bottom:14px">
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label class="field" style="margin:0;width:110px"><span class="lab">Platform</span><select id="sbcPlatform"><option value="ig">IG</option><option value="fb">Facebook</option><option value="group">DJ Group</option></select></label>
+            <label class="field" style="margin:0;width:150px"><span class="lab">Handle</span><input id="sbcHandle" type="text" placeholder="@djmike" /></label>
+            <label class="field" style="margin:0;width:150px"><span class="lab">Name</span><input id="sbcPName" type="text" placeholder="Mike" /></label>
+            <label class="field" style="margin:0;width:120px"><span class="lab">Rep</span><select id="sbcRep"></select></label>
+            <label class="field" style="margin:0;width:190px"><span class="lab">Offer</span><select id="sbcOffer"></select></label>
+            <button id="sbcAdd" class="btn btn-primary">Add prospect</button>
+            <span id="sbcMsg" class="inline-msg"></span>
+          </div>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <select id="sbcFilterRep" style="width:150px"></select>
+          <select id="sbcFilterStage" style="width:160px"></select>
+          <label class="row" style="gap:6px;align-items:center;font-size:12.5px;color:var(--t3)"><input id="sbcDueOnly" type="checkbox" /> Due today only</label>
+        </div>
+        <div id="sbcPipeline"></div>
       </section>
 
       <!-- ===== CREATORS ===== -->
