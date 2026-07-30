@@ -1717,6 +1717,19 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/creators" && req.method === "GET") {
         return send(res, 200, { creators: loadCreators(), credits: SC_CREDITS, configured: !!loadConfig().scrapeCreatorsKey });
       }
+      // Balance check is free, so the tab can show it on load and Settings can
+      // verify a key without spending anything. Heads-up: a bad key still returns
+      // 200 with creditCount 0, so zero means "wrong key OR genuinely empty".
+      if (p === "/api/creators/credits" && req.method === "GET") {
+        const cfg = loadConfig();
+        if (!cfg.scrapeCreatorsKey) return send(res, 200, { configured: false, credits: null });
+        try {
+          const j = await scrapeCreators(cfg, "/v1/account/credit-balance", {});
+          const credits = typeof j.creditCount === "number" ? j.creditCount : null;
+          SC_CREDITS = credits;
+          return send(res, 200, { configured: true, credits });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
       // Live search — results are NOT saved, so you can look without committing.
       if (p === "/api/creators/search" && req.method === "POST") {
         const b = await readBody(req);

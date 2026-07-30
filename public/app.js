@@ -605,6 +605,10 @@ async function loadSettings() {
     $("#setQuoKey").placeholder = s.hasQuo ? "•••••• (saved — leave blank to keep)" : "paste your Quo API key";
     $("#setQuoFrom").value = s.quoFromNumber || "";
   }
+  if ($("#setScKey")) {
+    $("#setScKey").placeholder = s.hasScrapeCreators ? "•••••• (saved — leave blank to keep)" : "paste your ScrapeCreators API key";
+    if ($("#setScStatus")) $("#setScStatus").textContent = s.hasScrapeCreators ? "" : "Not set yet.";
+  }
 }
 $("#setSave").onclick = async () => {
   const body = {
@@ -692,6 +696,32 @@ if ($("#setQuoTest")) $("#setQuoTest").onclick = async () => {
   $("#setQuoMsg").textContent = r.ok ? `✓ ${r.server}` : "✗ " + r.error;
   $("#setQuoMsg").style.color = r.ok ? "var(--ok)" : "var(--err)";
   if (r.ok) { PROVIDER_STATE = await api("/api/settings"); loadSettings(); }
+};
+if ($("#setScSave")) $("#setScSave").onclick = async () => {
+  const key = $("#setScKey").value.trim();
+  if (!key) return toast("Paste a key first.", "err");
+  await post("/api/settings", { scrapeCreatorsKey: key });
+  $("#setScKey").value = "";
+  await loadSettings();
+  toast("ScrapeCreators key saved ✓", "ok");
+  $("#setScTest").click(); // confirm it works — the balance check is free
+};
+if ($("#setScTest")) $("#setScTest").onclick = async () => {
+  const msg = $("#setScMsg");
+  msg.textContent = "Checking…"; msg.style.color = "var(--muted)";
+  const r = await api("/api/creators/credits");
+  if (r.error) { msg.textContent = "✗ " + r.error; msg.style.color = "var(--err)"; return; }
+  if (!r.configured) { msg.textContent = "✗ no key saved"; msg.style.color = "var(--err)"; return; }
+  // ScrapeCreators answers a bad key with 200 + zero credits rather than a 401,
+  // so zero is ambiguous and we say so instead of claiming the key is fine.
+  if (!r.credits) {
+    msg.textContent = "✗ 0 credits — wrong key, or the account is empty";
+    msg.style.color = "var(--err)";
+  } else {
+    msg.textContent = `✓ ${fmt(r.credits)} credits`;
+    msg.style.color = "var(--ok)";
+    crShowCredits(r.credits);
+  }
 };
 
 // ---------- SMS / MMS tab ----------
@@ -1570,8 +1600,13 @@ async function loadCreators() {
   const d = await api("/api/creators");
   CR_SAVED = d.creators || [];
   crShowCredits(d.credits);
-  if ($("#crConfigNote")) $("#crConfigNote").textContent = d.configured ? "" : "⚠ Set SCRAPECREATORS_API_KEY in the Render environment to enable this tab.";
+  if ($("#crConfigNote")) $("#crConfigNote").textContent = d.configured ? "" : "⚠ Add your ScrapeCreators API key in Settings to enable this tab.";
   renderCrSaved();
+  // the balance endpoint is free, so show the real number rather than waiting
+  // for the first search to report one
+  if (d.configured) {
+    try { const c = await api("/api/creators/credits"); if (c && !c.error) crShowCredits(c.credits); } catch {}
+  }
 }
 
 function crCard(c, { selectable = true, saved = false } = {}) {
