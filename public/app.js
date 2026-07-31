@@ -146,6 +146,22 @@ function filterAudienceOptions() {
 if ($("#audSearch")) $("#audSearch").oninput = filterAudienceOptions;
 const selectedSegments = () => [...$("#audience").selectedOptions].map((o) => o.value);
 const excludedSegments = () => ($("#audienceExclude") ? [...$("#audienceExclude").selectedOptions].map((o) => o.value) : []);
+// Subject A/B — hidden until asked for, so the common case stays one field.
+const abOn = () => !!($("#abWrap") && !$("#abWrap").classList.contains("hidden") && $("#subjectB") && $("#subjectB").value.trim());
+const subjectBValue = () => (abOn() ? $("#subjectB").value.trim() : "");
+const splitPctValue = () => (abOn() ? (parseInt($("#splitPct").value, 10) || 50) : null);
+if ($("#abToggle")) $("#abToggle").onclick = () => {
+  const w = $("#abWrap");
+  w.classList.toggle("hidden");
+  $("#abToggle").classList.toggle("active", !w.classList.contains("hidden"));
+  if (w.classList.contains("hidden")) $("#subjectB").value = "";
+};
+function abHint() {
+  const el = $("#abHint"); if (!el) return;
+  const pct = parseInt($("#splitPct").value, 10) || 50;
+  el.textContent = `the other ${100 - pct}% get B`;
+}
+if ($("#splitPct")) $("#splitPct").oninput = abHint;
 if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
   const n = await loadAudienceOptions();
   toast(`Audiences refreshed — ${fmt(n)} list${n === 1 ? "" : "s"} available.`, "ok");
@@ -315,10 +331,13 @@ $("#sendBtn").onclick = async () => {
   if (!segs.length) return toast("Select at least one audience.", "err");
 
   const pre = await post("/api/preview", { segments: segs, excludeSegments: excludedSegments(), provider: pv });
-  if (!confirm(`Send "${subject}" to ${pre.recipients.toLocaleString()} recipients across [${segs.join(", ")}]\nvia ${pv.toUpperCase()}?${dripSummary()}\n\nThis sends real emails. Continue?`)) return;
+  const abLine = subjectBValue()
+    ? `\nA/B: ${splitPctValue()}% get "${subject}", ${100 - splitPctValue()}% get "${subjectBValue()}"`
+    : "";
+  if (!confirm(`Send "${subject}" to ${pre.recipients.toLocaleString()} recipients across [${segs.join(", ")}]${abLine}\nvia ${pv.toUpperCase()}?${dripSummary()}\n\nThis sends real emails. Continue?`)) return;
 
   $("#sendBtn").disabled = true;
-  const r = await post("/api/send", { subject, html, text: $("#text").value, segments: segs, excludeSegments: excludedSegments(), provider: pv, ...dripBody() });
+  const r = await post("/api/send", { subject, subjectB: subjectBValue(), splitPct: splitPctValue(), html, text: $("#text").value, segments: segs, excludeSegments: excludedSegments(), provider: pv, ...dripBody() });
   if (r.error) { $("#sendBtn").disabled = false; return toast(r.error, "err"); }
 
   $("#sendProgress").classList.remove("hidden");
@@ -489,7 +508,7 @@ async function loadAnalytics() {
       const label = isSms ? "sms" : (c.provider === "mailgun" ? "mailgun" : "postmark");
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${c.date.slice(0, 10)}</td>
-        <td>${esc(c.subject)} <span class="muted" style="font-size:11px">· ${label}</span></td>
+        <td>${esc(c.subject)}${c.subjectB ? `<br /><span class="muted" style="font-size:11px">⚖ B: ${esc(c.subjectB)}${c.split ? ` · ${c.split.a}/${c.split.b} split` : ""}</span>` : ""} <span class="muted" style="font-size:11px">· ${label}</span></td>
         <td class="muted">${(c.segments || []).join(", ")}</td>
         <td class="num">${fmt(c.recipients)}</td>
         <td class="num">${fmt(c.sent)}</td>
@@ -956,7 +975,7 @@ async function scheduleSend(channel) {
   if (channel === "email") {
     if (!$("#subject").value.trim() || !$("#html").value) return toast("Subject and body are required.", "err");
     if (!selectedSegments().length) return toast("Select an audience.", "err");
-    payload = { subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider() };
+    payload = { subject: $("#subject").value.trim(), subjectB: subjectBValue(), splitPct: splitPctValue(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider() };
   } else {
     if (!$("#smsBody").value && !mediaUrls().length) return toast("Add a message or MMS image.", "err");
     if (!smsSelected().length && !$("#smsPaste").value.trim()) return toast("Pick a list or paste numbers.", "err");
@@ -1046,7 +1065,7 @@ async function loadUpcoming() {
 
 // ---------- drafts ----------
 const editingDraft = { email: null, sms: null };
-const emailPayload = () => ({ subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider(), ...dripBody() });
+const emailPayload = () => ({ subject: $("#subject").value.trim(), subjectB: subjectBValue(), splitPct: splitPctValue(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider(), ...dripBody() });
 const smsPayloadOf = () => ({ body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom") ? $("#smsFrom").value : "", provider: smsProvider(), segments: smsSelected(), pasted: $("#smsPaste").value });
 async function saveDraft(channel) {
   const payload = channel === "sms" ? smsPayloadOf() : emailPayload();
@@ -1091,6 +1110,10 @@ async function loadDraftInto(id, channel) {
     if (p.provider && $("#provider")) { $("#provider").value = p.provider; if (typeof updateProviderNote === "function") updateProviderNote(); }
     [...$("#audience").options].forEach((o) => o.selected = (p.segments || []).includes(o.value));
     if ($("#audienceExclude")) [...$("#audienceExclude").options].forEach((o) => o.selected = (p.excludeSegments || []).includes(o.value));
+    if ($("#subjectB")) {
+      $("#subjectB").value = p.subjectB || "";
+      if (p.subjectB) { $("#abWrap").classList.remove("hidden"); if (p.splitPct) $("#splitPct").value = p.splitPct; abHint(); }
+    }
     editingDraft.email = id;
     document.querySelector("[data-tab=compose]").click();
     if (typeof setComposeMode === "function") setComposeMode("html");

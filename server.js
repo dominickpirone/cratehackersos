@@ -1529,18 +1529,27 @@ async function runSendJob(jobId, opts) {
       if (provider === "mailgun") {
         // Mailgun accepts the whole batch with per-recipient variables; bounces/suppressions
         // are handled server-side by Mailgun and surface later via its event log.
-        await mailgunSendBatch(cfg, { subject, html, text, fromHeader, replyTo, tag, clickTracking: cfg.mailgunClickTracking }, batch);
-        sent += batch.length;
+        // one subject per Mailgun call, so send each arm of the split separately
+        const arms = new Map();
+        for (const r of batch) {
+          const key = (r.tag || tag) + "\u0000" + (r.subject || subject);
+          if (!arms.has(key)) arms.set(key, { subject: r.subject || subject, tag: r.tag || tag, rows: [] });
+          arms.get(key).rows.push(r);
+        }
+        for (const arm of arms.values()) {
+          await mailgunSendBatch(cfg, { subject: arm.subject, html, text, fromHeader, replyTo, tag: arm.tag, clickTracking: cfg.mailgunClickTracking }, arm.rows);
+          sent += arm.rows.length;
+        }
       } else {
         const payload = batch.map((r) => ({
           From: fromHeader,
           To: r.email,
           ...(replyTo ? { ReplyTo: replyTo } : {}),
-          Subject: personalize(subject, r.name),
+          Subject: personalize(r.subject || subject, r.name),
           HtmlBody: personalize(html, r.name),
           TextBody: personalize(text, r.name),
           MessageStream: stream,
-          Tag: tag,
+          Tag: r.tag || tag,
           TrackOpens: true,
           TrackLinks: "HtmlAndText",
         }));
@@ -1573,6 +1582,8 @@ async function runSendJob(jobId, opts) {
       id: jobId,
       date: opts.now,
       subject,
+      subjectB: opts.subjectB || null,
+      split: opts.split || null,
       segments: opts.segments,
       tag,
       provider,
@@ -1589,6 +1600,30 @@ async function runSendJob(jobId, opts) {
 }
 
 // ---------- shared launch helpers (used by /api/send, /api/sms/send, and the scheduler) ----------
+// Subject-line A/B. Assignment is a hash of the address, not a coin flip, so the
+// same person lands in the same arm on a resend and the split doesn't drift.
+function hashPct(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) % 100;
+}
+// Stamps each target with the subject + tag for its arm. Separate tags are what
+// let Postmark report open rates per arm instead of one blended number.
+function splitSubjects(targets, subjectA, subjectB, splitPct, tagBase) {
+  // `|| 50` would turn an explicit 0 into 50, so test for a real number first
+  const raw = parseInt(splitPct, 10);
+  const pct = Math.min(95, Math.max(5, Number.isFinite(raw) ? raw : 50));
+  let a = 0, b = 0;
+  for (const t of targets) {
+    const isA = hashPct(String(t.email || "").toLowerCase()) < pct;
+    t.variant = isA ? "a" : "b";
+    t.subject = isA ? subjectA : subjectB;
+    t.tag = tagBase + (isA ? "-a" : "-b");
+    if (isA) a++; else b++;
+  }
+  return { pct, a, b };
+}
+
 function launchEmail(b) {
   const cfg = loadConfig();
   const provider = b.provider === "mailgun" ? "mailgun" : "postmark";
@@ -1607,6 +1642,9 @@ function launchEmail(b) {
   const now = new Date().toISOString();
   const tag = (isTest ? "test-" : "") + slugify(b.subject) + "-" + now.slice(0, 10);
   const jobId = "job_" + now.replace(/[^0-9]/g, "").slice(0, 14) + "_" + Math.floor(targets.length);
+  // Subject A/B — only when a B is supplied and this isn't a test send.
+  const subjectB = (b.subjectB || "").trim();
+  const split = (!isTest && subjectB) ? splitSubjects(targets, b.subject, subjectB, b.splitPct, tag) : null;
   // Optional drip throttle — recommended when warming a new sending domain.
   // Sends `batchSize` recipients, waits `everyMin` minutes, repeats.
   const drip = (!isTest && b.drip && b.drip.on) ? {
@@ -1614,8 +1652,8 @@ function launchEmail(b) {
     batchDelayMs: Math.max(0, Math.round((parseFloat(b.drip.everyMin) || 5) * 60000)),
   } : {};
   jobs.set(jobId, { id: jobId, total: targets.length, processed: 0, sent: 0, failed: 0, done: false, isTest, drip: drip.batchSize ? { batchSize: drip.batchSize, everyMin: drip.batchDelayMs / 60000 } : null });
-  runSendJob(jobId, { provider, subject: b.subject, html: b.html, text, fromEmail, fromName, replyTo: cfg.replyTo, stream: cfg.stream, tag, targets, segments, isTest, now, ...drip });
-  return { jobId, total: targets.length, tag, provider, drip: drip.batchSize ? { batchSize: drip.batchSize, everyMin: drip.batchDelayMs / 60000 } : null };
+  runSendJob(jobId, { provider, subject: b.subject, subjectB: subjectB || null, split, html: b.html, text, fromEmail, fromName, replyTo: cfg.replyTo, stream: cfg.stream, tag, targets, segments, isTest, now, ...drip });
+  return { jobId, total: targets.length, tag, provider, split, drip: drip.batchSize ? { batchSize: drip.batchSize, everyMin: drip.batchDelayMs / 60000 } : null };
 }
 function launchSms(b) {
   const cfg = loadConfig();
