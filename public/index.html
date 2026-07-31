@@ -416,6 +416,7 @@
           <button id="funRefresh" class="btn btn-primary">Refresh</button>
           <span style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-ghost sm fun-preset" data-days="1">Today</button>
+            <button class="btn btn-ghost sm fun-preset" data-days="-1">Yesterday</button>
             <button class="btn btn-ghost sm fun-preset" data-days="7">7 days</button>
             <button class="btn btn-ghost sm fun-preset" data-days="30">30 days</button>
             <button class="btn btn-ghost sm fun-preset" data-days="0">All time</button>
@@ -575,6 +576,7 @@
 
         <div id="sbcHealth" style="margin-top:28px"></div>
 
+        <div id="sbcThread" style="display:none;margin-top:18px"></div>
         <h2 class="section-label" style="margin-top:22px">Pipeline <span id="sbcCount" class="muted small"></span></h2>
         <p class="section-sub">Shared across all four reps so nobody DMs a prospect someone else is already working. Logging a touch auto-sets the next follow-up on the 0·1·1·2·3·5·8·13 cadence.</p>
         <div class="card" style="margin-bottom:14px">
@@ -583,6 +585,8 @@
             <label class="field" style="margin:0;width:120px"><span class="lab">Assign to</span><select id="sbcSyncRep"></select></label>
             <button id="sbcSync" class="btn btn-primary sm" title="Virtual pass buyers from the Kartra sales ledger">Pull pass buyers →</button>
             <label class="btn btn-ghost sm" style="cursor:pointer" title="Typeform CSV export — the in-person application">Import Typeform CSV<input id="sbcTfFile" type="file" accept=".csv,text/csv" style="display:none" /></label>
+            <select id="sbcQuoInbox" style="width:190px" title="Quo inbox to pull conversations from"><option value="">Quo inbox…</option></select>
+            <button id="sbcQuoImport" class="btn btn-ghost sm">Pull from Quo</button>
             <button id="sbcEnrich" class="btn btn-ghost sm">Look up phone numbers</button>
             <span id="sbcSyncMsg" class="muted small"></span>
           </div>

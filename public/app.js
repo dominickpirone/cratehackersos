@@ -1099,13 +1099,10 @@ const funBar = (label, val, max, color) => {
 const FUNNELS = {
   level11: { title: "Level 11 Funnel", desc: 'Live split-test performance for <b>lander.cratehackers.com/level11</b> — visitors → checkout clicks → conversions → revenue, per variant.', lead: false },
   "july4-sale": { title: "🎆 July 4 Sale", desc: 'Live Kartra sales for the 4th-of-July funnel (<b>/home-july4-26 → /oto-july26</b>), broken out by price point. Pulled from your sales ledger (near-live, ~2-min cache).', saleReport: true },
-  "hackathon-popo": { title: "DJ POPO — R&B Hackathon", desc: 'Live A/B performance for <b>lander.cratehackers.com/hackathon-popo</b> — visitors → opt-in clicks → leads, per option. A "conversion" here = an opt-in (thank-you page load); the $27 sale happens off-site in Kartra.', lead: true, labels: { jewel: "Jewel & Gold", jewe: "Jewel & Gold", storm: "Quiet Storm", stor: "Quiet Storm" } },
-  "worldcup-hackathon": { title: "🏆 World Cup Hackathon", desc: 'Live A/B/C performance for <b>hackathon.cratehackers.com</b> (with Nick Spinelli) — visitors → CTA clicks → registrations, per variant. A "conversion" = the thank-you page load.', lead: true, trialLabel: "14-day trial", variants: ["a", "b", "c"], labels: { a: "A · Authority (crowd)", b: "B · Cinematic video", c: "C · Split / personality" } },
   // B·Charcoal and C·Orange were retired — those pages no longer exist. The live house
   // split is A (/) and B (/b); the seven partner-* pages are affiliate attribution pages,
   // not split-test arms, so they're listed but excluded from winner logic.
   "hacker-hotel": { title: "🏨 Hacker Hotel Virtual", desc: 'Performance for <b>hh.cratehackers.com</b> — every virtual pass ($17–$97), plus the affiliate pages. House split test is A vs B.', lead: false, trialLabel: "Reached upsell", variants: ["a", "b"], labels: { a: "A · House (/)", b: "B · House control (/b)", "partner-jack": "Jack Cheshire · JACK", "partner-jaymie": "Jaymie Perez · JAYMIE", "partner-nate": "Nate Acosta · NATE", "partner-nick": "Nick Spinelli · SPINELLI", "partner-polo": "Polo · POLO", "partner-travis": "Travis · THEFUTUREDJ", "partner-mischievous": "Mischievous · MISCHIEVOUS" }, partnerPrefix: "partner-" },
-  chicagohackathon: { title: "Chicago Hackathon", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicagohackathon</b> — visitors → opt-in clicks → leads.', lead: true },
   chicago: { title: "Chicago (in-person)", desc: 'Opt-in performance for <b>lander.cratehackers.com/chicago</b> — visitors → opt-in clicks → leads.', lead: true },
 };
 const DEFAULT_FUNNEL = "hacker-hotel"; // what the Funnel tab opens on
@@ -1376,8 +1373,12 @@ function renderSaleReport(d) {
 if ($("#funRefresh")) $("#funRefresh").onclick = loadFunnel;
 $$(".fun-preset").forEach((b) => b.onclick = () => {
   const days = +b.dataset.days;
+  const iso = (d) => new Date(d).toISOString().slice(0, 10);
   if (days === 0) { $("#funFrom").value = ""; $("#funTo").value = ""; }
-  else {
+  else if (days === -1) {                    // Yesterday — that one day only
+    const y = iso(Date.now() - 86400000);
+    $("#funFrom").value = y; $("#funTo").value = y;
+  } else {
     $("#funFrom").value = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
     $("#funTo").value = new Date().toISOString().slice(0, 10);
   }
@@ -1815,7 +1816,8 @@ function renderSbcPipeline() {
         <td class="num"${due ? ' style="color:#ffd98a;font-weight:700"' : ""}>${esc(x.nextAt || "—")}<br /><span class="muted small">${fmt(x.touches || 0)} touch${(x.touches || 0) === 1 ? "" : "es"}</span></td>
         <td style="white-space:nowrap">
           ${x.phone
-            ? `<button class="secondary" data-sbctext="${esc(x.id)}" title="Text from Hacker Hotel HQ">Text</button>`
+            ? `<button class="secondary" data-sbcthread="${esc(x.id)}" title="Read the Quo text thread">💬</button>
+               <button class="secondary" data-sbctext="${esc(x.id)}" title="Text from Hacker Hotel HQ">Text</button>`
             : `<button class="secondary" data-sbcphone="${esc(x.id)}" title="No number yet — add one">+ phone</button>`}
           <button class="secondary" data-sbctouch="${esc(x.id)}" title="Log a touch — sets the next follow-up date">Touched</button>
           ${x.escalated ? "" : `<button class="secondary" data-sbcesc="${esc(x.id)}" title="Hand to Nick to close">⚑ Nick</button>`}
@@ -1847,6 +1849,38 @@ function renderSbcPipeline() {
     const x = (SBC.prospects || []).find((y) => y.id === b.dataset.sbctext);
     if (x) sbcOpenText(x);
   });
+  $$("[data-sbcthread]").forEach((b) => b.onclick = () => sbcShowThread(b.dataset.sbcthread));
+}
+
+// Read the real Quo thread without leaving the CRM. Conversations live on whichever
+// rep's number had them, so the server checks each inbox.
+async function sbcShowThread(id) {
+  const x = (SBC.prospects || []).find((y) => y.id === id);
+  const wrap = $("#sbcThread"); if (!wrap) return;
+  wrap.style.display = "";
+  wrap.innerHTML = `<div class="card" style="padding:14px"><p class="muted small" style="margin:0">Loading the thread from Quo…</p></div>`;
+  wrap.scrollIntoView({ block: "center" });
+  const r = await api("/api/sbc/quo/thread?id=" + encodeURIComponent(id));
+  if (!r || r.error) { wrap.innerHTML = `<div class="card" style="padding:14px"><p class="muted small" style="margin:0;color:var(--err)">${esc((r && r.error) || "Couldn't load.")}</p></div>`; return; }
+  const who = (x && (x.name || x.handle)) || r.phone;
+  const msgs = r.messages || [];
+  wrap.innerHTML = `<div class="card" style="padding:14px">
+    <div class="row between" style="align-items:center;margin-bottom:10px">
+      <b style="font-size:13px">${esc(who)} <span class="muted small">· ${esc(r.phone)}${r.inbox ? " · " + esc(r.inbox.number || r.inbox.name || "") : ""}</span></b>
+      <div class="row" style="gap:8px">
+        ${x ? `<button class="btn btn-primary sm" data-sbcreply="${esc(x.id)}">Reply</button>` : ""}
+        <button class="btn btn-ghost sm" id="sbcThreadClose">Close</button>
+      </div>
+    </div>
+    ${msgs.length ? `<div style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+        ${msgs.map((m) => `<div style="align-self:${m.direction === "out" ? "flex-end" : "flex-start"};max-width:78%;
+            background:${m.direction === "out" ? "#2a1a08" : "var(--s2)"};border:1px solid ${m.direction === "out" ? "#8a5a00" : "var(--line)"};
+            border-radius:10px;padding:7px 10px;font-size:12.5px;line-height:1.45">
+            ${esc(m.body)}<div class="muted" style="font-size:10px;margin-top:3px">${esc(String(m.at).replace("T", " ").slice(0, 16))}</div></div>`).join("")}
+      </div>` : `<p class="muted small" style="margin:0">No messages with this number on any Quo inbox yet.</p>`}
+  </div>`;
+  if ($("#sbcThreadClose")) $("#sbcThreadClose").onclick = () => { wrap.style.display = "none"; wrap.innerHTML = ""; };
+  $$("[data-sbcreply]").forEach((b) => b.onclick = () => { const px = (SBC.prospects || []).find((y) => y.id === b.dataset.sbcreply); if (px) sbcOpenText(px); });
 }
 
 // Text composer — prefilled from whichever script line you last copied, so the
@@ -1886,6 +1920,7 @@ async function loadSbc() {
   renderSbcHealth();
   renderSbcPipeline();
   renderSbcScripts();
+  sbcLoadInboxes();
 }
 ["sbcFilterRep", "sbcFilterStage"].forEach((id) => { if ($("#" + id)) $("#" + id).onchange = renderSbcPipeline; });
 if ($("#sbcDueOnly")) $("#sbcDueOnly").onchange = renderSbcPipeline;
@@ -1981,6 +2016,29 @@ if ($("#sbcSync")) $("#sbcSync").onclick = async () => {
     toast(r.added ? `${r.added} pass buyer${r.added === 1 ? "" : "s"} pulled in.` : "No new pass buyers in the window.", "ok");
   } finally { btn.disabled = false; }
 };
+let SBC_INBOXES_LOADED = false;
+async function sbcLoadInboxes() {
+  const sel = $("#sbcQuoInbox"); if (!sel || SBC_INBOXES_LOADED) return;
+  const r = await api("/api/sbc/quo/inboxes");
+  if (!r || r.error) { sel.innerHTML = `<option value="">Quo not connected</option>`; return; }
+  SBC_INBOXES_LOADED = true;
+  sel.innerHTML = `<option value="">Quo inbox…</option>` +
+    (r.inboxes || []).map((i) => `<option value="${esc(i.id)}">${esc(i.number)}${i.users && i.users.length ? " · " + esc(i.users.join(", ")) : ""}</option>`).join("");
+}
+if ($("#sbcQuoImport")) $("#sbcQuoImport").onclick = async () => {
+  const inbox = $("#sbcQuoInbox").value;
+  if (!inbox) return toast("Pick which Quo inbox to pull from.", "err");
+  const btn = $("#sbcQuoImport"); btn.disabled = true;
+  $("#sbcSyncMsg").textContent = "Reading Quo conversations…";
+  try {
+    const r = await post("/api/sbc/quo/import", { inbox, rep: $("#sbcSyncRep").value });
+    if (r.error) { $("#sbcSyncMsg").textContent = ""; return toast(r.error, "err"); }
+    await loadSbc();
+    $("#sbcSyncMsg").textContent = `${r.added} pulled in from Quo${r.skipped ? `, ${r.skipped} already had` : ""}.`;
+    toast(r.added ? `${r.added} conversation${r.added === 1 ? "" : "s"} added.` : "Nothing new in that inbox.", "ok");
+  } finally { btn.disabled = false; }
+};
+
 if ($("#sbcTfFile")) $("#sbcTfFile").onchange = async () => {
   const file = $("#sbcTfFile").files[0];
   if (!file) return;

@@ -457,7 +457,9 @@ function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); 
 //     (the July 4 BOGO), which is why this matches on product too
 const HH_OFFERS = [
   { id: "mega", label: "MEGA Offer (everything)", price: 3500, priceNote: "$3K–$4K — CONFIRM", match: /crate\s*hackers|hacker\s*hotel/i, min: 2900, max: 6000 },
-  { id: "ch-life", label: "CH Lifetime (+ jacket)", price: 997, match: /^crate\s*hackers$/i, min: 950, max: 1050 },
+  // Lifetime also goes out at $777, so the band opens at 700. It stops short of the
+  // $597 July-4 OTO, which is a different offer on the same Kartra product.
+  { id: "ch-life", label: "CH Lifetime (+ jacket)", price: 997, priceNote: "also counts $777", match: /^crate\s*hackers$/i, min: 700, max: 1050 },
   { id: "ddj-life", label: "DangerousDJs (+ jacket)", price: 997, match: /dangerous/i, min: 950, max: 1050, warn: "needs its own Kartra product — otherwise a $997 here is indistinguishable from CH Lifetime" },
   { id: "hh2027", label: "HH 2027 deposit", price: 497, match: /hacker\s*hotel/i, min: 470, max: 520 },
   { id: "spinelli", label: "Spinelli Social Media Challenge", price: 497, match: /spinelli/i, min: 380, max: 520 },
@@ -1165,6 +1167,25 @@ async function quoFetch(cfg, pathName, opts = {}) {
 }
 async function quoSendOne(cfg, { to, from, body }) {
   return quoFetch(cfg, "/messages", { method: "POST", body: JSON.stringify({ content: body, from, to: [to] }) });
+}
+// Recent conversations on an inbox — used to pull people out of Quo into the pipeline.
+async function quoConversations(cfg, phoneNumberId, max) {
+  const j = await quoFetch(cfg, `/conversations?phoneNumberId=${encodeURIComponent(phoneNumberId)}&maxResults=${max || 50}`);
+  return j.data || [];
+}
+// One contact's thread. Quo returns newest-first; we flip it so it reads like a chat.
+async function quoThread(cfg, phoneNumberId, participant, max) {
+  const qs = `phoneNumberId=${encodeURIComponent(phoneNumberId)}&participants[]=${encodeURIComponent(participant)}&maxResults=${max || 50}`;
+  const j = await quoFetch(cfg, "/messages?" + qs);
+  return (j.data || [])
+    .map((m) => ({
+      id: m.id,
+      direction: m.direction === "incoming" ? "in" : "out",
+      at: m.createdAt || m.sentAt || "",
+      body: m.text || m.body || "",
+      from: m.from || "",
+    }))
+    .sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
 async function quoListNumbers(cfg) {
   const j = await quoFetch(cfg, "/phone-numbers");
@@ -2074,6 +2095,77 @@ const server = http.createServer(async (req, res) => {
           }
           return send(res, 200, { ok: true, ...out });
         } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // ---- Quo: read the actual text threads, and pull people out of Quo ----
+      if (p === "/api/sbc/quo/inboxes" && req.method === "GET") {
+        const cfg = loadConfig();
+        if (!cfg.quoApiKey) return send(res, 400, { error: "Add your Quo API key in Settings first." });
+        try {
+          const nums = await quoListNumbers(cfg);
+          return send(res, 200, { ok: true, inboxes: (nums || []).map((n) => ({
+            id: n.id, number: n.number || n.phoneNumber || "",
+            name: n.name || "", users: (n.users || []).map((u) => u.name || u.email || "").filter(Boolean),
+          })) });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // The thread for one prospect. Tries each inbox, because the three reps are on
+      // different numbers and a conversation only lives on the one that had it.
+      if (p === "/api/sbc/quo/thread" && req.method === "GET") {
+        const cfg = loadConfig();
+        if (!cfg.quoApiKey) return send(res, 400, { error: "Add your Quo API key in Settings first." });
+        const id = u.searchParams.get("id") || "";
+        const d = loadSbc();
+        const x = d.prospects.find((y) => y.id === id);
+        const phone = normalizePhone(u.searchParams.get("phone") || (x && x.phone) || "");
+        if (!phone) return send(res, 400, { error: "No phone number on this prospect yet." });
+        try {
+          const nums = await quoListNumbers(cfg);
+          const wanted = u.searchParams.get("inbox");
+          const list = wanted ? (nums || []).filter((n) => n.id === wanted) : (nums || []);
+          for (const n of list) {
+            const msgs = await quoThread(cfg, n.id, phone, 50);
+            if (msgs.length) {
+              return send(res, 200, { ok: true, phone, inbox: { id: n.id, number: n.number, name: n.name }, messages: msgs });
+            }
+          }
+          return send(res, 200, { ok: true, phone, inbox: null, messages: [] });
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+      }
+      // Pull recent Quo conversations into the pipeline as prospects.
+      if (p === "/api/sbc/quo/import" && req.method === "POST") {
+        const b = await readBody(req);
+        const cfg = loadConfig();
+        if (!cfg.quoApiKey) return send(res, 400, { error: "Add your Quo API key in Settings first." });
+        const d = loadSbc();
+        const rep = SBC_REPS.includes(b.rep) ? b.rep : "dom";
+        const inboxId = String(b.inbox || "").trim();
+        if (!inboxId) return send(res, 400, { error: "Pick an inbox." });
+        let added = 0, skipped = 0;
+        try {
+          const convos = await quoConversations(cfg, inboxId, Math.min(Number(b.limit) || 50, 100));
+          const byPhone = new Map(d.prospects.filter((x) => x.phone).map((x) => [x.phone, x]));
+          for (const c of convos) {
+            // a conversation's participants exclude our own number
+            const other = (c.participants || []).map((v) => normalizePhone(v)).filter(Boolean)[0];
+            if (!other) { skipped++; continue; }
+            if (byPhone.has(other)) { skipped++; continue; }
+            const id = "quo:" + other;
+            if (d.prospects.some((x) => x.id === id)) { skipped++; continue; }
+            byPhone.set(other, true);
+            d.prospects.unshift({
+              id, platform: "quo", handle: other, name: (c.name || "").split(/\s+/)[0] || "",
+              rep, stage: "lead", offer: "", value: 0, email: "", phone: other,
+              escalated: false, source: "quo", applied: false,
+              pointA: "", pointB: "", roadblock: "", pain: "",
+              notes: `From Quo${c.lastActivityAt ? " · last activity " + String(c.lastActivityAt).slice(0, 10) : ""}.`,
+              touches: 0, nextAt: sbcNextDate(0), createdAt: new Date().toISOString(),
+              history: [{ at: new Date().toISOString(), stage: "lead" }],
+            });
+            added++;
+          }
+        } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
+        saveSbc(d);
+        return send(res, 200, { ok: true, added, skipped, total: d.prospects.length });
       }
       // Typeform application import (CSV export). The in-person application is where
       // the high-ticket money is, and it already asks the two questions the playbook
