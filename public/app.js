@@ -120,6 +120,19 @@ async function loadAudienceOptions() {
     if (prev.has(s.name)) o.selected = true;
     sel.appendChild(o);
   });
+  // the exclusion picker offers the same lists; keep whatever was already ticked
+  const ex = $("#audienceExclude");
+  if (ex) {
+    const exPrev = new Set([...ex.selectedOptions].map((o) => o.value));
+    ex.innerHTML = "";
+    segments.forEach((s) => {
+      const o = document.createElement("option");
+      o.value = s.name;
+      o.textContent = `${s.name} (${fmt(s.count)})`;
+      if (exPrev.has(s.name)) o.selected = true;
+      ex.appendChild(o);
+    });
+  }
   // default to "members" only on the very first load — never override the user's selection on a refresh
   if (!hadOptions && !prev.size) { const m = sel.querySelector('[value="members"]'); if (m) m.selected = true; }
   filterAudienceOptions();
@@ -132,6 +145,7 @@ function filterAudienceOptions() {
 }
 if ($("#audSearch")) $("#audSearch").oninput = filterAudienceOptions;
 const selectedSegments = () => [...$("#audience").selectedOptions].map((o) => o.value);
+const excludedSegments = () => ($("#audienceExclude") ? [...$("#audienceExclude").selectedOptions].map((o) => o.value) : []);
 if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
   const n = await loadAudienceOptions();
   toast(`Audiences refreshed — ${fmt(n)} list${n === 1 ? "" : "s"} available.`, "ok");
@@ -242,10 +256,10 @@ $("#previewBtn").onclick = async () => {
   const segs = selectedSegments();
   if (!segs.length) return toast("Select at least one audience.", "err");
   $("#previewOut").innerHTML = "Calculating…";
-  const r = await post("/api/preview", { segments: segs, provider: provider() });
+  const r = await post("/api/preview", { segments: segs, excludeSegments: excludedSegments(), provider: provider() });
   $("#previewOut").innerHTML = `
     <div><span class="big">${fmt(r.recipients)}</span> recipients</div>
-    <div class="muted">${r.batches} batch(es) · ${fmt(r.suppressed)} suppressed · ${fmt(r.dupes)} duplicates removed · ${fmt(r.invalid)} invalid</div>`;
+    <div class="muted">${r.batches} batch(es) · ${fmt(r.suppressed)} suppressed${r.excluded ? ` · <b style="color:var(--gold,#ff9e2c)">${fmt(r.excluded)} excluded by list</b>` : ""} · ${fmt(r.dupes)} duplicates removed · ${fmt(r.invalid)} invalid</div>`;
 };
 
 $("#testBtn").onclick = async () => {
@@ -269,11 +283,11 @@ $("#sendBtn").onclick = async () => {
   if (!subject || !html) return toast("Subject and body are required.", "err");
   if (!segs.length) return toast("Select at least one audience.", "err");
 
-  const pre = await post("/api/preview", { segments: segs, provider: pv });
+  const pre = await post("/api/preview", { segments: segs, excludeSegments: excludedSegments(), provider: pv });
   if (!confirm(`Send "${subject}" to ${pre.recipients.toLocaleString()} recipients across [${segs.join(", ")}]\nvia ${pv.toUpperCase()}?${dripSummary()}\n\nThis sends real emails. Continue?`)) return;
 
   $("#sendBtn").disabled = true;
-  const r = await post("/api/send", { subject, html, text: $("#text").value, segments: segs, provider: pv, ...dripBody() });
+  const r = await post("/api/send", { subject, html, text: $("#text").value, segments: segs, excludeSegments: excludedSegments(), provider: pv, ...dripBody() });
   if (r.error) { $("#sendBtn").disabled = false; return toast(r.error, "err"); }
 
   $("#sendProgress").classList.remove("hidden");
@@ -900,7 +914,7 @@ async function scheduleSend(channel) {
   if (channel === "email") {
     if (!$("#subject").value.trim() || !$("#html").value) return toast("Subject and body are required.", "err");
     if (!selectedSegments().length) return toast("Select an audience.", "err");
-    payload = { subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), provider: provider() };
+    payload = { subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider() };
   } else {
     if (!$("#smsBody").value && !mediaUrls().length) return toast("Add a message or MMS image.", "err");
     if (!smsSelected().length && !$("#smsPaste").value.trim()) return toast("Pick a list or paste numbers.", "err");
@@ -940,7 +954,7 @@ async function loadUpcoming() {
 
 // ---------- drafts ----------
 const editingDraft = { email: null, sms: null };
-const emailPayload = () => ({ subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), provider: provider(), ...dripBody() });
+const emailPayload = () => ({ subject: $("#subject").value.trim(), html: $("#html").value, text: $("#text").value, segments: selectedSegments(), excludeSegments: excludedSegments(), provider: provider(), ...dripBody() });
 const smsPayloadOf = () => ({ body: $("#smsBody").value, mediaUrls: mediaUrls(), from: $("#smsFrom") ? $("#smsFrom").value : "", provider: smsProvider(), segments: smsSelected(), pasted: $("#smsPaste").value });
 async function saveDraft(channel) {
   const payload = channel === "sms" ? smsPayloadOf() : emailPayload();
@@ -984,6 +998,7 @@ async function loadDraftInto(id, channel) {
     $("#text").value = p.text || "";
     if (p.provider && $("#provider")) { $("#provider").value = p.provider; if (typeof updateProviderNote === "function") updateProviderNote(); }
     [...$("#audience").options].forEach((o) => o.selected = (p.segments || []).includes(o.value));
+    if ($("#audienceExclude")) [...$("#audienceExclude").options].forEach((o) => o.selected = (p.excludeSegments || []).includes(o.value));
     editingDraft.email = id;
     document.querySelector("[data-tab=compose]").click();
     if (typeof setComposeMode === "function") setComposeMode("html");

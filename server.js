@@ -216,12 +216,25 @@ function listSegments() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function resolveAudience(segmentNames) {
-  // Union of selected segments, minus suppression, deduped.
+// Every address in the given lists, for use as a per-send exclusion. This is not
+// the suppression list — those people are opted out forever. This is "don't send
+// THIS email to people who already bought", which has to stay per-send.
+function emailsInSegments(names) {
+  const out = new Set();
+  for (const seg of names || []) {
+    const file = path.join(SEGMENTS, seg + ".csv");
+    if (!fs.existsSync(file)) continue;
+    for (const r of extractRecipients(fs.readFileSync(file, "utf8")).recipients) out.add(r.email);
+  }
+  return out;
+}
+function resolveAudience(segmentNames, excludeNames) {
+  // Union of selected segments, minus suppression, minus the excluded lists, deduped.
   const suppress = loadSuppression();
+  const excluded = emailsInSegments(excludeNames);
   const seen = new Set();
   const recipients = [];
-  let invalid = 0, dupes = 0, suppressed = 0;
+  let invalid = 0, dupes = 0, suppressed = 0, excludedCount = 0;
   for (const seg of segmentNames) {
     const file = path.join(SEGMENTS, seg + ".csv");
     if (!fs.existsSync(file)) continue;
@@ -229,12 +242,13 @@ function resolveAudience(segmentNames) {
     invalid += res.invalid;
     for (const r of res.recipients) {
       if (suppress.has(r.email)) { suppressed++; continue; }
+      if (excluded.has(r.email)) { excludedCount++; continue; }
       if (seen.has(r.email)) { dupes++; continue; }
       seen.add(r.email);
       recipients.push(r);
     }
   }
-  return { recipients, invalid, dupes, suppressed };
+  return { recipients, invalid, dupes, suppressed, excluded: excludedCount };
 }
 
 // ---------- campaigns log ----------
@@ -1581,7 +1595,8 @@ function launchEmail(b) {
   if (!b.html) return { error: "Email body (HTML) is required." };
   const isTest = !!b.test;
   const segments = b.segments || [];
-  const targets = isTest ? [{ email: (b.testEmail || cfg.testEmail), name: "Dominick" }] : resolveAudience(segments).recipients;
+  const excludeSegments = b.excludeSegments || [];
+  const targets = isTest ? [{ email: (b.testEmail || cfg.testEmail), name: "Dominick" }] : resolveAudience(segments, excludeSegments).recipients;
   if (!targets.length) return { error: "No recipients to send to." };
   const fromEmail = provider === "mailgun" ? (cfg.mailgunFromEmail || cfg.fromEmail) : cfg.fromEmail;
   const fromName = provider === "mailgun" ? (cfg.mailgunFromName || cfg.fromName) : cfg.fromName;
@@ -2572,11 +2587,11 @@ const server = http.createServer(async (req, res) => {
       // preview audience
       if (p === "/api/preview" && req.method === "POST") {
         const b = await readBody(req);
-        const r = resolveAudience(b.segments || []);
+        const r = resolveAudience(b.segments || [], b.excludeSegments || []);
         const size = b.provider === "mailgun" ? 1000 : BATCH_SIZE;
         return send(res, 200, {
           recipients: r.recipients.length, invalid: r.invalid,
-          dupes: r.dupes, suppressed: r.suppressed,
+          dupes: r.dupes, suppressed: r.suppressed, excluded: r.excluded,
           batches: Math.ceil(r.recipients.length / size),
           sample: r.recipients.slice(0, 5).map((x) => x.email),
         });
