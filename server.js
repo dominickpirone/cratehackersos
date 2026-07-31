@@ -2075,6 +2075,72 @@ const server = http.createServer(async (req, res) => {
           return send(res, 200, { ok: true, ...out });
         } catch (e) { return send(res, 400, { error: String((e && e.message) || e) }); }
       }
+      // Typeform application import (CSV export). The in-person application is where
+      // the high-ticket money is, and it already asks the two questions the playbook
+      // needs — "#1 goal" is their Point B and "what do you want to work on" is the
+      // pain. Merged by email so an applicant who also bought a pass stays one row.
+      if (p === "/api/sbc/import-typeform" && req.method === "POST") {
+        const b = await readBody(req);
+        const rows = parseCSV(b.csv || "");
+        if (rows.length < 2) return send(res, 400, { error: "That CSV looks empty." });
+        const hdr = rows[0].map((h) => (h || "").trim());
+        // match on the question text, not column position — the forms differ
+        const find = (...subs) => {
+          for (const s of subs) {
+            const i = hdr.findIndex((h) => h.toLowerCase().includes(s));
+            if (i >= 0) return i;
+          }
+          return -1;
+        };
+        const iName = find("full name", "your name");
+        const iEmail = find("best email", "email address", "your email", "email");
+        const iPhone = find("enrich_phone", "phone number", "mobile");
+        const iGoal = find("#1 goal", "goal for attending", "why do you want");
+        const iPain = find("learn or work on", "want to learn", "biggest challenge", "struggling");
+        const iGear = find("specific controller", "what dj gear");
+        const iSoft = find("dj software");
+        const iCity = find("enrich_city");
+        const iWhen = find("submit date", "start date");
+        if (iEmail < 0) return send(res, 400, { error: "No email column found in that export." });
+        const d = loadSbc();
+        const rep = SBC_REPS.includes(b.rep) ? b.rep : "dom";
+        const at = (r, i) => (i >= 0 && i < r.length ? (r[i] || "").trim() : "");
+        let added = 0, merged = 0, skipped = 0;
+        for (const r of rows.slice(1)) {
+          const email = at(r, iEmail).toLowerCase();
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { skipped++; continue; }
+          const goal = at(r, iGoal), pain = at(r, iPain);
+          const gear = [at(r, iGear), at(r, iSoft), at(r, iCity)].filter(Boolean).join(" · ");
+          const note = `Applied for Hacker Hotel in-person${at(r, iWhen) ? " on " + at(r, iWhen).slice(0, 10) : ""}.${gear ? " " + gear + "." : ""}`;
+          const existing = d.prospects.find((x) => (x.email || "").toLowerCase() === email);
+          if (existing) {
+            // an application tells us more than a purchase row did — fill the gaps
+            if (goal && !existing.pointB) existing.pointB = goal;
+            if (pain && !existing.pain) existing.pain = pain;
+            if (!existing.phone) existing.phone = normalizePhone(at(r, iPhone));
+            if (!existing.name) existing.name = at(r, iName).split(/\s+/)[0] || "";
+            existing.applied = true;
+            // re-importing the same export shouldn't stack the same note over and over
+            if (!(existing.notes || "").includes("Applied for Hacker Hotel in-person")) {
+              existing.notes = (existing.notes ? existing.notes + " " : "") + note;
+            }
+            merged++;
+          } else {
+            d.prospects.unshift({
+              id: "typeform:" + email, platform: "typeform", handle: email,
+              name: at(r, iName).split(/\s+/)[0] || "", rep, stage: "lead",
+              offer: "HH 2026 In-Person", value: 0, email,
+              phone: normalizePhone(at(r, iPhone)), escalated: false, source: "typeform",
+              applied: true, pointA: "", pointB: goal, roadblock: "", pain,
+              notes: note, touches: 0, nextAt: sbcNextDate(0),
+              createdAt: new Date().toISOString(), history: [{ at: new Date().toISOString(), stage: "lead" }],
+            });
+            added++;
+          }
+        }
+        saveSbc(d);
+        return send(res, 200, { ok: true, added, merged, skipped, total: d.prospects.length });
+      }
       // Pull virtual-pass buyers out of the Kartra ledger and into the pipeline.
       // The ledger is the only place a purchase shows up, and it carries name + email
       // but NOT a phone, so phones are filled in per-prospect (see /api/sbc/enrich).

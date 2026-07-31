@@ -1804,7 +1804,10 @@ function renderSbcPipeline() {
     rows.map((x) => {
       const due = x.nextAt && x.nextAt <= SBC.today && x.stage !== "closed_won" && x.stage !== "closed_lost";
       return `<tr>
-        <td><b>${esc(x.name || x.handle)}</b><br /><span class="muted small">${esc(x.platform)} · @${esc(x.handle)}</span></td>
+        <td><b>${esc(x.name || x.handle)}</b>${x.applied ? ' <span title="Applied for the in-person event" style="color:#22c55e;font-size:11px">★ applied</span>' : ""}
+          <br /><span class="muted small">${esc(x.platform)} · @${esc(x.handle)}</span>
+          ${x.pointB ? `<br /><span class="muted small" title="Their #1 goal, from the application">🎯 ${esc(String(x.pointB).slice(0, 70))}</span>` : ""}
+          ${x.pain ? `<br /><span class="muted small" title="What they want to work on">💢 ${esc(String(x.pain).slice(0, 70))}</span>` : ""}</td>
         <td><select data-sbcrep="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.reps || []).map((r) => `<option value="${r}"${x.rep === r ? " selected" : ""}>${sbcTitle(r)}</option>`).join("")}</select></td>
         <td><select data-sbcstage="${esc(x.id)}" style="font-size:11px;padding:2px 4px">${(SBC.stages || []).map((s) => `<option value="${s}"${x.stage === s ? " selected" : ""}>${SBC_STAGE_LABEL[s] || s}</option>`).join("")}</select></td>
         <td class="muted small">${esc(x.offer || "—")}${x.escalated ? '<br /><span style="color:#ffd98a">⚑ on the fence</span>' : ""}</td>
@@ -1977,6 +1980,19 @@ if ($("#sbcSync")) $("#sbcSync").onclick = async () => {
     $("#sbcSyncMsg").textContent = `${r.added} added${r.skipped ? `, ${r.skipped} already in` : ""}.`;
     toast(r.added ? `${r.added} pass buyer${r.added === 1 ? "" : "s"} pulled in.` : "No new pass buyers in the window.", "ok");
   } finally { btn.disabled = false; }
+};
+if ($("#sbcTfFile")) $("#sbcTfFile").onchange = async () => {
+  const file = $("#sbcTfFile").files[0];
+  if (!file) return;
+  $("#sbcSyncMsg").textContent = "Reading the export…";
+  try {
+    const r = await post("/api/sbc/import-typeform", { csv: await readTextFile(file), rep: $("#sbcSyncRep").value });
+    if (r.error) { $("#sbcSyncMsg").textContent = ""; return toast(r.error, "err"); }
+    await loadSbc();
+    $("#sbcSyncMsg").textContent = `${r.added} new applicant${r.added === 1 ? "" : "s"}, ${r.merged} merged into people you already had.`;
+    toast(`Typeform imported — ${r.added} added, ${r.merged} merged.`, "ok");
+  } catch { $("#sbcSyncMsg").textContent = ""; toast("Couldn't read that file.", "err"); }
+  finally { $("#sbcTfFile").value = ""; }
 };
 if ($("#sbcEnrich")) $("#sbcEnrich").onclick = async () => {
   const need = (SBC && SBC.prospects || []).filter((x) => x.email && !x.phone).slice(0, 25).map((x) => x.id);
