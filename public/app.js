@@ -751,6 +751,12 @@ function smsCount() {
   $("#smsCount").textContent = `${len} characters · ${segs} segment${segs > 1 ? "s" : ""}${unicode ? " (unicode)" : ""}${segs > 1 ? " — billed as " + segs : ""}`;
 }
 let SMS_ACCOUNTS = [];
+let QUO_NUMBERS = null; // all numbers in the Quo account (for the "send from" picker)
+async function ensureQuoNumbers() {
+  const d = await api("/api/sms/quo-numbers");
+  QUO_NUMBERS = (d && d.numbers) || [];
+  return QUO_NUMBERS;
+}
 const currentSmsAccount = () => ($("#smsAccount") && $("#smsAccount").value) || "default";
 function refreshSmsFrom(s) {
   const sel = $("#smsFrom"); sel.innerHTML = "";
@@ -758,10 +764,15 @@ function refreshSmsFrom(s) {
   // the account picker only applies to Twilio blasts; hide it for Quo or when there are no extra accounts
   if ($("#smsAccountField")) $("#smsAccountField").style.display = (!isQuo && SMS_ACCOUNTS.length) ? "" : "none";
   if (isQuo) {
-    if (s.quoFromNumber) { const o = document.createElement("option"); o.value = s.quoFromNumber; o.textContent = s.quoFromNumber + " (Quo)"; sel.appendChild(o); }
+    // list every number in the Quo account so you can pick which one to blast/receive from
+    const nums = (QUO_NUMBERS && QUO_NUMBERS.length) ? QUO_NUMBERS
+      : (s.quoFromNumber ? [{ number: s.quoFromNumber }] : []);
+    nums.forEach((n) => { const o = document.createElement("option"); o.value = n.number; o.textContent = n.number + (n.name ? " · " + n.name : "") + " (Quo)"; sel.appendChild(o); });
+    if (s.quoFromNumber && [...sel.options].some((o) => o.value === s.quoFromNumber)) sel.value = s.quoFromNumber;
     $("#smsFromNote").innerHTML = s.hasQuo
-      ? (sel.options.length ? "Replies will land in your Quo inbox — text back or call from there. (Text-only — no MMS via Quo.)" : "⚠ No Quo number saved — hit <b>Test connection</b> in <b>Settings → Quo</b> to auto-fill it.")
+      ? (sel.options.length ? "Pick which Quo number to send from — replies land in <b>that number's</b> Quo inbox. (Text-only — no MMS via Quo.)" : "⚠ No Quo number — hit <b>Test connection</b> in <b>Settings → Quo</b>.")
       : "⚠ Quo not configured — add your API key in <b>Settings → Quo</b>.";
+    if (QUO_NUMBERS == null && s.hasQuo) { QUO_NUMBERS = []; ensureQuoNumbers().then(() => { if (smsProvider() === "quo") refreshSmsFrom(PROVIDER_STATE || {}); }); }
     return;
   }
   const acctId = currentSmsAccount();

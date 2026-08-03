@@ -2781,6 +2781,13 @@ const server = http.createServer(async (req, res) => {
       }
 
       // ----- Quo (business texting + calling) -----
+      // list all numbers in the Quo account (for the SMS "send from" picker)
+      if (p === "/api/sms/quo-numbers" && req.method === "GET") {
+        const cfg = loadConfig();
+        if (!cfg.quoApiKey) return send(res, 200, { numbers: [] });
+        try { return send(res, 200, { numbers: await quoListNumbers(cfg) }); }
+        catch (e) { return send(res, 200, { numbers: [], error: String((e && e.message) || e) }); }
+      }
       if (p === "/api/quo/test" && req.method === "POST") {
         const cfg = loadConfig();
         if (!cfg.quoApiKey) return send(res, 200, { ok: false, error: "Add your Quo API key first (Quo → Settings → API)." });
