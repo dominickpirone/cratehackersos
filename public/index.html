@@ -115,10 +115,12 @@
               <span class="sep"></span>
               <button type="button" data-cmd="createLink" title="Add link">🔗 Link</button>
               <button type="button" data-cmd="unlink" title="Remove link">Unlink</button>
+              <button type="button" data-cmd="insertImage" title="Insert an image">🖼 Image</button>
               <button type="button" data-cmd="insertName" title="Insert first name">+ {{first_name}}</button>
               <span class="sep"></span>
               <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
             </div>
+            <input type="file" id="wysiImgFile" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
             <textarea id="html" class="code" spellcheck="false" placeholder="Paste the HTML email from Claude here. Use {{first_name}} for personalization."></textarea>
             <div id="wysiwyg" class="wysi hidden" contenteditable="true"></div>
             <iframe id="previewFrame" class="hidden" title="preview"></iframe>

@@ -32,6 +32,9 @@ const PHONE_EMAIL_MAP = path.join(DATA, "phone-email-map.json");
 const PHONE_LTV_MAP = path.join(DATA, "phone-ltv-map.json");
 const SUPPRESSION = path.join(DATA, "suppression.csv");
 const CAMPAIGNS = path.join(DATA, "campaigns.json");
+// Uploaded email images live on the persistent disk so they survive redeploys
+// (an email can be opened weeks after it was sent).
+const UPLOADS = path.join(DATA, "uploads");
 // CONFIG_PATH lets settings saved via the UI persist on the cloud disk too.
 const CONFIG = process.env.CONFIG_PATH || path.join(ROOT, "config.local.json");
 
@@ -1783,6 +1786,17 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, id: ad.id, summary: ad.summary });
     }
 
+    // ----- uploaded email images (PUBLIC — recipients load these straight from their inbox) -----
+    if (p.startsWith("/u/") && req.method === "GET") {
+      const name = path.basename(decodeURIComponent(p.slice(3)));
+      const fp = path.join(UPLOADS, name);
+      if (name && fp.startsWith(UPLOADS) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return send(res, 200, fs.readFileSync(fp), MIME[path.extname(fp).toLowerCase()] || "application/octet-stream");
+      }
+      return send(res, 404, "Not found", "text/plain");
+    }
+
     // ----- auth gate -----
     if (p.startsWith("/auth/")) return auth.handleAuthRoute(req, res, u);
     const user = auth.requireUser(req, res, { isApi: p.startsWith("/api/") });
@@ -1800,6 +1814,32 @@ const server = http.createServer(async (req, res) => {
       if (user.role === "rep") {
         const repAllowed = p === "/api/sbc" || p.startsWith("/api/sbc/");
         if (!repAllowed) return send(res, 403, { error: "Your login only has access to Sell By Chat." });
+      }
+
+      // upload an image for the email visual editor → returns a durable public URL
+      if (p === "/api/upload-image" && req.method === "POST") {
+        const b = await readBody(req);
+        const dataStr = String(b.fileBase64 || "");
+        const raw = dataStr.replace(/^data:[^;]+;base64,/, "");
+        if (!raw) return send(res, 400, { error: "No image data received." });
+        const m = dataStr.match(/^data:(image\/[a-z0-9.+-]+);base64,/i);
+        const mime = ((m && m[1]) || b.mime || "").toLowerCase();
+        const extByMime = { "image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/gif": ".gif", "image/webp": ".webp" };
+        let ext = extByMime[mime];
+        if (!ext) {
+          const fe = path.extname(String(b.fileName || "")).toLowerCase();
+          if ([".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(fe)) ext = fe === ".jpeg" ? ".jpg" : fe;
+        }
+        if (!ext) return send(res, 400, { error: "Only PNG, JPG, GIF, or WebP images are allowed." });
+        let buf; try { buf = Buffer.from(raw, "base64"); } catch { return send(res, 400, { error: "Bad image data." }); }
+        if (!buf.length) return send(res, 400, { error: "Empty image." });
+        if (buf.length > 8 * 1024 * 1024) return send(res, 400, { error: "Image is too large (max 8 MB). Resize it and try again." });
+        try { fs.mkdirSync(UPLOADS, { recursive: true }); } catch {}
+        const fn = "img_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8) + ext;
+        try { fs.writeFileSync(path.join(UPLOADS, fn), buf); } catch (e) { return send(res, 500, { error: "Couldn't save image: " + ((e && e.message) || e) }); }
+        const proto = (String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim()) || ((req.socket && req.socket.encrypted) ? "https" : "http");
+        const origin = proto + "://" + req.headers.host;
+        return send(res, 200, { ok: true, url: origin + "/u/" + fn });
       }
       // funnel analytics (visitors → checkout clicks → conversions → revenue, per variant)
       if (p === "/api/funnel" && req.method === "GET") {
@@ -3014,7 +3054,7 @@ const server = http.createServer(async (req, res) => {
 
 // Ensure all data subdirs exist (a fresh disk — e.g. a new cloud volume —
 // starts empty, and some write paths don't mkdir on their own).
-for (const d of [DATA, SEGMENTS, SMS_SEGMENTS, RECIPIENTS, JOBS_DIR, DRAFTS, SCHEDULED]) {
+for (const d of [DATA, SEGMENTS, SMS_SEGMENTS, RECIPIENTS, JOBS_DIR, DRAFTS, SCHEDULED, UPLOADS]) {
   try { fs.mkdirSync(d, { recursive: true }); } catch {}
 }
 

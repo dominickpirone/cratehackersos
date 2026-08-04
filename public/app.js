@@ -182,11 +182,20 @@ $("#modeVisual").onclick = () => setComposeMode("visual");
 $("#modePreview").onclick = () => setComposeMode("preview");
 // keep raw HTML in sync as the user types in the visual editor (so Send always uses current content)
 if ($("#wysiwyg")) $("#wysiwyg").oninput = () => { $("#html").value = $("#wysiwyg").innerHTML; };
+// where the cursor was in the visual editor — the file dialog + async upload drop focus,
+// so we stash the range and restore it before dropping the image in.
+let WYSI_RANGE = null;
 if ($("#wysiToolbar")) $("#wysiToolbar").onclick = (e) => {
   const btn = e.target.closest("button[data-cmd]"); if (!btn) return;
   e.preventDefault();
   const cmd = btn.dataset.cmd, val = btn.dataset.val;
   $("#wysiwyg").focus();
+  if (cmd === "insertImage") {
+    const s = window.getSelection();
+    WYSI_RANGE = (s && s.rangeCount) ? s.getRangeAt(0).cloneRange() : null;
+    const inp = $("#wysiImgFile"); if (inp) { inp.value = ""; inp.click(); }
+    return;
+  }
   if (cmd === "createLink") {
     const url = prompt("Link URL:", "https://"); if (!url) return;
     const sel = window.getSelection();
@@ -200,6 +209,28 @@ if ($("#wysiToolbar")) $("#wysiToolbar").onclick = (e) => {
     document.execCommand(cmd, false, null);
   }
   $("#html").value = $("#wysiwyg").innerHTML;
+};
+
+// Upload a picked image → durable public URL on the OS host → drop it in at the cursor.
+// (Data-URI images get stripped by Gmail/Outlook, so emails must use a hosted URL.)
+if ($("#wysiImgFile")) $("#wysiImgFile").onchange = async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  if (!/^image\//.test(f.type || "")) return toast("Please choose an image file.", "err");
+  if (f.size > 8 * 1024 * 1024) return toast("Image is too large (max 8 MB). Resize it and try again.", "err");
+  toast("Uploading image…", "ok");
+  let dataUrl;
+  try { dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+  catch { return toast("Couldn't read that image.", "err"); }
+  const resp = await post("/api/upload-image", { fileBase64: dataUrl, fileName: f.name });
+  if (!resp || resp.error) return toast((resp && resp.error) || "Upload failed.", "err");
+  const img = `<img src="${resp.url}" alt="" style="max-width:100%;height:auto;display:block">`;
+  $("#wysiwyg").focus();
+  const sel = window.getSelection();
+  if (WYSI_RANGE) { try { sel.removeAllRanges(); sel.addRange(WYSI_RANGE); } catch {} }
+  document.execCommand("insertHTML", false, img);
+  $("#html").value = $("#wysiwyg").innerHTML;
+  WYSI_RANGE = null;
+  toast("Image added ✓", "ok");
 };
 
 const provider = () => ($("#provider") ? $("#provider").value : "postmark");
