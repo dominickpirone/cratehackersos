@@ -933,26 +933,75 @@ async function scheduleSend(channel) {
   }
   const r = await post("/api/schedule", { channel, at, payload });
   if (r.error) return toast(r.error, "err");
-  toast(`Scheduled for ${new Date(at).toLocaleString()} ✓`, "ok");
+  if (EDITING_SCHED && EDITING_SCHED.id) {
+    try { await fetch("/api/scheduled/" + encodeURIComponent(EDITING_SCHED.id), { method: "DELETE" }); } catch {}
+    EDITING_SCHED = null;
+    document.querySelectorAll(".sched-edit-banner").forEach((e) => e.remove());
+    toast(`Updated — rescheduled for ${new Date(at).toLocaleString()} ✓`, "ok");
+  } else {
+    toast(`Scheduled for ${new Date(at).toLocaleString()} ✓`, "ok");
+  }
   atInput.value = "";
   loadUpcoming();
 }
 if ($("#schedBtn")) $("#schedBtn").onclick = () => scheduleSend("email");
 if ($("#smsSchedBtn")) $("#smsSchedBtn").onclick = () => scheduleSend("sms");
 
+// ---------- load & edit a scheduled send ----------
+let EDITING_SCHED = null, SCHEDULED_ALL = [];
+function toLocalInput(ms) { const d = new Date(ms); const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; }
+function schedEditBanner(s) {
+  document.querySelectorAll(".sched-edit-banner").forEach((e) => e.remove());
+  if (!s) return;
+  const host = s.channel === "sms" ? $("#sms") : $("#compose"); if (!host) return;
+  const b = document.createElement("div"); b.className = "sched-edit-banner";
+  b.style.cssText = "margin:0 0 14px;padding:10px 14px;background:#2a1b0d;border:1px solid #FF7722;border-radius:10px;font-size:13px;color:#ffd7b0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap";
+  b.innerHTML = `<span>✏️ Editing the scheduled ${s.channel === "sms" ? "text" : "email"} for <b>${new Date(s.at).toLocaleString()}</b>${(s.audience && s.audience.length) ? ` → <b>${esc(s.audience.join(", "))}</b>` : ""}. Make your changes, then hit <b>Schedule</b> to replace it.</span><button class="btn btn-ghost sm sched-edit-cancel" style="white-space:nowrap">Stop editing</button>`;
+  const head = host.querySelector(".panel-head");
+  host.insertBefore(b, head ? head.nextSibling : host.firstChild);
+  b.querySelector(".sched-edit-cancel").onclick = () => { EDITING_SCHED = null; b.remove(); toast("Stopped editing — this would be a new send now.", "ok"); };
+}
+async function loadScheduledInto(id) {
+  const s = SCHEDULED_ALL.find((x) => x.id === id); if (!s) return toast("Couldn't find that scheduled send.", "err");
+  const p = s.payload || {};
+  if (s.channel === "email") {
+    document.querySelector("[data-tab=compose]").click();
+    if (typeof loadAudienceOptions === "function") await loadAudienceOptions();
+    $("#subject").value = p.subject || ""; $("#html").value = p.html || ""; if ($("#text")) $("#text").value = p.text || "";
+    if (p.provider && $("#provider")) { $("#provider").value = p.provider; if (typeof updateProviderNote === "function") updateProviderNote(); }
+    [...$("#audience").options].forEach((o) => o.selected = (p.segments || []).includes(o.value));
+    if ($("#audienceExclude")) [...$("#audienceExclude").options].forEach((o) => o.selected = (p.excludeSegments || []).includes(o.value));
+    if ($("#schedAt")) $("#schedAt").value = toLocalInput(s.at);
+    if (typeof setComposeMode === "function") setComposeMode("html");
+  } else {
+    document.querySelector("[data-tab=sms]").click();
+    setTimeout(() => {
+      if (p.provider && $("#smsProvider")) { $("#smsProvider").value = p.provider; refreshSmsFrom(PROVIDER_STATE || {}); }
+      $("#smsBody").value = p.body || ""; if ($("#smsMedia")) $("#smsMedia").value = (p.mediaUrls || []).join(", "); $("#smsPaste").value = p.pasted || "";
+      if (p.from && $("#smsFrom")) $("#smsFrom").value = p.from;
+      if ($("#smsAudience")) [...$("#smsAudience").options].forEach((o) => o.selected = (p.segments || []).includes(o.value));
+      if ($("#smsSchedAt")) $("#smsSchedAt").value = toLocalInput(s.at);
+      if (typeof smsCount === "function") smsCount();
+    }, 450);
+  }
+  EDITING_SCHED = { id: s.id, channel: s.channel };
+  schedEditBanner(s);
+  toast("Loaded — edit it, then hit Schedule to update.", "ok");
+}
 async function loadUpcoming() {
   const conts = $$(".upcoming-list"); if (!conts.length) return;
   const { scheduled } = await api("/api/scheduled");
-  const all = scheduled || [];
+  const all = scheduled || []; SCHEDULED_ALL = all;
   const upcoming = all.filter((s) => s.status === "scheduled").sort((a, b) => a.at - b.at);
   const recent = all.filter((s) => s.status !== "scheduled").sort((a, b) => b.at - a.at).slice(0, 3);
   const t = (ms) => new Date(ms).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const row = (s) => {
     const tag = s.channel === "sms" ? "SMS/MMS" : "Email";
     const right = s.status === "scheduled"
-      ? `<button class="secondary" data-cancel="${s.id}" style="padding:3px 10px;font-size:12px">Cancel</button>`
+      ? `<span style="display:flex;gap:6px;flex-shrink:0"><button class="btn btn-ghost sm" data-edit="${s.id}" style="padding:3px 10px;font-size:12px">Edit</button><button class="secondary" data-cancel="${s.id}" style="padding:3px 10px;font-size:12px">Cancel</button></span>`
       : `<span class="muted" style="font-size:12px">${esc(s.status)}${s.error ? " · " + esc(s.error) : s.sent != null ? " · " + fmt(s.sent) : ""}</span>`;
-    return `<div class="up-item"><span><b>${t(s.at)}</b> · ${tag}<br><span class="muted">${esc(s.label || "")}</span></span>${right}</div>`;
+    const aud = (s.audience && s.audience.length) ? ` <span class="muted" style="font-size:11px">→ ${esc(s.audience.join(", "))}</span>` : "";
+    return `<div class="up-item"><span><b>${t(s.at)}</b> · ${tag}<br><span class="muted">${esc(s.label || "")}</span>${aud}</span>${right}</div>`;
   };
   const html = (upcoming.length || recent.length) ? [...upcoming, ...recent].map(row).join("") : `<div class="muted small">No scheduled sends.</div>`;
   conts.forEach((c) => (c.innerHTML = html));
@@ -961,6 +1010,7 @@ async function loadUpcoming() {
     await fetch("/api/scheduled/" + encodeURIComponent(b.dataset.cancel), { method: "DELETE" });
     loadUpcoming();
   });
+  $$("[data-edit]").forEach((b) => b.onclick = () => loadScheduledInto(b.dataset.edit));
 }
 
 // ---------- drafts ----------
