@@ -49,6 +49,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "ad-library") { loadAds(); loadInfluencers(); }
     if (btn.dataset.tab === "creators") loadCreators();
     if (btn.dataset.tab === "sbc") loadSbc();
+    if (btn.dataset.tab === "training") loadTraining();
     if (btn.dataset.tab === "settings") loadSettings();
     if (btn.dataset.tab === "compose") loadAudienceOptions(); // keep the audience list fresh (e.g. after an upload)
     if (btn.dataset.tab === "compose" || btn.dataset.tab === "sms") { loadUpcoming(); loadDrafts(); }
@@ -1784,6 +1785,125 @@ if ($("#outreachInsertName")) $("#outreachInsertName").onclick = () => {
   t.focus(); t.setSelectionRange(pos, pos);
 };
 
+// ---------- Training Center ----------
+let TRAINING = null;
+const trWho = () => ($("#trWho") && $("#trWho").value) || "dom";
+
+async function loadTraining() {
+  const d = await api("/api/training");
+  if (!d || d.error) return;
+  TRAINING = d;
+  const sel = $("#trWho");
+  if (sel && !sel.options.length) {
+    sel.innerHTML = (d.reps || []).map((r) => `<option value="${r}">${sbcTitle(r)}</option>`).join("");
+    // guess who's looking from their login, so nobody ticks boxes as someone else
+    const guess = (d.reps || []).find((r) => (d.me || "").toLowerCase().includes(r));
+    if (guess) sel.value = guess;
+    sel.onchange = renderTraining;
+  }
+  renderTraining();
+}
+
+function renderTraining() {
+  if (!TRAINING) return;
+  const me = trWho();
+  const days = TRAINING.onboardingDays || [];
+  const mine = (TRAINING.onboarding || {})[me] || {};
+  let total = 0, done = 0;
+
+  $("#trOnboarding").innerHTML = days.map((d) => {
+    const rows = d.items.map((label, i) => {
+      const key = `d${d.day}.${i}`;
+      const ticked = !!mine[key];
+      total++; if (ticked) done++;
+      return `<label class="sbc-line" style="display:flex;gap:9px;align-items:flex-start;cursor:pointer">
+        <input type="checkbox" data-trkey="${key}"${ticked ? " checked" : ""} style="margin-top:3px" />
+        <span style="${ticked ? "opacity:.55;text-decoration:line-through" : ""}">${esc(label)}</span>
+        ${ticked ? `<span class="muted" style="font-size:10px;margin-left:auto;white-space:nowrap">${esc(mine[key])}</span>` : ""}
+      </label>`;
+    }).join("");
+    const dayDone = d.items.every((_, i) => mine[`d${d.day}.${i}`]);
+    return `<div class="card" style="margin-bottom:10px;padding:12px 14px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">
+        ${dayDone ? "✅ " : ""}Day ${d.day} <span class="muted" style="font-weight:400">— ${esc(d.title)}</span></div>
+      ${rows}</div>`;
+  }).join("");
+
+  if ($("#trProgress")) {
+    $("#trProgress").innerHTML = total
+      ? `${sbcTitle(me)}: <b>${done}/${total}</b> of the first-week checklist done`
+      : "";
+  }
+
+  const items = TRAINING.items || [];
+  $("#trList").innerHTML = items.length ? `<div class="cr-list">` + items.map((it) => {
+    const ticked = !!(it.done || {})[me];
+    const link = it.url && /^https?:/i.test(it.url)
+      ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">Open ↗</a>`
+      : it.url ? `<a href="${esc(it.url)}">Open</a>` : `<span class="muted small">no link</span>`;
+    const others = Object.keys(it.done || {}).filter((r) => r !== me);
+    return `<div class="cr-item">
+      <label>
+        <input type="checkbox" data-trdone="${esc(it.id)}"${ticked ? " checked" : ""} style="margin-top:4px" />
+        <span class="cr-main">
+          <span class="cr-name">${esc(it.title)}</span>
+          ${it.source ? ` <span class="muted small">· ${esc(it.source)}</span>` : ""}
+          ${it.kind === "external" ? ' <span class="muted small" title="Hosted on someone else\'s platform — sign in there">↗ external</span>' : ""}
+          ${it.notes ? `<br /><span class="muted small">${esc(it.notes)}</span>` : ""}
+          ${others.length ? `<br /><span class="muted small">done by ${others.map(sbcTitle).map(esc).join(", ")}</span>` : ""}
+        </span>
+      </label>
+      <span class="cr-stats">
+        ${link}
+        <button class="secondary" data-trnotes="${esc(it.id)}">Notes</button>
+        <button class="secondary" data-trdel="${esc(it.id)}">✕</button>
+      </span></div>`;
+  }).join("") + `</div>` : `<p class="muted small">Nothing here yet — add the first training above.</p>`;
+
+  $$("[data-trkey]").forEach((c) => c.onchange = async () => {
+    const r = await post("/api/training/onboarding", { rep: me, key: c.dataset.trkey });
+    if (r && r.error) return toast(r.error, "err");
+    TRAINING.onboarding = r.onboarding;
+    renderTraining();
+  });
+  $$("[data-trdone]").forEach((c) => c.onchange = async () => {
+    const r = await api("/api/training/" + encodeURIComponent(c.dataset.trdone), {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ doneFor: me }),
+    });
+    if (!r || r.error) return toast((r && r.error) || "Couldn't save.", "err");
+    loadTraining();
+  });
+  $$("[data-trnotes]").forEach((b) => b.onclick = async () => {
+    const it = (TRAINING.items || []).find((x) => x.id === b.dataset.trnotes);
+    const notes = prompt(`Notes on "${it.title}":`, it.notes || "");
+    if (notes == null) return;
+    const r = await api("/api/training/" + encodeURIComponent(b.dataset.trnotes), {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes }),
+    });
+    if (!r || r.error) return toast((r && r.error) || "Couldn't save.", "err");
+    loadTraining();
+  });
+  $$("[data-trdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Remove this from the training list?")) return;
+    await api("/api/training/" + encodeURIComponent(b.dataset.trdel), { method: "DELETE" });
+    loadTraining();
+  });
+}
+
+if ($("#trAddToggle")) $("#trAddToggle").onclick = () => $("#trAddWrap").classList.toggle("hidden");
+if ($("#trAdd")) $("#trAdd").onclick = async () => {
+  const title = $("#trTitle").value.trim();
+  if (!title) return toast("Give it a title.", "err");
+  const r = await post("/api/training", {
+    title, url: $("#trUrl").value.trim(), source: $("#trSource").value.trim(), notes: $("#trNotes").value.trim(),
+  });
+  if (r.error) { $("#trMsg").textContent = r.error; $("#trMsg").style.color = "var(--err)"; return; }
+  $("#trMsg").textContent = ""; ["trTitle", "trUrl", "trSource", "trNotes"].forEach((i) => $("#" + i).value = "");
+  $("#trAddWrap").classList.add("hidden");
+  await loadTraining();
+  toast("Added to the training center.", "ok");
+};
+
 // ---------- Sell By Chat ----------
 // Scripts are transcribed from the Sell By Chat playbook + script library. The
 // Hacker Hotel offer sequences are new (the docs only covered Level 11 and the
@@ -2445,7 +2565,8 @@ if ($("#crExport")) $("#crExport").onclick = () => {
     // them on that tab. The server enforces this too — this is just so the UI
     // doesn't show doors that won't open.
     if (me && me.role === "rep") {
-      $$(".tab").forEach((t) => { if (t.dataset.tab !== "sbc") t.style.display = "none"; });
+      const repTabs = ["sbc", "training"];
+      $$(".tab").forEach((t) => { if (!repTabs.includes(t.dataset.tab)) t.style.display = "none"; });
       const sbcTab = $('.tab[data-tab="sbc"]');
       if (sbcTab && !sbcTab.classList.contains("active")) sbcTab.click();
     }

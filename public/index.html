@@ -44,6 +44,7 @@
       <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
       <button class="tab" data-tab="creators"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="lbl">Creators</span></button>
       <button class="tab" data-tab="sbc"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Sell By Chat</span></button>
+      <button class="tab" data-tab="training"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Training</span></button>
       <button class="tab" data-tab="settings"><svg class="ico" viewBox="0 0 24 24"><use href="#i-settings"/></svg><span class="lbl">Settings</span></button>
     </nav>
     <div class="spacer"></div>
@@ -627,6 +628,42 @@
           <label class="row" style="gap:6px;align-items:center;font-size:12.5px;color:var(--t3)"><input id="sbcDueOnly" type="checkbox" /> Due today only</label>
         </div>
         <div id="sbcPipeline"></div>
+      </section>
+
+      <!-- ===== TRAINING ===== -->
+      <section id="training" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Training center</span>
+          <h1>Training</h1>
+          <p>Everything a new rep needs, in the order they need it. External courses link out — watch them on the platform you pay for; we keep the running order, our notes, and who's actually done what.</p>
+        </div>
+
+        <div class="row" style="gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <label class="field" style="margin:0;width:170px"><span class="lab">I'm</span><select id="trWho"></select></label>
+          <span id="trProgress" class="muted small"></span>
+        </div>
+
+        <h2 class="section-label">First week</h2>
+        <p class="section-sub">Straight from section 11 of our Sell By Chat Playbook. Tick as you go — progress is per person and shared, so the manager can see where everyone is.</p>
+        <div id="trOnboarding"></div>
+
+        <div class="row between" style="align-items:center;margin:28px 0 8px">
+          <h2 class="section-label" style="margin:0">Trainings &amp; resources</h2>
+          <button id="trAddToggle" class="btn btn-ghost sm">+ Add a training</button>
+        </div>
+        <div id="trAddWrap" class="card hidden" style="margin-bottom:14px">
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Title</span><input id="trTitle" type="text" placeholder="Sell By Chat audit" /></label>
+            <label class="field" style="margin:0;width:170px"><span class="lab">Source</span><input id="trSource" type="text" placeholder="Dan Martell — Elite" /></label>
+          </div>
+          <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+            <label class="field" style="margin:0;flex:1;min-width:240px"><span class="lab">Link <span class="muted small">— optional</span></span><input id="trUrl" type="url" placeholder="https://…" /></label>
+            <label class="field" style="margin:0;flex:1;min-width:200px"><span class="lab">Why it matters</span><input id="trNotes" type="text" placeholder="what to take from it" /></label>
+            <button id="trAdd" class="btn btn-primary">Add</button>
+          </div>
+          <span id="trMsg" class="inline-msg"></span>
+        </div>
+        <div id="trList"></div>
       </section>
 
       <!-- ===== CREATORS ===== -->

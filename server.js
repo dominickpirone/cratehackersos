@@ -583,6 +583,50 @@ Return ONLY a JSON object:
   };
 }
 
+// ---------- Training Center ----------
+// Links out to trainings rather than hosting them: most of this material is on
+// paid platforms (Dan Martell's Elite, etc.) and re-hosting someone else's course
+// isn't ours to do. Reps click through with their own login; what we keep here is
+// the curriculum order, our own notes, and who has actually done what.
+const TRAINING_FILE = path.join(DATA, "training.json");
+// The 5-day plan is lifted from section 11 of our own Sell By Chat Playbook.
+const ONBOARDING_DAYS = [
+  { day: 1, title: "Ground rules + who we sell to", items: [
+    "Crate Hackers story and values", "Tech check — IG/FB access, CHOS login, Skool",
+    "Who our DJs are: mobile / wedding / corporate, and the pains from the 1,760-response survey",
+    "The Opener role: what good looks like", "Read three winning chats end to end" ] },
+  { day: 2, title: "The voice and the pipeline", items: [
+    "The Dom voice — caps for emphasis, tight lines, emojis, zero corporate-speak",
+    "Sales strategy + objection basics", "Pipeline drill in CHOS: add a prospect, log a touch, move a stage",
+    "Internal comms — where to ask for help" ] },
+  { day: 3, title: "Study real conversations", items: [
+    "Read three Closed Won chats and three Closed Lost", "Objection handling — reframe, never answer",
+    "Closing techniques", "Role-play: opens and objections" ] },
+  { day: 4, title: "Follow-up and pre-handling", items: [
+    "Follow-up scripting and the 0·1·1·2·3·5·8·13 cadence", "Widening the gap between Point A and Point B",
+    "Pre-handling objections before they land", "Conditioning for the close" ] },
+  { day: 5, title: "Go live", items: [
+    "100+ opens", "Work every conversation that comes back",
+    "Week 1 review with the manager", "Agree the Week 2 training plan" ] },
+];
+// Seeded on first load so the tab isn't empty; editable and deletable like any other.
+const TRAINING_SEED = [
+  { id: "seed-dm-sbc-audit", title: "Sell By Chat audit", source: "Dan Martell — Elite",
+    url: "https://elite.danmartell.com/posts/business-sell-by-chat-audit-88523930",
+    kind: "external", notes: "Needs your own Elite login. Watch on Dan's site — we don't host it.", addedAt: null, done: {} },
+  { id: "seed-playbook", title: "Crate Hackers Sell By Chat Playbook", source: "Ours",
+    url: "", kind: "doc", notes: "The system: roles, buying zone, handoff bar, objection reframes, CRM stages.", addedAt: null, done: {} },
+  { id: "seed-scripts", title: "Script Library — opens, qualifying, offers, objections", source: "Ours",
+    url: "#sbc", kind: "internal", notes: "Live in the Sell By Chat tab with the fill-in boxes.", addedAt: null, done: {} },
+];
+function loadTraining() {
+  try {
+    const d = JSON.parse(fs.readFileSync(TRAINING_FILE, "utf8"));
+    return { items: Array.isArray(d.items) ? d.items : [], onboarding: d.onboarding || {} };
+  } catch { return { items: TRAINING_SEED.map((x) => ({ ...x })), onboarding: {} }; }
+}
+function saveTraining(d) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(TRAINING_FILE, JSON.stringify(d, null, 2)); } catch {} }
+
 const SBC_FILE = path.join(DATA, "sbc.json");
 const SBC_STAGES = ["lead", "qualified", "offer_made", "closed_won", "closed_lost"];
 // Nick closes fence-sitters, so he's a rep like the others — prospects get escalated
@@ -1850,8 +1894,10 @@ const server = http.createServer(async (req, res) => {
       // Reps (outside sales team) only get Sell By Chat. Enforced here, not just by
       // hiding tabs — otherwise anyone could curl /api/settings and read the keys.
       if (user.role === "rep") {
-        const repAllowed = p === "/api/sbc" || p.startsWith("/api/sbc/");
-        if (!repAllowed) return send(res, 403, { error: "Your login only has access to Sell By Chat." });
+        // Training is for the reps, so they get it alongside Sell By Chat.
+        const repAllowed = p === "/api/sbc" || p.startsWith("/api/sbc/") ||
+          p === "/api/training" || p.startsWith("/api/training/");
+        if (!repAllowed) return send(res, 403, { error: "Your login only has access to Sell By Chat and Training." });
       }
 
       // upload an image for the email visual editor → returns a durable public URL
@@ -2034,6 +2080,63 @@ const server = http.createServer(async (req, res) => {
         saveInfluencers(merged);
         return send(res, 200, { ok: true, count: merged.length, imported: out.length });
       }
+      // ---------- Training Center ----------
+      if (p === "/api/training" && req.method === "GET") {
+        const d = loadTraining();
+        return send(res, 200, { ...d, onboardingDays: ONBOARDING_DAYS, reps: SBC_REPS, me: user.email, role: user.role });
+      }
+      if (p === "/api/training" && req.method === "POST") {
+        const b = await readBody(req);
+        const title = String(b.title || "").trim();
+        if (!title) return send(res, 400, { error: "Give it a title." });
+        const url = String(b.url || "").trim();
+        if (url && !/^https?:\/\//i.test(url)) return send(res, 400, { error: "Links need to start with http:// or https://" });
+        const d = loadTraining();
+        d.items.unshift({
+          id: "t" + Date.now().toString(36), title, url,
+          source: String(b.source || "").trim(), kind: url ? "external" : "doc",
+          notes: String(b.notes || "").trim(), addedAt: new Date().toISOString(), done: {},
+        });
+        saveTraining(d);
+        return send(res, 200, { ok: true, total: d.items.length });
+      }
+      if (p.startsWith("/api/training/") && req.method === "PATCH") {
+        const id = decodeURIComponent(p.slice("/api/training/".length));
+        const b = await readBody(req);
+        const d = loadTraining();
+        const x = d.items.find((y) => y.id === id);
+        if (!x) return send(res, 404, { error: "No such training." });
+        for (const k of ["title", "url", "source", "notes"]) if (k in b) x[k] = String(b[k] || "").trim();
+        // "done" is per person, keyed by the rep name the viewer picked
+        if (b.doneFor) {
+          x.done = x.done || {};
+          if (x.done[b.doneFor]) delete x.done[b.doneFor];
+          else x.done[b.doneFor] = new Date().toISOString().slice(0, 10);
+        }
+        saveTraining(d);
+        return send(res, 200, { ok: true, item: x });
+      }
+      if (p.startsWith("/api/training/") && req.method === "DELETE") {
+        const id = decodeURIComponent(p.slice("/api/training/".length));
+        const d = loadTraining();
+        d.items = d.items.filter((x) => x.id !== id);
+        saveTraining(d);
+        return send(res, 200, { ok: true });
+      }
+      // onboarding progress: one tick per rep per checklist line
+      if (p === "/api/training/onboarding" && req.method === "POST") {
+        const b = await readBody(req);
+        const rep = String(b.rep || "").trim();
+        const key = String(b.key || "").trim();
+        if (!rep || !key) return send(res, 400, { error: "Missing rep or item." });
+        const d = loadTraining();
+        d.onboarding[rep] = d.onboarding[rep] || {};
+        if (d.onboarding[rep][key]) delete d.onboarding[rep][key];
+        else d.onboarding[rep][key] = new Date().toISOString().slice(0, 10);
+        saveTraining(d);
+        return send(res, 200, { ok: true, onboarding: d.onboarding });
+      }
+
       // ---------- Sell By Chat ----------
       if (p === "/api/sbc" && req.method === "GET") {
         const d = loadSbc();
