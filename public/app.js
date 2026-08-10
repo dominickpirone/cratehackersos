@@ -1021,6 +1021,13 @@ async function loadScheduledInto(id) {
     if (p.provider && $("#provider")) { $("#provider").value = p.provider; if (typeof updateProviderNote === "function") updateProviderNote(); }
     [...$("#audience").options].forEach((o) => o.selected = (p.segments || []).includes(o.value));
     if ($("#audienceExclude")) [...$("#audienceExclude").options].forEach((o) => o.selected = (p.excludeSegments || []).includes(o.value));
+    // restore the A/B arm too — without this, editing a scheduled split test and
+    // re-scheduling it would quietly send subject A to the whole list
+    if ($("#subjectB")) {
+      $("#subjectB").value = p.subjectB || "";
+      if (p.subjectB) { $("#abWrap").classList.remove("hidden"); if (p.splitPct) $("#splitPct").value = p.splitPct; abHint(); }
+      else if ($("#abWrap")) $("#abWrap").classList.add("hidden");
+    }
     if ($("#schedAt")) $("#schedAt").value = toLocalInput(s.at);
     if (typeof setComposeMode === "function") setComposeMode("html");
   } else {
