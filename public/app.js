@@ -455,8 +455,24 @@ $("#segUpload").onclick = async () => {
 };
 
 $("#suppressSave").onclick = async () => {
-  const r = await post("/api/suppression", { replace: $("#suppressBox").value });
-  toast(`Suppression list saved — ${fmt(r.count)} addresses.`, "ok");
+  const value = $("#suppressBox").value;
+  let r = await post("/api/suppression", { replace: value });
+  // The server refuses a save that drops anyone until we say how many we mean to
+  // drop. Show exactly who's going, then send the count back as the acknowledgement.
+  if (r && r.error === "needs-confirm") {
+    const preview = (r.sample || []).join("\n");
+    const ok = confirm(
+      `This REMOVES ${r.removing} address${r.removing === 1 ? "" : "es"} from the suppression list` +
+      `${r.adding ? ` and adds ${r.adding}` : ""}.\n\n` +
+      `${r.current} → ${r.proposed} addresses.\n\n` +
+      `Anyone removed can be emailed again — that's how 345 people got mailed by mistake on Jul 29.\n\n` +
+      `About to drop:\n${preview}${r.removing > (r.sample || []).length ? `\n…and ${r.removing - r.sample.length} more` : ""}\n\n` +
+      `Continue?`);
+    if (!ok) return toast("Nothing changed.", "ok");
+    r = await post("/api/suppression", { replace: value, confirmRemovals: r.removing });
+  }
+  if (!r || r.error) return toast((r && r.error) || "Couldn't save.", "err");
+  toast(`Suppression list saved — ${fmt(r.count)} addresses${r.removed ? `, ${r.removed} removed` : ""}.`, "ok");
 };
 
 // ---------- analytics ----------

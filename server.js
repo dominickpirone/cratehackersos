@@ -2762,10 +2762,29 @@ const server = http.createServer(async (req, res) => {
       if (p === "/api/suppression" && req.method === "POST") {
         const b = await readBody(req);
         const cur = loadSuppression();
-        if ("replace" in b) cur.clear(); // saving the box replaces the whole list, even when cleared
-        const incoming = "replace" in b ? b.replace : (b.add || "");
-        incoming.split(/[\s,;]+/).map((e) => e.trim().toLowerCase())
-          .filter((e) => e.includes("@")).forEach((e) => cur.add(e));
+        const parse = (s) => new Set(String(s || "").split(/[\s,;]+/)
+          .map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@")));
+        // A bulk replace silently dropped 345 addresses on Jul 29 and 210 people got
+        // an email they'd opted out of. Removals now have to be acknowledged: the
+        // client sends back the exact number it intends to drop, and a mismatch —
+        // or a missing count — refuses the write.
+        if ("replace" in b) {
+          const next = parse(b.replace);
+          const removing = [...cur].filter((e) => !next.has(e));
+          if (removing.length && b.confirmRemovals !== removing.length) {
+            return send(res, 409, {
+              error: "needs-confirm",
+              removing: removing.length,
+              adding: [...next].filter((e) => !cur.has(e)).length,
+              sample: removing.slice(0, 8),
+              current: cur.size, proposed: next.size,
+            });
+          }
+          fs.writeFileSync(SUPPRESSION, [...next].join("\n"));
+          return send(res, 200, { ok: true, count: next.size, removed: removing.length });
+        }
+        // additive path — can never lose anyone
+        for (const e of parse(b.add)) cur.add(e);
         fs.writeFileSync(SUPPRESSION, [...cur].join("\n"));
         return send(res, 200, { ok: true, count: cur.size });
       }
