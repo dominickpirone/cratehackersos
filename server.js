@@ -473,7 +473,12 @@ function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); 
 //     $9.99 / $67 / $90 / $91 / $99.99 — but "Crate Hackers" HAS 69 sales at $250
 //     (the July 4 BOGO), which is why this matches on product too
 const HH_OFFERS = [
-  { id: "mega", label: "MEGA Offer (everything)", price: 3500, priceNote: "$3K–$4K — CONFIRM", match: /crate\s*hackers|hacker\s*hotel/i, min: 2900, max: 6000 },
+  // MEGA turned out to be $997 on the Hacker Hotel product, not the $3-4K that was
+  // planned — score_leads.py records it as ("MEGA", 997.00) and the ledger shows the
+  // sales. The old 2900+ band scored every one of them as zero.
+  { id: "mega", label: "MEGA Offer (everything)", price: 997, match: /hacker\s*hotel/i, min: 950, max: 1100 },
+  // Anything above that on Hacker Hotel is an in-person ticket, not an offer we sell by chat.
+  { id: "hh-highticket", label: "HH high-ticket ($1.1K+)", price: 0, priceNote: "in-person / bespoke", match: /hacker\s*hotel/i, min: 1101, max: 6000 },
   // Lifetime also goes out at $777, so the band opens at 700. It stops short of the
   // $597 July-4 OTO, which is a different offer on the same Kartra product.
   { id: "ch-life", label: "CH Lifetime (+ jacket)", price: 997, priceNote: "also counts $777", match: /^crate\s*hackers$/i, min: 700, max: 1050 },
