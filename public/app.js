@@ -47,6 +47,7 @@ $$(".tab").forEach((btn) => {
     if (btn.dataset.tab === "dashboards") loadDashboardsDefault();
     if (btn.dataset.tab === "failed-payments") loadFailedPayments();
     if (btn.dataset.tab === "ad-library") { loadAds(); loadInfluencers(); }
+    if (btn.dataset.tab === "ad-images") loadAdImages();
     if (btn.dataset.tab === "creators") loadCreators();
     if (btn.dataset.tab === "sbc") loadSbc();
     if (btn.dataset.tab === "training") loadTraining();
@@ -1781,6 +1782,108 @@ if ($("#adAdd")) $("#adAdd").onclick = async () => {
     setMsg("⚠ Couldn't process that — " + ((e && e.message) || "unknown error") + ". Try a smaller file or paste the transcript.", true);
   } finally {
     $("#adAdd").disabled = false;
+  }
+};
+
+// ---------- Ad Images (Muse Image on Meta Model API) ----------
+let AIIMG = [];
+let AIIMG_REMIX = null; // /u/ path of a generation being remixed as the reference
+
+async function loadAdImages() {
+  const d = await api("/api/adimages");
+  if (d.error) return toast(d.error, "err");
+  AIIMG = d.images || [];
+  if ($("#aiSetup")) $("#aiSetup").classList.toggle("hidden", !!d.configured);
+  if ($("#aiMain")) $("#aiMain").classList.toggle("hidden", !d.configured);
+  renderAdImages();
+}
+
+function aiRefNote() {
+  const el = $("#aiRefNote"); if (!el) return;
+  const files = ($("#aiRefs") && $("#aiRefs").files) || [];
+  const bits = [];
+  if (AIIMG_REMIX) bits.push("♻ remixing an earlier generation");
+  if (files.length) bits.push(files.length + " file" + (files.length > 1 ? "s" : "") + " attached");
+  el.textContent = bits.length ? "References: " + bits.join(" + ") + " — click Generate to apply. " : "";
+  if (bits.length && AIIMG_REMIX) el.textContent += "(clear: re-pick files or generate)";
+  el.classList.toggle("hidden", !bits.length);
+}
+
+function renderAdImages() {
+  const box = $("#aiImgList"); if (!box) return;
+  if (!AIIMG.length) { box.innerHTML = '<p class="muted">Nothing yet — your generated ad images will land here, newest first.</p>'; return; }
+  box.innerHTML = AIIMG.map((g) => `
+    <div class="card" style="margin-bottom:14px">
+      <div class="muted small" style="margin-bottom:8px">${esc(new Date(g.created).toLocaleString())} · ${esc(g.size)} · ${g.urls.length} image${g.urls.length > 1 ? "s" : ""}${g.refCount ? " · " + g.refCount + " ref" : ""}${g.by ? " · " + esc(g.by.split("@")[0]) : ""}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${g.urls.map((u) => `
+        <div style="width:180px">
+          <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" style="width:100%;border-radius:8px;display:block;background:#242838" loading="lazy"></a>
+          <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+            <a class="btn btn-ghost sm" href="${esc(u)}" download title="Download">⬇</a>
+            <button class="btn btn-ghost sm ai-copy" data-u="${esc(u)}" title="Copy the permanent URL">Copy URL</button>
+            <button class="btn btn-ghost sm ai-remix" data-u="${esc(u)}" title="Edit this image with a new prompt">♻ Remix</button>
+          </div>
+        </div>`).join("")}
+      </div>
+      <div class="small" style="margin-top:8px;white-space:pre-wrap">${esc(g.prompt)}</div>
+      <button class="btn btn-ghost sm ai-del" data-id="${esc(g.id)}" style="margin-top:6px">🗑 Delete</button>
+    </div>`).join("");
+  $$("#aiImgList .ai-copy").forEach((b) => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(location.origin + b.dataset.u); toast("URL copied — paste it anywhere.", "ok"); }
+    catch { toast("Couldn't copy — long-press the image instead.", "err"); }
+  });
+  $$("#aiImgList .ai-remix").forEach((b) => b.onclick = () => {
+    AIIMG_REMIX = b.dataset.u;
+    if ($("#aiRefs")) $("#aiRefs").value = "";
+    aiRefNote();
+    if ($("#aiPrompt")) { $("#aiPrompt").focus(); $("#aiPrompt").placeholder = "Describe the change — e.g. swap the headline area to teal, add falling confetti, keep everything else"; }
+    toast("Remix armed — describe the change, then Generate.", "ok");
+  });
+  $$("#aiImgList .ai-del").forEach((b) => b.onclick = async () => {
+    if (!confirm("Delete this generation (and its image files)?")) return;
+    const r = await post("/api/adimages/delete", { id: b.dataset.id });
+    if (r.error) return toast(r.error, "err");
+    AIIMG = AIIMG.filter((x) => x.id !== b.dataset.id); renderAdImages();
+  });
+}
+
+if ($("#aiRefs")) $("#aiRefs").onchange = () => { AIIMG_REMIX = null; aiRefNote(); };
+
+if ($("#aiKeySave")) $("#aiKeySave").onclick = async () => {
+  const key = $("#aiKey").value.trim();
+  const msg = $("#aiKeyMsg");
+  if (!key) { msg.textContent = "Paste your API key first."; return; }
+  msg.textContent = "Saving…";
+  const r = await post("/api/settings", { metaModelApiKey: key });
+  if (r.error) { msg.textContent = "⚠ " + r.error; return; }
+  msg.textContent = ""; $("#aiKey").value = "";
+  toast("Muse Image connected.", "ok");
+  loadAdImages();
+};
+
+if ($("#aiGen")) $("#aiGen").onclick = async () => {
+  const prompt = $("#aiPrompt").value.trim();
+  if (!prompt) return toast("Describe the image you want first.", "err");
+  const files = [...(($("#aiRefs") && $("#aiRefs").files) || [])].slice(0, 3);
+  for (const f of files) if (f.size > 8 * 1024 * 1024) return toast("Reference \"" + f.name + "\" is over 8 MB — resize it first.", "err");
+  const setMsg = (t, err) => { const m = $("#aiMsg"); if (m) { m.textContent = t; m.style.color = err ? "#ef6a6a" : ""; } };
+  $("#aiGen").disabled = true;
+  const n = Number($("#aiN").value) || 1;
+  setMsg("Generating " + n + " image" + (n > 1 ? "s" : "") + "… Muse reasons before it renders, so give it ~30–60s.");
+  try {
+    const refs = [];
+    for (const f of files) refs.push(await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("couldn't read " + f.name)); fr.readAsDataURL(f); }));
+    if (AIIMG_REMIX) refs.unshift(AIIMG_REMIX);
+    const r = await post("/api/adimages/generate", { prompt, size: $("#aiSize").value, n, refs });
+    if (r.error) { setMsg("⚠ " + r.error, true); toast(r.error, "err"); return; }
+    AIIMG.unshift(r.rec); renderAdImages();
+    AIIMG_REMIX = null; if ($("#aiRefs")) $("#aiRefs").value = ""; aiRefNote();
+    setMsg("");
+    toast(r.rec.urls.length + " image" + (r.rec.urls.length > 1 ? "s" : "") + " ready (~$0.0" + r.rec.urls.length + ").", "ok");
+  } catch (e) {
+    setMsg("⚠ " + ((e && e.message) || "Something went wrong — try again."), true);
+  } finally {
+    $("#aiGen").disabled = false;
   }
 };
 

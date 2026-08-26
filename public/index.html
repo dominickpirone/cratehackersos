@@ -42,6 +42,7 @@
       <button class="tab" data-tab="dashboards"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Dashboards</span></button>
       <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
       <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
+      <button class="tab" data-tab="ad-images"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Ad Images</span></button>
       <button class="tab" data-tab="creators"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="lbl">Creators</span></button>
       <button class="tab" data-tab="sbc"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Sell By Chat</span></button>
       <button class="tab" data-tab="training"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Training</span></button>
@@ -548,6 +549,48 @@
             <div id="adMsg" class="muted small" style="margin-top:8px"></div>
           </div>
           <div style="flex:2;min-width:340px"><div id="adList"></div></div>
+        </div>
+      </section>
+
+      <!-- ===== AD IMAGES (Muse Image on Meta Model API) ===== -->
+      <section id="ad-images" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Muse Image · $0.01/image</span>
+          <h1>Ad Images</h1>
+          <p>Generate Meta ad creative with <b>Muse Image</b> (Meta Model API). Describe the image, pick the placement size, optionally feed it reference images to match a style or product — it reasons over the brief before rendering. Every image lands below with a permanent URL you can drop straight into Ads Manager.</p>
+        </div>
+
+        <div id="aiSetup" class="card hidden" style="max-width:560px">
+          <h3>One-time setup</h3>
+          <p class="muted">Grab an API key from the official portal at <a href="https://dev.meta.ai/" target="_blank" rel="noopener">dev.meta.ai</a> (Dashboard → API keys), paste it here, and you're live. Billing is $0.01 per generated image.</p>
+          <div class="field"><span class="lab">Meta Model API key</span><input id="aiKey" type="password" placeholder="paste your MODEL_API_KEY" /></div>
+          <div class="row"><button id="aiKeySave" class="btn btn-primary">Save key</button><span id="aiKeyMsg" class="inline-msg"></span></div>
+        </div>
+
+        <div id="aiMain" class="hidden">
+          <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
+            <div class="card" style="flex:1;min-width:320px;max-width:440px">
+              <h3>Create</h3>
+              <div class="field"><span class="lab">Describe the image</span><textarea id="aiPrompt" rows="5" placeholder="e.g. A packed wedding dance floor at night, confetti mid-air, DJ booth glowing orange, bold headline space at the top — photorealistic, high energy"></textarea></div>
+              <div class="field-row">
+                <div class="field"><span class="lab">Placement</span><select id="aiSize">
+                  <option value="square">Square 1:1 — Feed (1080×1080)</option>
+                  <option value="story">Vertical 9:16 — Stories/Reels (1080×1920)</option>
+                  <option value="landscape">Landscape 1.91:1 — Link ads (1200×628)</option>
+                </select></div>
+                <div class="field"><span class="lab">Variations</span><select id="aiN">
+                  <option value="1">1 ($0.01)</option><option value="2">2 ($0.02)</option>
+                  <option value="3">3 ($0.03)</option><option value="4" selected>4 ($0.04)</option>
+                </select></div>
+              </div>
+              <div class="field"><span class="lab">Reference images <span class="muted">(optional, up to 3 — match a style, product, or person)</span></span><input id="aiRefs" type="file" accept="image/*" multiple /></div>
+              <div id="aiRefNote" class="muted small hidden" style="margin:-4px 0 10px"></div>
+              <button id="aiGen" class="btn btn-primary block">Generate →</button>
+              <div id="aiMsg" class="muted small" style="margin-top:8px"></div>
+              <p class="muted small" style="margin-top:10px">Tip: with references attached, generations follow the reference's aspect ratio — start from a clean generation in your target size, then remix it.</p>
+            </div>
+            <div style="flex:2;min-width:340px"><div id="aiImgList"></div></div>
+          </div>
         </div>
       </section>
 

@@ -92,6 +92,7 @@ function loadConfig() {
     groqApiKey: cfg.groqApiKey || process.env.GROQ_API_KEY || "",
     adIngestToken: cfg.adIngestToken || process.env.AD_INGEST_TOKEN || "",
     scrapeCreatorsKey: cfg.scrapeCreatorsKey || process.env.SCRAPECREATORS_API_KEY || "",
+    metaModelApiKey: cfg.metaModelApiKey || process.env.META_MODEL_API_KEY || "",
   };
 }
 function saveConfig(patch) {
@@ -453,6 +454,53 @@ function loadFailedPaymentsCache() {
 const ADS_FILE = path.join(DATA, "ads.json");
 function loadAds() { try { return JSON.parse(fs.readFileSync(ADS_FILE, "utf8")); } catch { return []; } }
 function saveAds(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(ADS_FILE, JSON.stringify(list, null, 2)); } catch {} }
+
+// ---------- Ad Images — Muse Image on Meta Model API ($0.01/image) ----------
+const GENIMG_FILE = path.join(DATA, "genimages.json");
+function loadGenImages() { try { return JSON.parse(fs.readFileSync(GENIMG_FILE, "utf8")); } catch { return []; } }
+function saveGenImages(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(GENIMG_FILE, JSON.stringify(list, null, 2)); } catch {} }
+
+// A reference can be a data URL from the browser or the /u/ path of an earlier
+// generation (remix). Anything else is rejected so this can't be used to read
+// arbitrary files or fetch arbitrary URLs server-side.
+function refToDataUrl(u) {
+  u = String(u || "");
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(u)) return u;
+  if (u.startsWith("/u/")) {
+    const name = path.basename(decodeURIComponent(u.slice(3)));
+    const fp = path.join(UPLOADS, name);
+    if (name && fp.startsWith(UPLOADS) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+      const ext = path.extname(fp).toLowerCase().replace(".", "") || "png";
+      const mime = "image/" + (ext === "jpg" ? "jpeg" : ext);
+      return "data:" + mime + ";base64," + fs.readFileSync(fp).toString("base64");
+    }
+  }
+  return null;
+}
+
+async function museImages(cfg, { prompt, size, n, refs }) {
+  const edit = refs.length > 0; // references go to /images/edits; plain prompts to /images/generations
+  const body = { model: "muse-image-1.0", prompt, n, response_format: "b64_json", output_format: "png" };
+  if (edit) body.images = refs.map((u) => ({ image_url: u }));
+  else body.size = size; // size sets the aspect ratio; edits follow the reference's ratio
+  const r = await fetch("https://api.meta.ai/v1/images/" + (edit ? "edits" : "generations"), {
+    method: "POST",
+    headers: { Authorization: "Bearer " + cfg.metaModelApiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && (j.error.message || j.error)) || "Meta Model API error " + r.status);
+  const urls = [];
+  fs.mkdirSync(UPLOADS, { recursive: true });
+  for (const d of (j.data || [])) {
+    if (!d.b64_json) continue;
+    const fn = "muse_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8) + ".png";
+    fs.writeFileSync(path.join(UPLOADS, fn), Buffer.from(d.b64_json, "base64"));
+    urls.push("/u/" + fn);
+  }
+  if (!urls.length) throw new Error("The API returned no images — try rewording the prompt.");
+  return urls;
+}
 const INFLUENCERS_FILE = path.join(DATA, "influencers.json");
 function loadInfluencers() { try { return JSON.parse(fs.readFileSync(INFLUENCERS_FILE, "utf8")); } catch { return []; } }
 function saveInfluencers(list) { try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(INFLUENCERS_FILE, JSON.stringify(list, null, 2)); } catch {} }
@@ -1842,7 +1890,7 @@ const server = http.createServer(async (req, res) => {
   const p = u.pathname;
   try {
     // ----- health check (no auth — used by the host's uptime probe) -----
-    if (p === "/healthz") return send(res, 200, { ok: true });
+    if (p === "/healthz") return send(res, 200, { ok: true, rev: (process.env.RENDER_GIT_COMMIT || "dev").slice(0, 7) });
 
     // ----- funnel tracking pixel (public — the lander pages ping this) -----
     // /t.gif?e=view|cta|conv&v=<a|b|c>&tier=<monthly|annual|lifetime>&f=level11
@@ -2044,6 +2092,47 @@ const server = http.createServer(async (req, res) => {
         const ad = { id: "ad_" + Date.now(), created: new Date().toISOString(), sourceUrl: (b.sourceUrl || "").trim(), mediaUrl: (b.mediaUrl || "").trim(), notes: (b.notes || "").trim(), transcript, ...analysis };
         const list = loadAds(); list.unshift(ad); saveAds(list);
         return send(res, 200, { ad });
+      }
+      // ad images — Muse Image (Meta Model API) generation for Meta ad creative
+      if (p === "/api/adimages" && req.method === "GET") {
+        return send(res, 200, { configured: !!loadConfig().metaModelApiKey, images: loadGenImages() });
+      }
+      if (p === "/api/adimages/generate" && req.method === "POST") {
+        const cfg = loadConfig();
+        if (!cfg.metaModelApiKey) return send(res, 400, { error: "Add your Meta Model API key first — Ad Images tab → setup." });
+        const b = await readBody(req);
+        const prompt = String(b.prompt || "").trim();
+        if (!prompt) return send(res, 400, { error: "Describe the image you want." });
+        const SIZES = { square: "1080x1080", story: "1080x1920", landscape: "1200x628" };
+        const sizeKey = SIZES[b.size] ? b.size : "square";
+        const n = Math.min(4, Math.max(1, Number(b.n) || 1));
+        const refs = [];
+        for (const u of (Array.isArray(b.refs) ? b.refs.slice(0, 3) : [])) {
+          const d = refToDataUrl(u);
+          if (!d) return send(res, 400, { error: "References must be uploaded images or earlier generations." });
+          if (d.length > 11 * 1024 * 1024) return send(res, 400, { error: "A reference image is too large (max ~8 MB)." });
+          refs.push(d);
+        }
+        let urls;
+        try { urls = await museImages(cfg, { prompt, size: SIZES[sizeKey], n, refs }); }
+        catch (e) { return send(res, 400, { error: "Generation failed: " + ((e && e.message) || e) }); }
+        const rec = { id: "gi_" + Date.now(), created: new Date().toISOString(), prompt, size: sizeKey, urls, refCount: refs.length, by: (req._user && req._user.email) || "" };
+        const all = loadGenImages(); all.unshift(rec);
+        if (all.length > 400) all.length = 400; // keep the history JSON bounded
+        saveGenImages(all);
+        return send(res, 200, { rec });
+      }
+      if (p === "/api/adimages/delete" && req.method === "POST") {
+        const b = await readBody(req);
+        const all = loadGenImages();
+        const i = all.findIndex((x) => x.id === b.id);
+        if (i < 0) return send(res, 404, { error: "Not found." });
+        for (const u of (all[i].urls || [])) { // free the disk too — /data is only 1 GB
+          const name = path.basename(String(u).replace(/^\/u\//, ""));
+          if (name.startsWith("muse_")) { try { fs.unlinkSync(path.join(UPLOADS, name)); } catch {} }
+        }
+        all.splice(i, 1); saveGenImages(all);
+        return send(res, 200, { ok: true });
       }
       // send an influencer/affiliate a brief for a specific ad
       if (p === "/api/ads/brief" && req.method === "POST") {
@@ -2687,13 +2776,14 @@ const server = http.createServer(async (req, res) => {
           twilioAccountSid: c.twilioAccountSid ? c.twilioAccountSid.slice(0, 6) + "…" + c.twilioAccountSid.slice(-4) : "",
           hasQuo: !!c.quoApiKey, quoFromNumber: c.quoFromNumber, hhFromNumber: c.hhFromNumber,
           testPhone: c.testPhone,
+          hasMuse: !!c.metaModelApiKey,
         });
       }
       if (p === "/api/settings" && req.method === "POST") {
         const b = await readBody(req);
         const patch = {};
         for (const k of ["fromEmail", "fromName", "stream", "replyTo", "testEmail", "paypalEnv",
-          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken", "scrapeCreatorsKey",
+          "mailgunDomain", "mailgunRegion", "mailgunFromEmail", "mailgunFromName", "salesLedgerCsvUrl", "groqApiKey", "adIngestToken", "scrapeCreatorsKey", "metaModelApiKey",
           "twilioFromNumbers", "twilioMessagingServiceSid", "testPhone", "quoFromNumber", "hhFromNumber"]) if (k in b) patch[k] = b[k];
         if (b.postmarkToken) patch.postmarkToken = b.postmarkToken.trim();
         if (b.mailgunApiKey) patch.mailgunApiKey = b.mailgunApiKey.trim();
