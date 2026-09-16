@@ -164,6 +164,25 @@ function abHint() {
   el.textContent = `the other ${100 - pct}% get B`;
 }
 if ($("#splitPct")) $("#splitPct").oninput = abHint;
+// "+ {{first_name}}" chip for the subject line — inserts the token at the cursor
+// in whichever subject field (A or B) was focused last; send-time substitution
+// already works for subjects on both Postmark and Mailgun.
+let SUBJ_LAST = null;
+["#subject", "#subjectB"].forEach((sel) => { const el = $(sel); if (el) el.addEventListener("focus", () => { SUBJ_LAST = el; }); });
+// mousedown fires while the input still holds focus, so this also catches the
+// field even when the focus event didn't (e.g. macOS button-click focus quirks)
+if ($("#subjInsertName")) $("#subjInsertName").onmousedown = () => {
+  const a = document.activeElement;
+  if (a === $("#subject") || a === $("#subjectB")) SUBJ_LAST = a;
+};
+if ($("#subjInsertName")) $("#subjInsertName").onclick = () => {
+  const t = (SUBJ_LAST && !SUBJ_LAST.closest(".hidden")) ? SUBJ_LAST : $("#subject");
+  const token = "{{first_name}}";
+  const s = t.selectionStart ?? t.value.length, e = t.selectionEnd ?? t.value.length;
+  t.value = t.value.slice(0, s) + token + t.value.slice(e);
+  const pos = s + token.length;
+  t.focus(); t.setSelectionRange(pos, pos);
+};
 if ($("#audienceRefresh")) $("#audienceRefresh").onclick = async () => {
   const n = await loadAudienceOptions();
   toast(`Audiences refreshed — ${fmt(n)} list${n === 1 ? "" : "s"} available.`, "ok");
