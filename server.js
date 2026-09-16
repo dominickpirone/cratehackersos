@@ -266,7 +266,7 @@ function saveCampaigns(list) {
 
 // ---------- email helpers ----------
 function personalize(tpl, name) {
-  return (tpl || "").replace(/\{\{first_name\}\}/g, name || "DJ");
+  return (tpl || "").replace(/\{\{?first_name\}\}?/g, name || "DJ");
 }
 function htmlToText(html) {
   return html
@@ -999,8 +999,8 @@ async function kartraTest(cfg) {
 function mailgunBase(cfg) {
   return cfg.mailgunRegion === "eu" ? "https://api.eu.mailgun.net" : "https://api.mailgun.net";
 }
-// Convert our {{first_name}} token into Mailgun's per-recipient variable syntax.
-function mgVars(s) { return (s || "").replace(/\{\{first_name\}\}/g, "%recipient.first_name%"); }
+// Convert our {first_name} token into Mailgun's per-recipient variable syntax.
+function mgVars(s) { return (s || "").replace(/\{\{?first_name\}\}?/g, "%recipient.first_name%"); }
 
 async function mailgunSendBatch(cfg, opts, batch) {
   const auth = Buffer.from("api:" + cfg.mailgunApiKey).toString("base64");
@@ -1584,7 +1584,7 @@ async function runSmsJob(jobId, opts) {
     if (job.cancelled) break;
     const r = targets[i];
     try {
-      const personalized = (body || "").replace(/\{\{first_name\}\}/g, r.name || "there");
+      const personalized = (body || "").replace(/\{\{?first_name\}\}?/g, r.name || "there");
       if (provider === "quo") await quoSendOne(cfg, { to: r.phone, from, body: personalized });
       else await twilioSendOne(tw, { to: r.phone, from, body: personalized, mediaUrls });
       sent++;
@@ -3133,7 +3133,7 @@ const server = http.createServer(async (req, res) => {
         if (!(b.body || "").trim()) return send(res, 400, { error: "Write an opener message first." });
         if (!cfg.quoApiKey) return send(res, 400, { error: "Set your Quo API key in Settings first." });
         if (!cfg.quoFromNumber) return send(res, 400, { error: "No Quo number — hit Test in Settings → Quo to auto-fill it." });
-        const personalized = b.body.replace(/\{\{first_name\}\}/g, (b.name || "").trim() || "there");
+        const personalized = b.body.replace(/\{\{?first_name\}\}?/g, (b.name || "").trim() || "there");
         try {
           await quoSendOne(cfg, { to: phone, from: cfg.quoFromNumber, body: personalized });
           // mark the row "texted" server-side so the state is atomic with the send

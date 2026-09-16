@@ -164,7 +164,7 @@ function abHint() {
   el.textContent = `the other ${100 - pct}% get B`;
 }
 if ($("#splitPct")) $("#splitPct").oninput = abHint;
-// "+ {{first_name}}" chip for the subject line — inserts the token at the cursor
+// "+ {first_name}" chip for the subject line — inserts the token at the cursor
 // in whichever subject field (A or B) was focused last; send-time substitution
 // already works for subjects on both Postmark and Mailgun.
 let SUBJ_LAST = null;
@@ -177,7 +177,7 @@ if ($("#subjInsertName")) $("#subjInsertName").onmousedown = () => {
 };
 if ($("#subjInsertName")) $("#subjInsertName").onclick = () => {
   const t = (SUBJ_LAST && !SUBJ_LAST.closest(".hidden")) ? SUBJ_LAST : $("#subject");
-  const token = "{{first_name}}";
+  const token = "{first_name}";
   const s = t.selectionStart ?? t.value.length, e = t.selectionEnd ?? t.value.length;
   t.value = t.value.slice(0, s) + token + t.value.slice(e);
   const pos = s + token.length;
@@ -211,7 +211,7 @@ function setComposeMode(mode) {
   if (typeof hideLinkBar === "function") hideLinkBar(); // the bar's link node is being replaced
   if (mode === "visual") $("#wysiwyg").innerHTML = $("#html").value || "";
   if (mode === "preview") {
-    const html = ($("#html").value || "").replace(/\{\{first_name\}\}/g, "Dominick");
+    const html = ($("#html").value || "").replace(/\{\{?first_name\}\}?/g, "Dominick");
     $("#previewFrame").srcdoc = html || "<p style='font-family:sans-serif;color:#888;padding:20px'>Nothing to preview yet.</p>";
   }
 }
@@ -249,7 +249,7 @@ if ($("#wysiToolbar")) $("#wysiToolbar").onclick = (e) => {
       else document.execCommand("insertHTML", false, `<a href="${esc(clean).replace(/"/g, "&quot;")}">${esc(clean)}</a>`);
     }
   } else if (cmd === "insertName") {
-    document.execCommand("insertText", false, "{{first_name}}");
+    document.execCommand("insertText", false, "{first_name}");
   } else if (cmd === "formatBlock") {
     document.execCommand("formatBlock", false, val);
   } else {
@@ -1019,7 +1019,7 @@ if ($("#smsBody")) $("#smsBody").oninput = smsCount;
 if ($("#smsInsertName")) $("#smsInsertName").onclick = () => {
   const t = $("#smsBody");
   const s = t.selectionStart ?? t.value.length, e = t.selectionEnd ?? t.value.length;
-  const token = "{{first_name}}";
+  const token = "{first_name}";
   t.value = t.value.slice(0, s) + token + t.value.slice(e);
   const pos = s + token.length;
   t.focus(); t.setSelectionRange(pos, pos);
@@ -1311,7 +1311,7 @@ function renderOutreach() {
     const row = OUTREACH_ROWS.find((x) => x.phone === phone);
     const body = $("#outreachMsg").value.trim();
     if (!body) return toast("Write your opener message in the box above first.", "err");
-    const preview = body.replace(/\{\{first_name\}\}/g, (row && row.name) || "there");
+    const preview = body.replace(/\{\{?first_name\}\}?/g, (row && row.name) || "there");
     if (!confirm(`Text ${row && row.name ? row.name + " " : ""}(${phone}) from your Quo number?\n\n"${preview}"`)) return;
     b.disabled = true; b.textContent = "Sending…";
     const r = await post("/api/outreach/text", { list: $("#outreachList").value, phone, name: (row && row.name) || "", body });
@@ -1710,9 +1710,9 @@ if ($("#fpExport")) $("#fpExport").onclick = async () => {
 const RECOVERY_TEMPLATES = {
   dead_card: {
     name: "Update-your-card",
-    subject: "{{first_name}}, your Crate Hackers card didn't go through 💳",
+    subject: "{first_name}, your Crate Hackers card didn't go through 💳",
     html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
-<p>Hey {{first_name}},</p>
+<p>Hey {first_name},</p>
 <p>Quick heads-up — the card on file for your Crate Hackers membership didn't go through on the last billing (usually means it expired or got replaced). Nothing dramatic, but we don't want you to lose access to your crates.</p>
 <p>Takes about 30 seconds to fix:</p>
 <p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Update my card →</a></p>
@@ -1722,9 +1722,9 @@ const RECOVERY_TEMPLATES = {
   },
   insufficient_funds: {
     name: "Insufficient-funds downsell",
-    subject: "{{first_name}}, let's keep you in — at a lower price",
+    subject: "{first_name}, let's keep you in — at a lower price",
     html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
-<p>Hey {{first_name}},</p>
+<p>Hey {first_name},</p>
 <p>Your last Crate Hackers payment didn't clear. Money's tight for a lot of DJs right now — I get it, and I'd rather keep you than lose you over a few bucks.</p>
 <p>So here's a lower rate to stay in and keep your crates:</p>
 <p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Keep my spot — lower price →</a></p>
@@ -1733,9 +1733,9 @@ const RECOVERY_TEMPLATES = {
   },
   other: {
     name: "Generic billing fix",
-    subject: "{{first_name}}, quick heads-up on your Crate Hackers billing",
+    subject: "{first_name}, quick heads-up on your Crate Hackers billing",
     html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;max-width:560px;margin:auto">
-<p>Hey {{first_name}},</p>
+<p>Hey {first_name},</p>
 <p>Your last Crate Hackers payment hit a snag. Update your billing in about 30 seconds so you don't lose your crates:</p>
 <p style="text-align:center;margin:28px 0"><a href="https://cratehackers.com" style="background:#FF7722;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;display:inline-block">Fix my billing →</a></p>
 <p>Reply to this email if you need a hand — happy to sort it out.</p>
@@ -1993,13 +1993,13 @@ if ($("#aiGen")) $("#aiGen").onclick = async () => {
 const OUTREACH_MSG_KEY = "ch_outreachOpener";
 if ($("#outreachMsg")) {
   $("#outreachMsg").value = localStorage.getItem(OUTREACH_MSG_KEY) ||
-    "Hey {{first_name}}, it's Dom from Crate Hackers — this is my direct line. Got a sec for a quick call this week? Happy to text instead if that's easier.";
+    "Hey {first_name}, it's Dom from Crate Hackers — this is my direct line. Got a sec for a quick call this week? Happy to text instead if that's easier.";
   $("#outreachMsg").oninput = () => { try { localStorage.setItem(OUTREACH_MSG_KEY, $("#outreachMsg").value); } catch {} };
 }
 if ($("#outreachInsertName")) $("#outreachInsertName").onclick = () => {
   const t = $("#outreachMsg");
   const s = t.selectionStart ?? t.value.length, e = t.selectionEnd ?? t.value.length;
-  const token = "{{first_name}}";
+  const token = "{first_name}";
   t.value = t.value.slice(0, s) + token + t.value.slice(e);
   try { localStorage.setItem(OUTREACH_MSG_KEY, t.value); } catch {}
   const pos = s + token.length;
@@ -2365,7 +2365,7 @@ async function sbcShowThread(id) {
 // scripts above and the HQ number are one workflow rather than two.
 let SBC_LAST_COPIED = "";
 function sbcOpenText(x) {
-  const body = prompt(`Text ${x.name || x.handle} at ${x.phone} from Hacker Hotel HQ:\n\n{{first_name}} is substituted. This counts as a touch and moves the follow-up date.`, SBC_LAST_COPIED || "");
+  const body = prompt(`Text ${x.name || x.handle} at ${x.phone} from Hacker Hotel HQ:\n\n{first_name} is substituted. This counts as a touch and moves the follow-up date.`, SBC_LAST_COPIED || "");
   if (body == null || !body.trim()) return;
   (async () => {
     const r = await post("/api/sbc/text", { id: x.id, body: body.trim() });

@@ -79,7 +79,7 @@
             <div class="field">
               <span class="lab">Subject line <span class="muted small">— A</span>
                 <button id="abToggle" type="button" class="btn btn-ghost sm" style="margin-left:8px;padding:2px 10px;font-size:11px;vertical-align:middle">⚖ A/B test</button>
-                <button id="subjInsertName" type="button" class="btn btn-ghost sm" title="Insert the recipient's first name at the cursor — becomes their real name on send (fallback: DJ)" style="margin-left:4px;padding:2px 10px;font-size:11px;vertical-align:middle">+ {{first_name}}</button></span>
+                <button id="subjInsertName" type="button" class="btn btn-ghost sm" title="Insert the recipient's first name at the cursor — becomes their real name on send (fallback: DJ)" style="margin-left:4px;padding:2px 10px;font-size:11px;vertical-align:middle">+ {first_name}</button></span>
               <input id="subject" type="text" placeholder="e.g. You're in FREE — register your seat" />
             </div>
 
@@ -132,12 +132,12 @@
               <button type="button" data-cmd="createLink" title="Add link">🔗 Link</button>
               <button type="button" data-cmd="unlink" title="Remove link">Unlink</button>
               <button type="button" data-cmd="insertImage" title="Insert an image">🖼 Image</button>
-              <button type="button" data-cmd="insertName" title="Insert first name">+ {{first_name}}</button>
+              <button type="button" data-cmd="insertName" title="Insert first name">+ {first_name}</button>
               <span class="sep"></span>
               <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
             </div>
             <input type="file" id="wysiImgFile" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
-            <textarea id="html" class="code" spellcheck="false" placeholder="Paste the HTML email from Claude here. Use {{first_name}} for personalization."></textarea>
+            <textarea id="html" class="code" spellcheck="false" placeholder="Paste the HTML email from Claude here. Use {first_name} for personalization."></textarea>
             <div id="wysiwyg" class="wysi hidden" contenteditable="true"></div>
             <iframe id="previewFrame" class="hidden" title="preview"></iframe>
 
@@ -310,7 +310,7 @@
               <textarea id="smsBody" rows="6" placeholder="Type your text. Tap the button below to drop in their first name."></textarea>
             </label>
             <div class="row" style="margin:-4px 0 12px;gap:10px">
-              <button type="button" id="smsInsertName" class="btn btn-ghost sm"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg>Insert {{first_name}}</button>
+              <button type="button" id="smsInsertName" class="btn btn-ghost sm"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg>Insert {first_name}</button>
               <span id="smsCount" class="muted small">0 characters · 1 segment</span>
             </div>
 
@@ -395,9 +395,9 @@
         </div>
         <div class="card" style="margin-bottom:16px">
           <h3>Text-first opener <span class="muted" style="text-transform:none;font-weight:400">— warm them up before the call (sent from your Quo number, replies land in Quo)</span></h3>
-          <textarea id="outreachMsg" rows="3" placeholder="Hey {{first_name}}, it's Dom from Crate Hackers…"></textarea>
+          <textarea id="outreachMsg" rows="3" placeholder="Hey {first_name}, it's Dom from Crate Hackers…"></textarea>
           <div class="row" style="margin-top:8px;gap:10px;align-items:center">
-            <button type="button" id="outreachInsertName" class="btn btn-ghost sm"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg>Insert {{first_name}}</button>
+            <button type="button" id="outreachInsertName" class="btn btn-ghost sm"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg>Insert {first_name}</button>
             <span class="muted small">Click <b>Text</b> on a row to send this message to that person (personalized). The row flips to "texted" automatically.</span>
           </div>
         </div>
