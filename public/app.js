@@ -189,6 +189,7 @@ function setComposeMode(mode) {
   $("#wysiwyg").classList.toggle("hidden", mode !== "visual");
   $("#wysiToolbar").classList.toggle("hidden", mode !== "visual");
   $("#previewFrame").classList.toggle("hidden", mode !== "preview");
+  if (typeof hideLinkBar === "function") hideLinkBar(); // the bar's link node is being replaced
   if (mode === "visual") $("#wysiwyg").innerHTML = $("#html").value || "";
   if (mode === "preview") {
     const html = ($("#html").value || "").replace(/\{\{first_name\}\}/g, "Dominick");
@@ -215,10 +216,19 @@ if ($("#wysiToolbar")) $("#wysiToolbar").onclick = (e) => {
     return;
   }
   if (cmd === "createLink") {
-    const url = prompt("Link URL:", "https://"); if (!url) return;
-    const sel = window.getSelection();
-    if (sel && sel.toString()) document.execCommand("createLink", false, url);
-    else document.execCommand("insertHTML", false, `<a href="${url}">${url}</a>`);
+    // If the cursor is already on a link, edit it in place (pre-filled) instead
+    // of prompting blank and nesting a second <a> around the first.
+    const a = wysiLinkAt();
+    const url = prompt("Link URL:", a ? a.getAttribute("href") || "https://" : "https://");
+    if (url === null) return;
+    const clean = url.trim();
+    if (!clean || clean === "https://") return;
+    if (a) { a.setAttribute("href", clean); showLinkBar(a); }
+    else {
+      const sel = window.getSelection();
+      if (sel && sel.toString()) document.execCommand("createLink", false, clean);
+      else document.execCommand("insertHTML", false, `<a href="${esc(clean).replace(/"/g, "&quot;")}">${esc(clean)}</a>`);
+    }
   } else if (cmd === "insertName") {
     document.execCommand("insertText", false, "{{first_name}}");
   } else if (cmd === "formatBlock") {
@@ -228,6 +238,79 @@ if ($("#wysiToolbar")) $("#wysiToolbar").onclick = (e) => {
   }
   $("#html").value = $("#wysiwyg").innerHTML;
 };
+
+// ----- link inspector: hover or click any link in the visual editor to see its URL -----
+// Links inside contenteditable don't navigate and hide their href, so buttons like
+// "See the Current Standings" look link-less. This bubble shows the URL with
+// Open / Copy / Edit / Unlink — nothing is added to the email HTML itself.
+function wysiLinkAt() {
+  const ed = $("#wysiwyg"); if (!ed || ed.classList.contains("hidden")) return null;
+  const sel = window.getSelection();
+  if (!sel || !sel.anchorNode) return null;
+  let n = sel.anchorNode;
+  if (n.nodeType === 3) n = n.parentNode;
+  const a = n && n.closest ? n.closest("a") : null;
+  return a && ed.contains(a) ? a : null;
+}
+let LINKBAR = null, LINKBAR_A = null;
+function linkBarEl() {
+  if (LINKBAR) return LINKBAR;
+  LINKBAR = document.createElement("div");
+  LINKBAR.id = "wysiLinkBar";
+  LINKBAR.style.cssText = "position:fixed;z-index:9999;display:none;align-items:center;gap:8px;background:#1c1f2b;border:1px solid #343a4d;border-radius:8px;padding:6px 10px;font-size:12px;color:#c7c8ce;box-shadow:0 6px 24px rgba(0,0,0,.45);max-width:560px";
+  LINKBAR.innerHTML = `<span class="lb-url" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;color:#8ab4f8"></span>
+    <a class="lb-open" target="_blank" rel="noopener" style="color:#c7c8ce;text-decoration:none">Open ↗</a>
+    <button class="lb-copy" style="all:unset;cursor:pointer;color:#c7c8ce">Copy</button>
+    <button class="lb-edit" style="all:unset;cursor:pointer;color:#c7c8ce">Edit</button>
+    <button class="lb-unlink" style="all:unset;cursor:pointer;color:#ef6a6a">Unlink</button>`;
+  // keep the editor's selection — don't let clicks on the bar steal focus
+  LINKBAR.onmousedown = (e) => { if (e.target.className !== "lb-open") e.preventDefault(); };
+  LINKBAR.querySelector(".lb-copy").onclick = async () => {
+    if (!LINKBAR_A) return;
+    try { await navigator.clipboard.writeText(LINKBAR_A.href); toast("Link URL copied.", "ok"); } catch { toast("Couldn't copy.", "err"); }
+  };
+  LINKBAR.querySelector(".lb-edit").onclick = () => {
+    if (!LINKBAR_A) return;
+    const url = prompt("Link URL:", LINKBAR_A.getAttribute("href") || "https://");
+    if (url === null) return;
+    const clean = url.trim();
+    if (clean && clean !== "https://") { LINKBAR_A.setAttribute("href", clean); $("#html").value = $("#wysiwyg").innerHTML; showLinkBar(LINKBAR_A); }
+  };
+  LINKBAR.querySelector(".lb-unlink").onclick = () => {
+    if (!LINKBAR_A) return;
+    const a = LINKBAR_A;
+    while (a.firstChild) a.parentNode.insertBefore(a.firstChild, a); // unwrap, keep the text/button styling
+    a.remove();
+    $("#html").value = $("#wysiwyg").innerHTML;
+    hideLinkBar();
+  };
+  document.body.appendChild(LINKBAR);
+  return LINKBAR;
+}
+function showLinkBar(a) {
+  const bar = linkBarEl();
+  LINKBAR_A = a;
+  const href = a.getAttribute("href") || "";
+  bar.querySelector(".lb-url").textContent = href || "(no URL set)";
+  bar.querySelector(".lb-url").title = href;
+  bar.querySelector(".lb-open").href = href || "#";
+  const r = a.getBoundingClientRect();
+  bar.style.display = "flex";
+  bar.style.top = Math.min(window.innerHeight - 44, r.bottom + 6) + "px";
+  bar.style.left = Math.max(8, Math.min(r.left, window.innerWidth - bar.offsetWidth - 8)) + "px";
+}
+function hideLinkBar() { if (LINKBAR) LINKBAR.style.display = "none"; LINKBAR_A = null; }
+if ($("#wysiwyg")) {
+  const ed = $("#wysiwyg");
+  // hover: show the URL for whatever link the mouse is over
+  ed.addEventListener("mouseover", (e) => { const a = e.target.closest && e.target.closest("a"); if (a && ed.contains(a)) showLinkBar(a); });
+  // caret: keep it in sync while clicking/arrowing through the text
+  const syncBar = () => { const a = wysiLinkAt(); if (a) showLinkBar(a); else hideLinkBar(); };
+  ed.addEventListener("click", syncBar);
+  ed.addEventListener("keyup", syncBar);
+  ed.addEventListener("blur", () => setTimeout(() => { if (!LINKBAR || !LINKBAR.matches(":hover")) hideLinkBar(); }, 150));
+  window.addEventListener("scroll", hideLinkBar, true);
+}
 
 // Upload a picked image → durable public URL on the OS host → drop it in at the cursor.
 // (Data-URI images get stripped by Gmail/Outlook, so emails must use a hosted URL.)
