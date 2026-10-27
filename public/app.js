@@ -539,23 +539,95 @@ const readTextFile = (file) => new Promise((res, rej) => {
 // segment name from filename (server slugifies it) — used when bulk-uploading
 const nameFromFile = (f) => f.name.replace(/\.[^.]+$/, "");
 
+// Mirrors the server's slugify() so we can tell, before uploading, which files
+// would overwrite an existing list (the server replaces same-named lists silently).
+const segSlug = (s) => (s || "campaign").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+const isCsvFile = (f) => /\.csv$/i.test(f.name) || /csv/i.test(f.type || "");
+let SEG_UPLOADING = false;
+function segDropMsg(text, kind) {
+  const m = $("#segDropMsg"); if (!m) return;
+  m.textContent = text || "";
+  m.style.color = kind === "err" ? "#ef6a6a" : kind === "ok" ? "#4ea36a" : "";
+}
+
+// Shared by the Upload button, the dropzone, and drops anywhere on the panel.
+// Returns false if nothing was uploaded (bad files or the user cancelled a replace).
+async function uploadSegmentFiles(files, typed) {
+  if (SEG_UPLOADING) { toast("Still uploading the last batch — one moment.", "err"); return false; }
+  const skipped = files.filter((f) => !isCsvFile(f));
+  files = files.filter(isCsvFile);
+  if (skipped.length) toast(`Skipped ${skipped.map((f) => f.name).join(", ")} — only .csv files can be audiences.`, "err");
+  if (!files.length) return false;
+  const plan = files.map((file) => ({ file, name: files.length === 1 && typed ? typed : nameFromFile(file) }));
+  const clashes = plan.map((p) => ALL_SEGMENTS.find((s) => s.name === segSlug(p.name))).filter(Boolean);
+  if (clashes.length && !confirm(
+    `This will REPLACE ${clashes.length === 1 ? "an existing list" : clashes.length + " existing lists"}:\n\n` +
+    clashes.map((s) => `• ${s.name} (${fmt(s.count)} recipients)`).join("\n") +
+    `\n\nReplace ${clashes.length === 1 ? "it" : "them"}? Cancel to keep the current ${clashes.length === 1 ? "list" : "lists"} (rename the file to upload it as a new one).`
+  )) { segDropMsg("Cancelled — nothing was replaced."); return false; }
+
+  SEG_UPLOADING = true;
+  const zone = $("#segDrop"); if (zone) zone.classList.add("busy");
+  let ok = 0, fail = 0, total = 0;
+  try {
+    for (const [i, { file, name }] of plan.entries()) {
+      segDropMsg(plan.length > 1 ? `Uploading ${i + 1} of ${plan.length} — ${file.name}…` : `Uploading ${file.name}…`);
+      try {
+        const r = await post("/api/segments", { name, csv: await readTextFile(file) });
+        if (r.error) { fail++; toast(`${file.name}: ${r.error}`, "err"); }
+        else { ok++; total += r.count || 0; }
+      } catch { fail++; toast(`${file.name}: couldn't read file`, "err"); }
+    }
+  } finally {
+    SEG_UPLOADING = false;
+    if (zone) zone.classList.remove("busy");
+  }
+  if (ok) {
+    const summary = `${ok} list${ok > 1 ? "s" : ""} saved — ${fmt(total)} recipients${fail ? `, ${fail} failed` : ""}.`;
+    toast(summary, fail ? "err" : "ok");
+    segDropMsg("✓ " + summary, fail ? "err" : "ok");
+  } else segDropMsg(`Upload failed — ${fail} file${fail > 1 ? "s" : ""} rejected (see the message above).`, "err");
+  loadSegments(); loadAudienceOptions();
+  return ok > 0;
+}
+
 $("#segUpload").onclick = async () => {
   const files = [...$("#segFile").files];
   if (!files.length) return toast("Choose one or more CSV files.", "err");
-  const typed = $("#segName").value.trim();
-  let ok = 0, fail = 0, total = 0;
-  for (const file of files) {
-    const name = files.length === 1 && typed ? typed : nameFromFile(file);
-    try {
-      const r = await post("/api/segments", { name, csv: await readTextFile(file) });
-      if (r.error) { fail++; toast(`${file.name}: ${r.error}`, "err"); }
-      else { ok++; total += r.count || 0; }
-    } catch { fail++; toast(`${file.name}: couldn't read file`, "err"); }
-  }
-  if (ok) toast(`${ok} segment${ok > 1 ? "s" : ""} saved — ${fmt(total)} recipients${fail ? `, ${fail} failed` : ""}.`, fail ? "err" : "ok");
-  $("#segName").value = ""; $("#segFile").value = "";
-  loadSegments(); loadAudienceOptions();
+  if (await uploadSegmentFiles(files, $("#segName").value.trim())) { $("#segName").value = ""; $("#segFile").value = ""; }
 };
+
+// ----- drag-and-drop: the dropzone at the top, and the whole Audiences panel -----
+if ($("#segDrop")) {
+  const zone = $("#segDrop"), picker = $("#segDropFile"), panel = $("#audiences");
+  const title = zone.querySelector(".sd-title");
+  const idleTitle = title.innerHTML;
+  const hasFiles = (e) => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files"));
+  let depth = 0; // dragenter/leave fire for every child element — count to avoid flicker
+  const dragUI = (on) => {
+    panel.classList.toggle("drag-active", on);
+    zone.classList.toggle("over", on);
+    title.innerHTML = on ? "<b>Release to upload</b>" : idleTitle;
+  };
+  zone.onclick = () => { if (!SEG_UPLOADING) { picker.value = ""; picker.click(); } };
+  zone.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); zone.click(); } };
+  picker.onchange = async () => {
+    const files = [...picker.files];
+    if (files.length && await uploadSegmentFiles(files, $("#segName").value.trim())) $("#segName").value = "";
+    picker.value = "";
+  };
+  panel.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; dragUI(true); });
+  panel.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  panel.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; if (--depth <= 0) { depth = 0; dragUI(false); } });
+  // preventDefault here also stops the browser from navigating away to the CSV
+  // when it's dropped on a textarea or other non-dropzone spot on this panel
+  panel.addEventListener("drop", async (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); depth = 0; dragUI(false);
+    const files = [...e.dataTransfer.files];
+    if (files.length && await uploadSegmentFiles(files, $("#segName").value.trim())) $("#segName").value = "";
+  });
+}
 
 $("#suppressSave").onclick = async () => {
   const value = $("#suppressBox").value;

@@ -224,6 +224,13 @@
             <h2 class="section-label">Segments</h2>
             <p class="section-sub">An <code>email</code> column, optional <code>first_name</code>. Update a list any time by uploading a CSV with the same name.</p>
 
+            <div id="segDrop" class="seg-drop" tabindex="0" role="button" aria-label="Drop CSV files here, or click to choose files">
+              <div class="sd-title"><b>Drop CSV files here</b> <span class="sd-or">or click to choose</span></div>
+              <div class="sd-sub">Drop anywhere on this page · each file becomes a list named after its filename · drop several to bulk-import</div>
+              <div id="segDropMsg" class="sd-msg"></div>
+              <input id="segDropFile" type="file" accept=".csv,text/csv" multiple hidden />
+            </div>
+
             <div class="row" style="gap:8px;align-items:center;margin-bottom:10px"><input id="segSearch" type="search" placeholder="Search audiences…" style="flex:1" /><span id="segCount" class="muted small"></span></div>
             <div class="seg-list" id="segList"></div>
 
