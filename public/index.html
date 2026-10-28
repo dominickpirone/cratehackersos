@@ -43,6 +43,7 @@
       <button class="tab" data-tab="failed-payments"><svg class="ico" viewBox="0 0 24 24"><use href="#i-chart"/></svg><span class="lbl">Failed Payments</span></button>
       <button class="tab" data-tab="ad-library"><svg class="ico" viewBox="0 0 24 24"><use href="#i-search"/></svg><span class="lbl">Ad Library</span></button>
       <button class="tab" data-tab="ad-images"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Ad Images</span></button>
+      <button class="tab" data-tab="vibe-editing"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Vibe Editing</span></button>
       <button class="tab" data-tab="creators"><svg class="ico" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="lbl">Creators</span></button>
       <button class="tab" data-tab="sbc"><svg class="ico" viewBox="0 0 24 24"><use href="#i-phone"/></svg><span class="lbl">Sell By Chat</span></button>
       <button class="tab" data-tab="training"><svg class="ico" viewBox="0 0 24 24"><use href="#i-bolt"/></svg><span class="lbl">Training</span></button>
@@ -679,6 +680,62 @@
           <label class="row" style="gap:6px;align-items:center;font-size:12.5px;color:var(--t3)"><input id="sbcDueOnly" type="checkbox" /> Due today only</label>
         </div>
         <div id="sbcPipeline"></div>
+      </section>
+
+      <!-- ===== VIBE EDITING ===== -->
+      <!-- A guide, not a tool: the pipeline does its cutting/reframing/captioning with ffmpeg on
+           a Mac, which Render can't host. This tab is where the team finds it and how to drive it. -->
+      <section id="vibe-editing" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">// Short-form clips · runs on your Mac</span>
+          <h1>Vibe Editing</h1>
+          <p>Turns a long video (Hackathon, livestream, podcast) into finished, captioned, face-tracked vertical shorts in the Crate Hackers look. You drive it in plain English from the Claude Code app — no editing software, no timeline.</p>
+        </div>
+
+        <div class="row" style="gap:18px;align-items:flex-start;flex-wrap:wrap">
+          <div class="card guide-card" style="flex:1;min-width:300px;max-width:540px">
+            <h3><svg class="ico" viewBox="0 0 24 24" style="width:15px;height:15px"><use href="#i-bolt"/></svg>Make clips</h3>
+            <ol class="steps">
+              <li>Open the <strong>Claude Code</strong> app and start a session in the <code>~/Documents/vibe-editing</code> folder.</li>
+              <li>Paste a YouTube link or drag in a video file and say <strong>“make clips from this.”</strong></li>
+              <li>Finished clips land in <code>~/Downloads/crate-hackers/&lt;date&gt;_&lt;video&gt;/20_DELIVER/</code>.</li>
+              <li>Ask for changes in plain English — it re-renders only what changed.</li>
+            </ol>
+            <p class="hint">If YouTube refuses the download, grab the file from YouTube Studio (Content → ⋮ → Download) and drag it in instead. 4K renders are big — keep 20&nbsp;GB+ free.</p>
+          </div>
+
+          <div class="card" style="flex:1;min-width:300px;max-width:540px">
+            <h3>Things you can say</h3>
+            <h4>“make clips from this”</h4>
+            <p class="muted">Vertical 9:16 shorts, captioned, face-tracked, opening on the punchline and ending on the payoff.</p>
+            <h4>“mine highlights from this”</h4>
+            <p class="muted">Horizontal 16:9 “mid” videos from a long Q&amp;A or podcast, ranked for subscriber growth.</p>
+            <h4>“post and schedule these”</h4>
+            <p class="muted">Titles the mids and schedules them on our own YouTube channel.</p>
+            <h4>“make the captions bigger” · “cut tighter” · “use this logo”</h4>
+            <p class="muted">Any style change, in your own words.</p>
+          </div>
+        </div>
+
+        <h2 class="section-label" style="margin-top:26px">Our brand settings</h2>
+        <p class="section-sub">Saved in <code>brand/BRAND.md</code> inside the kit — Claude reads it before every job.</p>
+        <div class="card" style="max-width:1098px">
+          <ol class="steps" style="list-style:none;padding-left:0">
+            <li><strong>Format:</strong> vertical shorts (9:16)</li>
+            <li><strong>Logo:</strong> flaming crate icon</li>
+            <li><strong>Captions:</strong> bold white Montserrat, accent <code>#FF7722</code></li>
+            <li><strong>Music:</strong> none yet — drop licensed tracks in <code>brand/music/</code></li>
+            <li><strong>Topics:</strong> crate organization, song ideas, banger ideas, DJ business growth</li>
+            <li><strong>Opens / endings:</strong> open on the punchline or a big number (never a question); end on the payoff</li>
+          </ol>
+        </div>
+
+        <h2 class="section-label" style="margin-top:26px">Set it up on another Mac</h2>
+        <p class="section-sub">About 15 minutes. Needs the Claude Code app on a paid Claude plan and a free AssemblyAI key for transcription. Start a new Claude Code chat and paste:</p>
+        <div class="card" style="max-width:1098px">
+          <p class="muted" style="margin:0;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;color:var(--t2)">Set up Vibe Editing for me on this Mac. Clone https://github.com/maddexritter-rgb/vibe-editing.git into my Documents folder, follow its ONBOARDING.md, install only what's missing, walk me through getting my own AssemblyAI key (I'll enter it in a private prompt, never in chat), and ask me one question at a time. Use the Crate Hackers brand: flaming crate logo, white Montserrat captions with #FF7722 accent, no music, open on the punchline, end on the payoff.</p>
+        </div>
+        <p class="hint">Full walkthrough: <a href="https://github.com/maddexritter-rgb/vibe-editing" target="_blank" rel="noopener">github.com/maddexritter-rgb/vibe-editing</a> (ONBOARDING.md).</p>
       </section>
 
       <!-- ===== TRAINING ===== -->
