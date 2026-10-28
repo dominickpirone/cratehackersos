@@ -696,7 +696,7 @@
           <div class="card guide-card" style="flex:1;min-width:300px;max-width:540px">
             <h3><svg class="ico" viewBox="0 0 24 24" style="width:15px;height:15px"><use href="#i-bolt"/></svg>Make clips</h3>
             <ol class="steps">
-              <li>Open the <strong>Claude Code</strong> app and start a session in the <code>~/Documents/vibe-editing</code> folder.</li>
+              <li>Open the <strong>Claude Code</strong> app and start a session in the <code>~/vibe-editing</code> folder (in your home folder — not Documents).</li>
               <li>Paste a YouTube link or drag in a video file and say <strong>“make clips from this.”</strong></li>
               <li>Finished clips land in <code>~/Downloads/crate-hackers/&lt;date&gt;_&lt;video&gt;/20_DELIVER/</code>.</li>
               <li>Ask for changes in plain English — it re-renders only what changed.</li>
@@ -724,6 +724,7 @@
             <li><strong>Format:</strong> vertical shorts (9:16)</li>
             <li><strong>Logo:</strong> flaming crate icon</li>
             <li><strong>Captions:</strong> bold white Montserrat, accent <code>#FF7722</code></li>
+            <li><strong>Both Lighting USA clips:</strong> same look, accent <code>#2E6BFF</code> (logo blue) — say “use the Both Lighting style”</li>
             <li><strong>Music:</strong> none yet — drop licensed tracks in <code>brand/music/</code></li>
             <li><strong>Topics:</strong> crate organization, song ideas, banger ideas, DJ business growth</li>
             <li><strong>Opens / endings:</strong> open on the punchline or a big number (never a question); end on the payoff</li>
@@ -733,9 +734,9 @@
         <h2 class="section-label" style="margin-top:26px">Set it up on another Mac</h2>
         <p class="section-sub">About 15 minutes. Needs the Claude Code app on a paid Claude plan and a free AssemblyAI key for transcription. Start a new Claude Code chat and paste:</p>
         <div class="card" style="max-width:1098px">
-          <p class="muted" style="margin:0;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;color:var(--t2)">Set up Vibe Editing for me on this Mac. Clone https://github.com/maddexritter-rgb/vibe-editing.git into my Documents folder, follow its ONBOARDING.md, install only what's missing, walk me through getting my own AssemblyAI key (I'll enter it in a private prompt, never in chat), and ask me one question at a time. Use the Crate Hackers brand: flaming crate logo, white Montserrat captions with #FF7722 accent, no music, open on the punchline, end on the payoff.</p>
+          <p class="muted" style="margin:0;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;color:var(--t2)">Set up Vibe Editing for me on this Mac. Clone https://github.com/maddexritter-rgb/vibe-editing.git into ~/vibe-editing in my home folder (NOT Documents — iCloud can evict or delete it), follow its ONBOARDING.md, install only what's missing, walk me through getting my own AssemblyAI key (I'll enter it in a private prompt, never in chat), and ask me one question at a time. Use the Crate Hackers brand: flaming crate logo, white Montserrat captions with #FF7722 accent, no music, open on the punchline, end on the payoff.</p>
         </div>
-        <p class="hint">Full walkthrough: <a href="https://github.com/maddexritter-rgb/vibe-editing" target="_blank" rel="noopener">github.com/maddexritter-rgb/vibe-editing</a> (ONBOARDING.md).</p>
+        <p class="hint">Keep the kit out of <code>~/Documents</code>: with iCloud “Optimize Mac Storage” on, macOS can offload or wipe it mid-render when the disk fills up. Full walkthrough: <a href="https://github.com/maddexritter-rgb/vibe-editing" target="_blank" rel="noopener">github.com/maddexritter-rgb/vibe-editing</a> (ONBOARDING.md).</p>
       </section>
 
       <!-- ===== TRAINING ===== -->
